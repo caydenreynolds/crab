@@ -1,0 +1,10 @@
+[package]
+name = "hello-world"
+version = "1.0.0"
+description = "Prints 'Hello, world!'"
+author = "Cayden Reynolds"
+compiler-version = "^"
+
+[dependencies]
+std = "~^"
+
