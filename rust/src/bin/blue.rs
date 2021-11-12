@@ -7,14 +7,15 @@ use simple_logger::SimpleLogger;
 use std::path::PathBuf;
 use std::process::exit;
 use std::process::Command;
+use std::env;
+use std::fs;
 
-//TODO: Don't hardcode these
-const PROJECT_DIR: &str = "/mnt/raid1/shared/homeschoolmafia/projects/crab";
 const INSERT_FUNC_PY: &str = "python/insert_func.py";
-const PYTHON_BIN: &str = "/mnt/raid1/shared/homeschoolmafia/projects/pyenv/crab_env/bin/python";
+//TODO: Scripts dir is windows-specific
+const PYTHON_BIN: &str = "/pyenv/Scripts/python";
 
-fn handle_crabfile(crabfile: PathBuf, package: &str) -> Result<()> {
-    info!("Handling crabfile {:?}", crabfile.display());
+fn handle_crabfile(crabfile: PathBuf, package: PathBuf) -> Result<()> {
+    info!("Handling crabfile {:?} in package {:?}", crabfile.display(), package);
     let parse_result = parse(&crabfile)?;
     info!("\nCrabfile handled. Results:\n");
     info!("{:#?}", parse_result);
@@ -22,12 +23,13 @@ fn handle_crabfile(crabfile: PathBuf, package: &str) -> Result<()> {
     for function in parse_result.functions {
         let sig_json = serde_json::to_string(&function.signature)?;
         trace!("Executing insert_func.py with signature {}", sig_json);
-        Command::new(PYTHON_BIN)
-            .arg(format!("{}/{}", PROJECT_DIR, INSERT_FUNC_PY))
-            .arg(package)
+        let output = Command::new(format!("{}/{}", env::var("CRAB_HOME")?, PYTHON_BIN))
+            .arg(format!("{}/{}", env::var("CRAB_HOME")?, INSERT_FUNC_PY))
+            .arg(package.clone())
             .arg(crabfile.clone())
             .arg(sig_json)
             .output()?;
+        info!("{:?}", output);
 
         //TODO: use cmd.spawn() to run concurrently and check status en masse
     }
@@ -48,7 +50,8 @@ fn _main() -> Result<()> {
             glob(&format!("{}/src/lib/**/*.crab", package)).expect("Failed to read glob pattern")
         {
             match crabfile_result {
-                Ok(path) => handle_crabfile(path, package)?,
+                // Canonicalize result forces use of backslashes consistently on windows
+                Ok(path) => handle_crabfile(path, fs::canonicalize(PathBuf::from(package))?)?,
                 Err(err) => warn!("Skipping crabfile due to error: {}", err),
             }
         }

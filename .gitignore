@@ -1,3 +1,9 @@
 rust/target
 rust/Cargo.lock
 
+pyenv/*
+**/__pycache__
+
+**/*.sqlite
+
+.idea/*
