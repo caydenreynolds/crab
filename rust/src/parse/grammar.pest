@@ -17,9 +17,10 @@ fn_return = { "->" ~ crab_type+? ~ errable? }
 
 code_block = { "{" ~ statement* ~ "}" }
 // TODO: Remove semicolon requirement. For now, it simplifies things so we'll keep it
-statement = { assignment? ~ ";" }
+statement = { (assignment | llvm_directive) ~ ";" }
 assignment = { var? ~ "=" }
 var = { "var" }
+llvm_directive = { "(V)'--'(V)" ~ ident ~ "(" ~ ident* ~ ")" }
 
 //control_block = { match_block | if_block | while_block | for_block }
 //match_block

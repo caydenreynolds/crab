@@ -1,6 +1,8 @@
 use crate::parse::Rule;
 use thiserror::Error;
 
+pub(crate) type Result<T> = std::result::Result<T, ParseError>;
+
 #[derive(Error, Debug)]
 pub enum ParseError {
     #[error("This is a dummy error for when no error occurred but a function returned no result. Useful to avoid wrapping an option in a result")]

@@ -1,4 +1,0 @@
-pub fn print(str: String) {
-    // Do stuff
-}
-

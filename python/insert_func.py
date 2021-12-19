@@ -16,8 +16,9 @@ def main():
 
     func_json = json.loads(args.func_json)
     package = Path(args.package[4:]) # TODO: On windows, rust gives us a weird path and we have to remove the first part. We should not do this on unix
-
-    crabfile = args.crabfile
+    crabfile = Path(args.crabfile[4:])
+    package_parts = package/"src"/crabfile.name
+    namespace = [folder for folder in crabfile.parts if folder not in package_parts.parts]
 
     db_path = package/"blue.sqlite"
     db_url = f"sqlite:///{str(db_path)}"
@@ -27,7 +28,7 @@ def main():
     Base.metadata.create_all(engine)
 
     with Session() as session:
-        session.add(Function(func_json))
+        session.add(Function(func_json, namespace))
         session.commit()
 
 if __name__ == "__main__":

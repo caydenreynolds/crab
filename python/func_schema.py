@@ -58,14 +58,22 @@ class FunctionReturn(BaseMixin, Base):
         pass
 
 
+class Namespace(BaseMixin, Base):
+    name = Column(String)
+    parent_id = Column(Integer, ForeignKey('function.id'))
+
+    def __init__(self, ns):
+        self.name = ns
+
 class Function(BaseMixin, Base):
     access_modifier = Column(Enum(AccessModifier))
     name = Column(String)
     errable = Column(Boolean)
     args = relationship('FunctionArg')
     returns = relationship('FunctionReturn')
+    namespace = relationship('Namespace')
 
-    def __init__(self, function_dict, member=None):
+    def __init__(self, function_dict, namespace):
         self.name = function_dict['name']
         self.access_modifier = AccessModifier.from_string(function_dict['access_modifier'])
         self.errable = function_dict['errable']
@@ -73,3 +81,5 @@ class Function(BaseMixin, Base):
             self.args.append(FunctionArg(arg_dict))
         for returns_dict in function_dict['returns']:
             self.returns.append(FunctionReturn(returns_dict))
+        for ns in namespace:
+            self.namespace.append(Namespace(ns))
