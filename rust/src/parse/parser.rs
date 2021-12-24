@@ -1,31 +1,31 @@
-// use crate::parse::{ParseError, Result};
-// use log::trace;
-// use pest::{iterators::Pair, Parser};
-// use serde::{Deserialize, Serialize};
-// use std::convert::TryFrom;
-// use std::fs;
-// use std::path::Path;
-//
-// #[derive(pest_derive::Parser)]
-// #[grammar = "parse/grammar.pest"]
-// struct CrabParser;
-//
-// pub fn parse(source: &Path) -> Result<CrabAst> {
-//     let source = fs::read_to_string(source)?;
-//     let parsed = CrabParser::parse(Rule::program, &source)?;
-//     trace!("Parsed AST is: {:#?}", parsed);
-//     // There can only be one
-//     return match parsed.peek() {
-//         None => Err(ParseError::NoMatch),
-//         Some(pair) => CrabAst::try_from(pair),
-//     };
-// }
+use std::fs;
+use std::path::Path;
+use crate::parse::{ParseError, Result};
+use pest::iterators::Pair;
+use std::convert::TryFrom;
+use log::trace;
 
-// #[derive(Debug)]
-// pub struct CrabAst {
-//     pub functions: Vec<Func>,
-// }
-//
+#[derive(pest_derive::Parser)]
+#[grammar = "parse/grammar.pest"]
+struct SimpleParser;
+
+pub fn parse(source: &Path) -> Result<SimpleAst> {
+    unimplemented!();
+    // let source = fs::read_to_string(source)?;
+    // let parsed = CrabParser::parse(Rule::program, &source)?;
+    // trace!("Parsed AST is: {:#?}", parsed);
+    // // There can only be one
+    // return match parsed.peek() {
+    //     None => Err(ParseError::NoMatch),
+    //     Some(pair) => SimpleAst::try_from(pair),
+    // };
+}
+
+#[derive(Debug)]
+pub struct SimpleAst {
+
+}
+
 // #[derive(Debug)]
 // pub struct Func {
 //     pub signature: FuncSignature,
@@ -34,44 +34,36 @@
 //
 // #[derive(Debug, Serialize, Deserialize)]
 // pub struct FuncSignature {
-//     pub access_modifier: AccessModifier,
 //     pub name: Ident,
-//     pub args: Vec<TypedIdent>,
-//     pub returns: Vec<CrabType>,
-//     pub errable: bool,
-// }
-//
-// #[derive(Debug, Serialize, Deserialize)]
-// pub struct TypedIdent {
-//     pub typed: CrabType,
-//     pub name: Ident,
-// }
-//
-// #[derive(Debug, Serialize, Deserialize)]
-// pub struct CrabType {
-//     pub name: Ident,
-//     pub nullable: bool,
-//     pub reference: bool,
 // }
 //
 // pub type Ident = String;
 //
-// #[derive(Debug, Serialize, Deserialize)]
-// pub enum AccessModifier {
-//     Private,
-//     Public,
-//     Protected,
+// #[derive(Debug)]
+// pub struct CodeBlock {
+//     pub statements: Vec<Statement>,
 // }
 //
-// //TODO: Implement
 // #[derive(Debug)]
-// pub struct CodeBlock;
+// pub enum Statement {
+//     Return(Expression),
+// }
+//
+// #[derive(Debug)]
+// pub enum Expression {
+//     Prim(Primitive),
+// }
+//
+// #[derive(Debug)]
+// pub enum Primitive {
+//     UINT(u64),
+// }
 //
 // trait NodeFromPair {
 //     // Build an instance of self from the given pair, assuming that the pair's rule type is correct
 //     fn from_pair(pair: Pair<Rule>) -> Result<Self>
-//     where
-//         Self: Sized;
+//         where
+//             Self: Sized;
 // }
 //
 // /*
@@ -117,8 +109,8 @@
 //     };
 // }
 //
-// try_from_pair!(CrabAst, Rule::program);
-// impl NodeFromPair for CrabAst {
+// try_from_pair!(SimpleAst, Rule::program);
+// impl NodeFromPair for SimpleAst {
 //     fn from_pair(pair: Pair<Rule>) -> Result<Self> {
 //         let mut functions = vec![];
 //         for function in pair.into_inner() {
@@ -133,7 +125,7 @@
 //             }
 //         }
 //         Ok(CrabAst {
-//             functions: functions,
+//             functions,
 //         })
 //     }
 // }
@@ -155,102 +147,38 @@
 // impl NodeFromPair for FuncSignature {
 //     fn from_pair(pair: Pair<Rule>) -> Result<Self> {
 //         let mut inner = pair.into_inner();
-//         let access_pair = inner.next().ok_or(ParseError::ExpectedInner)?;
-//         let access_modifier = AccessModifier::try_from(access_pair)?;
 //         let name = Ident::from(inner.next().ok_or(ParseError::ExpectedInner)?.as_str());
 //
-//         let mut args = vec![];
-//         let args_pair = inner.next().ok_or(ParseError::ExpectedInner)?;
-//         for arg_pair in args_pair.into_inner() {
-//             args.push(TypedIdent::try_from(arg_pair)?);
-//         }
-//
-//         let mut returns = vec![];
-//         let mut errable = false;
-//         if let Some(returns_pair) = inner.next() {
-//             for return_pair in returns_pair.into_inner() {
-//                 match CrabType::try_from(return_pair.clone()) {
-//                     Ok(crab_type) => returns.push(crab_type),
-//                     Err(err) => match return_pair.as_rule() {
-//                         Rule::errable => errable = true,
-//                         _ => return Err(err),
-//                     },
-//                 }
-//             }
-//         }
-//
 //         Ok(FuncSignature {
-//             access_modifier,
 //             name,
-//             args,
-//             returns,
-//             errable,
 //         })
 //     }
 // }
 //
-// //TODO: implement
 // try_from_pair!(CodeBlock, Rule::code_block);
 // impl NodeFromPair for CodeBlock {
 //     fn from_pair(_pair: Pair<Rule>) -> Result<Self> {
-//         Ok(CodeBlock {})
-//     }
-// }
-//
-// try_from_pair!(AccessModifier, Rule::access_modifier);
-// impl NodeFromPair for AccessModifier {
-//     fn from_pair(pair: Pair<Rule>) -> Result<Self> {
-//         return match pair.as_str() {
-//             "" => Ok(AccessModifier::Private),
-//             "pub" => Ok(AccessModifier::Public),
-//             "pro" => Ok(AccessModifier::Protected),
-//             _ => Err(ParseError::BadAccessModifier),
-//         };
-//     }
-// }
-//
-// try_from_pair!(TypedIdent, Rule::typed_ident);
-// impl NodeFromPair for TypedIdent {
-//     fn from_pair(pair: Pair<Rule>) -> Result<Self> {
-//         let mut inner = pair.into_inner();
-//         let name_pair = inner.next().ok_or(ParseError::ExpectedInner)?;
-//         let name = Ident::from(name_pair.as_str());
-//         let typed_pair = inner.next().ok_or(ParseError::ExpectedInner)?;
-//         let typed = CrabType::try_from(typed_pair)?;
-//         return Ok(TypedIdent { typed, name });
-//     }
-// }
-//
-// try_from_pair!(CrabType, Rule::crab_type);
-// impl NodeFromPair for CrabType {
-//     fn from_pair(pair: Pair<Rule>) -> Result<Self> {
-//         let mut reference = false;
-//         let mut nullable = false;
-//         let mut name = Ident::from("");
-//         for inner_pair in pair.into_inner() {
-//             match inner_pair.clone().as_rule() {
-//                 Rule::reference => reference = true,
-//                 Rule::ident => name = Ident::from(inner_pair.as_str()),
-//                 Rule::nullable => nullable = true,
-//                 _ => {
-//                     return Err(ParseError::IncorrectRule(
-//                         String::from(stringify!(CrabType)),
-//                         format!(
-//                             "One of [{}, {}, {}]",
-//                             stringify!(Rule::reference),
-//                             stringify!(Rule::ident),
-//                             stringify!(Rule::nullable)
-//                         ),
-//                         String::from(stringify!(inner_pair.as_rule())),
-//                     ))
+//         let mut statements = vec![];
+//         for statement in pair.into_inner() {
+//             match Statement::try_from(statement) {
+//                 Ok(stmt) => statements.push(stmt),
+//                 Err(err) => {
+//                     match err {
+//                         ParseError::None => {} // Do nothing
+//                         _ => return Err(err),
+//                     }
 //                 }
 //             }
 //         }
-//
-//         Ok(CrabType {
-//             name,
-//             nullable,
-//             reference,
+//         Ok(CodeBlock {
+//             statements,
 //         })
+//     }
+// }
+//
+// try_from_pair!(Statement, Rule::statement);
+// impl NodeFromPair for Statement {
+//     fn from_pair(_pair: Pair<Rule>) -> Result<Self> {
+//         Ok(Statement::Return(Expression::Prim(Primitive::UINT(0))))
 //     }
 // }

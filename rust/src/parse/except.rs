@@ -17,7 +17,7 @@ pub enum ParseError {
     #[error("Failed to iterate over a match's inner because a value was expected but none found")]
     ExpectedInner,
 
-    #[error("Modifier is not recognized as a valid access modifier. Use 'pro', 'pub', or ''. Does your grammer.pest match your parser.rs?")]
+    #[error("Modifier is not recognized as a valid access modifier. Use 'pro', 'pub', or ''. Does your grammer.pest match your parser.old?")]
     BadAccessModifier,
 
     #[error(transparent)]
@@ -25,4 +25,10 @@ pub enum ParseError {
 
     #[error(transparent)]
     Pest(#[from] pest::error::Error<Rule>),
+
+    #[error("Program cannot have any AST nodes placed to the right of it")]
+    ProgramRight,
+
+    #[error("This AST node cannot be set because it is already set")]
+    NodeAlreadySet,
 }
