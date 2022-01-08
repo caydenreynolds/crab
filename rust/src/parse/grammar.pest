@@ -1,7 +1,15 @@
 WHITESPACE = _{ " " | NEWLINE }
 COMMENT = _{ ("#" | "//") ~ (!NEWLINE ~ ANY)* ~ NEWLINE }
 
-program = { (expression) }
-expression = { (primitive) }
-primitive = { (uint_primitive) }
+ident = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
+
+program = { function+ }
+
+function = { fn_signature ~ code_block }
+fn_signature = { "fn" ~ ident ~ "(" ~ ")" }
+
+code_block = { expression }
+
+expression = { primitive }
+primitive = { uint_primitive }
 uint_primitive = { ASCII_DIGIT+ }
