@@ -1,0 +1,7 @@
+ghost -- compiler
+coconut -- ??? (possible filename)
+fiddler -- autoformatter
+blue -- parses crab and saves to AST
+horseshoe -- ??? (possible filename)
+king -- generate docs from code comments
+hermit -- package manager

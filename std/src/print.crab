@@ -1,0 +1,3 @@
+pub fn print(str: String) {
+    (V)'--'(V) print (str);
+}
