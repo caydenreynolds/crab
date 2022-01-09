@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -10,6 +10,5 @@ pub struct ProjectConfiguration {
     pub version: String,
     pub description: String,
     pub compiler_version: String,
-    pub dependencies: Dependencies
+    pub dependencies: Dependencies,
 }
-

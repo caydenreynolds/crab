@@ -3,13 +3,15 @@ COMMENT = _{ ("#" | "//") ~ (!NEWLINE ~ ANY)* ~ NEWLINE }
 
 ident = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
 
-program = { function+ }
+program = { SOI ~ function+ ~ EOI }
 
 function = { fn_signature ~ code_block }
 fn_signature = { "fn" ~ ident ~ "(" ~ ")" }
 
-code_block = { expression }
+code_block = { "{" ~ statement* ~ "}" }
 
-expression = { primitive }
-primitive = { uint_primitive }
-uint_primitive = { ASCII_DIGIT+ }
+statement = { (return_stmt) }
+return_stmt = { "return" ~ expression? }
+expression = { (primitive) }
+primitive = { (uint64_primitive) }
+uint64_primitive = { ASCII_DIGIT+ }

@@ -1,9 +1,0 @@
-name: exit_code_test
-author: Cayden Reynolds <cayden@arclasr.net>
-about: Takes a file with an integer in it, and returns the corresponding exit code
-args:
-  - path:
-      help: Paths to the file with the integer in it
-      required: true
-      takes_value: true
-      value_name: path
