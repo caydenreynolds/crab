@@ -6,7 +6,7 @@ ident = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
 program = { SOI ~ function+ ~ EOI }
 
 function = { fn_signature ~ code_block }
-fn_signature = { "fn" ~ ident ~ "(" ~ ")" }
+fn_signature = { "fn" ~ ident ~ "(" ~ ")" ~ ("->" ~ crab_type)? }
 
 code_block = { "{" ~ statement* ~ "}" }
 
@@ -15,3 +15,6 @@ return_stmt = { "return" ~ expression? }
 expression = { (primitive) }
 primitive = { (uint64_primitive) }
 uint64_primitive = { ASCII_DIGIT+ }
+
+// For now, we're only allowing primitive types
+crab_type = { ("uint") }

@@ -1,3 +1,4 @@
+use crate::compile;
 use crate::compile::AstVisitor;
 use crate::parse::{ParseError, Result};
 use log::trace;
@@ -35,6 +36,7 @@ pub struct Func {
 #[derive(Debug)]
 pub struct FuncSignature {
     pub name: Ident,
+    pub return_type: CrabType,
 }
 
 pub type Ident = String;
@@ -56,7 +58,13 @@ pub enum Expression {
 
 #[derive(Debug)]
 pub enum Primitive {
-    UINT64(u64),
+    UINT(u64),
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum CrabType {
+    UINT,
+    VOID,
 }
 
 pub trait AstNode {
@@ -64,8 +72,8 @@ pub trait AstNode {
     fn from_pair(pair: Pair<Rule>) -> Result<Self>
     where
         Self: Sized;
-    fn visit(&self, visitor: &mut dyn AstVisitor);
-    fn post_visit(&self, visitor: &mut dyn AstVisitor);
+    fn visit(&self, visitor: &mut dyn AstVisitor) -> compile::Result<()>;
+    fn post_visit(&self, visitor: &mut dyn AstVisitor) -> compile::Result<()>;
 }
 
 /*
@@ -114,12 +122,12 @@ macro_rules! try_from_pair {
 macro_rules! visit_fns {
     ($node:ty) => {
         paste::item! {
-            fn visit(&self, visitor: &mut dyn AstVisitor) {
-                visitor.[< visit_ $node >](self);
+            fn visit(&self, visitor: &mut dyn AstVisitor) -> compile::Result<()> {
+                visitor.[< visit_ $node >](self)
             }
 
-            fn post_visit(&self, visitor: &mut dyn AstVisitor) {
-                visitor.[< post_visit_ $node >](self);
+            fn post_visit(&self, visitor: &mut dyn AstVisitor) -> compile::Result<()> {
+                visitor.[< post_visit_ $node >](self)
             }
         }
     };
@@ -166,8 +174,12 @@ impl AstNode for FuncSignature {
     fn from_pair(pair: Pair<Rule>) -> Result<Self> {
         let mut inner = pair.into_inner();
         let name = Ident::from(inner.next().ok_or(ParseError::ExpectedInner)?.as_str());
+        let return_type = match inner.next() {
+            Some(return_pair) => CrabType::try_from(return_pair)?,
+            None => CrabType::VOID,
+        };
 
-        Ok(FuncSignature { name })
+        Ok(FuncSignature { name, return_type })
     }
 
     visit_fns!(FuncSignature);
@@ -221,18 +233,20 @@ impl AstNode for Statement {
         };
     }
 
-    fn visit(&self, visitor: &mut dyn AstVisitor) {
+    fn visit(&self, visitor: &mut dyn AstVisitor) -> compile::Result<()> {
         match self {
-            Self::RETURN(ret) => visitor.visit_Statement_RETURN(ret),
+            Self::RETURN(ret) => visitor.visit_Statement_RETURN(ret)?,
             _ => unimplemented!(),
         }
+        Ok(())
     }
 
-    fn post_visit(&self, visitor: &mut dyn AstVisitor) {
+    fn post_visit(&self, visitor: &mut dyn AstVisitor) -> compile::Result<()> {
         match self {
-            Self::RETURN(ret) => visitor.post_visit_Statement_RETURN(ret),
+            Self::RETURN(ret) => visitor.post_visit_Statement_RETURN(ret)?,
             _ => unimplemented!(),
         }
+        Ok(())
     }
 }
 
@@ -255,18 +269,20 @@ impl AstNode for Expression {
         };
     }
 
-    fn visit(&self, visitor: &mut dyn AstVisitor) {
+    fn visit(&self, visitor: &mut dyn AstVisitor) -> compile::Result<()> {
         match self {
-            Self::PRIM(prim) => visitor.visit_Expression_PRIM(prim),
+            Self::PRIM(prim) => visitor.visit_Expression_PRIM(prim)?,
             _ => unimplemented!(),
         }
+        Ok(())
     }
 
-    fn post_visit(&self, visitor: &mut dyn AstVisitor) {
+    fn post_visit(&self, visitor: &mut dyn AstVisitor) -> compile::Result<()> {
         match self {
-            Self::PRIM(prim) => visitor.post_visit_Expression_PRIM(prim),
+            Self::PRIM(prim) => visitor.post_visit_Expression_PRIM(prim)?,
             _ => unimplemented!(),
         }
+        Ok(())
     }
 }
 
@@ -284,22 +300,39 @@ impl AstNode for Primitive {
         }
 
         return match prim_type.as_rule() {
-            Rule::uint64_primitive => Ok(Primitive::UINT64(prim_type.as_str().parse()?)),
+            Rule::uint64_primitive => Ok(Primitive::UINT(prim_type.as_str().parse()?)),
             _ => Err(ParseError::NoMatch),
         };
     }
 
-    fn visit(&self, visitor: &mut dyn AstVisitor) {
+    fn visit(&self, visitor: &mut dyn AstVisitor) -> compile::Result<()> {
         match self {
-            Self::UINT64(value) => visitor.visit_Primitive_UINT64(value),
+            Self::UINT(value) => visitor.visit_Primitive_UINT64(value)?,
             _ => unimplemented!(),
+        }
+        Ok(())
+    }
+
+    fn post_visit(&self, visitor: &mut dyn AstVisitor) -> compile::Result<()> {
+        match self {
+            Self::UINT(value) => visitor.post_visit_Primitive_UINT64(value)?,
+            _ => unimplemented!(),
+        }
+        Ok(())
+    }
+}
+
+try_from_pair!(CrabType, Rule::crab_type);
+impl AstNode for CrabType {
+    fn from_pair(pair: Pair<Rule>) -> Result<Self>
+    where
+        Self: Sized,
+    {
+        match pair.as_str() {
+            "uint" => Ok(Self::UINT),
+            s => Err(ParseError::InvalidCrabType(String::from(s))),
         }
     }
 
-    fn post_visit(&self, visitor: &mut dyn AstVisitor) {
-        match self {
-            Self::UINT64(value) => visitor.post_visit_Primitive_UINT64(value),
-            _ => unimplemented!(),
-        }
-    }
+    visit_fns!(CrabType);
 }

@@ -24,7 +24,7 @@ fn handle_crabfile(crabfile: PathBuf, package: &str) -> Result<()> {
     // build llvm ir
     let context = Context::create();
     let mut visitor = LlvmVisitor::new(&context);
-    visitor.visit(&parse_result);
+    visitor.visit(&parse_result)?;
 
     // Use unwrap because of weird thread-safety compiler checks
     visitor.print_to_file(PathBuf::from("out.ll")).unwrap();

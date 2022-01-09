@@ -32,6 +32,9 @@ pub enum ParseError {
     #[error("This AST node cannot be set because it is already set")]
     NodeAlreadySet,
 
+    #[error("{0} is not a valid CrabType")]
+    InvalidCrabType(String),
+
     #[error(transparent)]
     Io(#[from] std::io::Error),
 

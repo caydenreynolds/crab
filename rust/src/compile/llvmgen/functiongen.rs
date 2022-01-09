@@ -28,7 +28,7 @@ impl<'ctx> Functiongen<'ctx> {
     #[allow(unreachable_patterns)]
     pub fn build_return(&mut self, value: &BasicValueType<'ctx>) {
         match value {
-            BasicValueType::IntType(value) => self.builder.build_return(Some(value)),
+            BasicValueType::IntType(value, _) => self.builder.build_return(Some(value)),
             BasicValueType::None => self.builder.build_return(None),
             _ => unimplemented!(),
         };
