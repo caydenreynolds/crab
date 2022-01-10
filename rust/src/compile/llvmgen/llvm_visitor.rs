@@ -2,10 +2,12 @@ use crate::compile::except::{CompileError, Result};
 use crate::compile::llvmgen::{Codegen, Functiongen};
 use crate::compile::{AstVisitor, BasicValueType};
 use crate::parse::{
-    AstNode, CodeBlock, CrabAst, CrabType, Expression, Func, FuncSignature, Primitive,
+    AstNode, CodeBlock, CrabAst, CrabType, Expression, FnCall, Func, FuncSignature, Ident,
+    Primitive,
 };
 use inkwell::context::Context;
 use inkwell::support::LLVMString;
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 pub struct LlvmVisitor<'ctx> {
@@ -13,6 +15,7 @@ pub struct LlvmVisitor<'ctx> {
     funcgen: Option<Functiongen<'ctx>>,
     prev_basic_value: Option<BasicValueType<'ctx>>,
     return_type: Option<CrabType>,
+    functions: HashMap<Ident, FuncSignature>,
 }
 
 impl<'ctx> LlvmVisitor<'ctx> {
@@ -22,6 +25,7 @@ impl<'ctx> LlvmVisitor<'ctx> {
             funcgen: None,
             prev_basic_value: None,
             return_type: None,
+            functions: HashMap::new(),
         }
     }
 
@@ -48,6 +52,11 @@ impl<'ctx> LlvmVisitor<'ctx> {
 }
 
 impl<'ctx> AstVisitor for LlvmVisitor<'ctx> {
+    fn pre_visit(&mut self, node: &dyn AstNode) -> Result<()> {
+        node.pre_visit(self)?;
+        Ok(())
+    }
+
     fn visit(&mut self, node: &dyn AstNode) -> Result<()> {
         node.visit(self)?;
         node.post_visit(self)?;
@@ -56,8 +65,16 @@ impl<'ctx> AstVisitor for LlvmVisitor<'ctx> {
 
     fn visit_CrabAst(&mut self, node: &CrabAst) -> Result<()> {
         for func in &node.functions {
+            self.pre_visit(func)?;
+        }
+        for func in &node.functions {
             self.visit(func)?;
         }
+        Ok(())
+    }
+
+    fn pre_visit_Func(&mut self, node: &Func) -> Result<()> {
+        self.pre_visit(&node.signature)?;
         Ok(())
     }
 
@@ -73,8 +90,15 @@ impl<'ctx> AstVisitor for LlvmVisitor<'ctx> {
         Ok(())
     }
 
+    fn pre_visit_FuncSignature(&mut self, node: &FuncSignature) -> Result<()> {
+        self.codegen.add_function(node.name.as_str());
+        self.functions.insert(node.name.clone(), node.clone());
+
+        Ok(())
+    }
+
     fn visit_FuncSignature(&mut self, node: &FuncSignature) -> Result<()> {
-        self.funcgen = Some(self.codegen.add_function(node.name.as_str()));
+        self.funcgen = Some(self.codegen.get_function(node.name.as_str())?);
         self.return_type = Some(node.return_type);
         Ok(())
     }
@@ -112,6 +136,10 @@ impl<'ctx> AstVisitor for LlvmVisitor<'ctx> {
         Ok(())
     }
 
+    fn visit_Expression_FN_CALL(&mut self, node: &FnCall) -> Result<()> {
+        self.visit(node)
+    }
+
     fn visit_Expression_PRIM(&mut self, node: &Primitive) -> Result<()> {
         self.visit(node)?;
         Ok(())
@@ -122,6 +150,22 @@ impl<'ctx> AstVisitor for LlvmVisitor<'ctx> {
             self.funcgen.as_ref().unwrap().build_const_u64(*node),
             CrabType::UINT,
         ));
+        Ok(())
+    }
+
+    fn visit_FnCall(&mut self, node: &FnCall) -> Result<()> {
+        let call_value = self
+            .funcgen
+            .as_mut()
+            .unwrap()
+            .build_fn_call(&node.name, self.codegen.get_module())?;
+        let fn_header_opt = self.functions.get(&node.name);
+        if let Some(fn_header) = fn_header_opt {
+            self.prev_basic_value =
+                Some(BasicValueType::CallValue(call_value, fn_header.return_type));
+        } else {
+            return Err(CompileError::CouldNotFindFunction(String::from(&node.name)));
+        }
         Ok(())
     }
 }

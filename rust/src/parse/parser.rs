@@ -33,7 +33,7 @@ pub struct Func {
     pub body: CodeBlock,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FuncSignature {
     pub name: Ident,
     pub return_type: CrabType,
@@ -52,8 +52,15 @@ pub enum Statement {
 }
 
 #[derive(Debug)]
+pub struct FnCall {
+    pub name: Ident,
+}
+
+#[derive(Debug)]
+#[allow(non_camel_case_types)]
 pub enum Expression {
     PRIM(Primitive),
+    FN_CALL(FnCall),
 }
 
 #[derive(Debug)]
@@ -72,6 +79,7 @@ pub trait AstNode {
     fn from_pair(pair: Pair<Rule>) -> Result<Self>
     where
         Self: Sized;
+    fn pre_visit(&self, visitor: &mut dyn AstVisitor) -> compile::Result<()>;
     fn visit(&self, visitor: &mut dyn AstVisitor) -> compile::Result<()>;
     fn post_visit(&self, visitor: &mut dyn AstVisitor) -> compile::Result<()>;
 }
@@ -122,6 +130,10 @@ macro_rules! try_from_pair {
 macro_rules! visit_fns {
     ($node:ty) => {
         paste::item! {
+            fn pre_visit(&self, visitor: &mut dyn AstVisitor) -> compile::Result<()> {
+                visitor.[< pre_visit_ $node >](self)
+            }
+
             fn visit(&self, visitor: &mut dyn AstVisitor) -> compile::Result<()> {
                 visitor.[< visit_ $node >](self)
             }
@@ -233,6 +245,14 @@ impl AstNode for Statement {
         };
     }
 
+    fn pre_visit(&self, visitor: &mut dyn AstVisitor) -> compile::Result<()> {
+        match self {
+            Self::RETURN(ret) => visitor.pre_visit_Statement_RETURN(ret)?,
+            _ => unimplemented!(),
+        }
+        Ok(())
+    }
+
     fn visit(&self, visitor: &mut dyn AstVisitor) -> compile::Result<()> {
         match self {
             Self::RETURN(ret) => visitor.visit_Statement_RETURN(ret)?,
@@ -265,13 +285,24 @@ impl AstNode for Expression {
 
         return match expr_type.as_rule() {
             Rule::primitive => Ok(Expression::PRIM(Primitive::try_from(expr_type)?)),
+            Rule::fn_call => Ok(Expression::FN_CALL(FnCall::try_from(expr_type)?)),
             _ => Err(ParseError::NoMatch),
         };
+    }
+
+    fn pre_visit(&self, visitor: &mut dyn AstVisitor) -> compile::Result<()> {
+        match self {
+            Self::PRIM(prim) => visitor.pre_visit_Expression_PRIM(prim)?,
+            Self::FN_CALL(fn_call) => visitor.pre_visit_Expression_FN_CALL(fn_call)?,
+            _ => unimplemented!(),
+        }
+        Ok(())
     }
 
     fn visit(&self, visitor: &mut dyn AstVisitor) -> compile::Result<()> {
         match self {
             Self::PRIM(prim) => visitor.visit_Expression_PRIM(prim)?,
+            Self::FN_CALL(fn_call) => visitor.visit_Expression_FN_CALL(fn_call)?,
             _ => unimplemented!(),
         }
         Ok(())
@@ -280,6 +311,7 @@ impl AstNode for Expression {
     fn post_visit(&self, visitor: &mut dyn AstVisitor) -> compile::Result<()> {
         match self {
             Self::PRIM(prim) => visitor.post_visit_Expression_PRIM(prim)?,
+            Self::FN_CALL(fn_call) => visitor.post_visit_Expression_FN_CALL(fn_call)?,
             _ => unimplemented!(),
         }
         Ok(())
@@ -303,6 +335,14 @@ impl AstNode for Primitive {
             Rule::uint64_primitive => Ok(Primitive::UINT(prim_type.as_str().parse()?)),
             _ => Err(ParseError::NoMatch),
         };
+    }
+
+    fn pre_visit(&self, visitor: &mut dyn AstVisitor) -> compile::Result<()> {
+        match self {
+            Self::UINT(value) => visitor.pre_visit_Primitive_UINT64(value)?,
+            _ => unimplemented!(),
+        }
+        Ok(())
     }
 
     fn visit(&self, visitor: &mut dyn AstVisitor) -> compile::Result<()> {
@@ -335,4 +375,18 @@ impl AstNode for CrabType {
     }
 
     visit_fns!(CrabType);
+}
+
+try_from_pair!(FnCall, Rule::fn_call);
+impl AstNode for FnCall {
+    fn from_pair(pair: Pair<Rule>) -> Result<Self>
+    where
+        Self: Sized,
+    {
+        let mut inner = pair.into_inner();
+        let name = Ident::from(inner.next().ok_or(ParseError::ExpectedInner)?.as_str());
+        Ok(Self { name })
+    }
+
+    visit_fns!(FnCall);
 }

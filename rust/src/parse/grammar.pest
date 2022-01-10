@@ -7,12 +7,13 @@ program = { SOI ~ function+ ~ EOI }
 
 function = { fn_signature ~ code_block }
 fn_signature = { "fn" ~ ident ~ "(" ~ ")" ~ ("->" ~ crab_type)? }
+fn_call = { ident ~ "(" ~ ")" }
 
 code_block = { "{" ~ statement* ~ "}" }
 
 statement = { (return_stmt) }
 return_stmt = { "return" ~ expression? }
-expression = { (primitive) }
+expression = { (primitive | fn_call) }
 primitive = { (uint64_primitive) }
 uint64_primitive = { ASCII_DIGIT+ }
 

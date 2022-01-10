@@ -1,11 +1,16 @@
 use crate::compile::Result;
 use crate::parse::{
-    AstNode, CodeBlock, CrabAst, CrabType, Expression, Func, FuncSignature, Ident, Primitive,
+    AstNode, CodeBlock, CrabAst, CrabType, Expression, FnCall, Func, FuncSignature, Ident,
+    Primitive,
 };
 
 macro_rules! second_dispatch_fns {
     ($node_type:ident) => {
         paste::item! {
+            fn [< pre_visit_ $node_type >](&mut self, _node: &$node_type) -> Result<()> {
+                // do nothing
+                Ok(())
+            }
             fn [< visit_ $node_type >](&mut self, _node: &$node_type) -> Result<()> {
                 // do nothing
                 Ok(())
@@ -26,6 +31,10 @@ macro_rules! second_dispatch_fns {
 macro_rules! second_dispatch_enums {
     (($enum_type:ident, $enum_value:ident, $enum_inner:ty)) => {
         paste::item! {
+            fn [< pre_visit_ $enum_type _ $enum_value >](&mut self, _node: &$enum_inner) -> Result<()> {
+                // do nothing
+                Ok(())
+            }
             fn [< visit_ $enum_type _ $enum_value >](&mut self, _node: &$enum_inner) -> Result<()> {
                 // do nothing
                 Ok(())
@@ -45,6 +54,7 @@ macro_rules! second_dispatch_enums {
 
 #[allow(non_snake_case)]
 pub trait AstVisitor {
+    fn pre_visit(&mut self, node: &dyn AstNode) -> Result<()>;
     fn visit(&mut self, node: &dyn AstNode) -> Result<()>;
 
     second_dispatch_fns! {
@@ -53,12 +63,14 @@ pub trait AstVisitor {
         FuncSignature,
         CodeBlock,
         Ident,
-        CrabType
+        CrabType,
+        FnCall
     }
 
     second_dispatch_enums! {
         (Primitive, UINT64, u64),
         (Expression, PRIM, Primitive),
+        (Expression, FN_CALL, FnCall),
         (Statement, RETURN, Option<Expression>)
     }
 }

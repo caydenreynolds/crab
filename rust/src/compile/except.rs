@@ -10,4 +10,7 @@ pub enum CompileError {
 
     #[error("Got a none option when one was expected")]
     InvalidNoneOption,
+
+    #[error("Could not find function with name {0}")]
+    CouldNotFindFunction(String),
 }
