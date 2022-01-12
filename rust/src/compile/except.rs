@@ -13,4 +13,12 @@ pub enum CompileError {
 
     #[error("Could not find function with name {0}")]
     CouldNotFindFunction(String),
+
+    #[error(
+        "Cannot assign variable with name {0}, because a variable with that name already exists"
+    )]
+    VarAlreadyExists(String),
+
+    #[error("Variable with name {0} does not exist")]
+    NoVar(String),
 }

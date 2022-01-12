@@ -1,0 +1,9 @@
+fn main() -> uint {
+    return ur_moms_a_ho()
+}
+
+fn ur_moms_a_ho() -> uint {
+    let ligma = 69
+    return ligma
+}
+

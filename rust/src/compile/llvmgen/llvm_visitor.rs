@@ -2,8 +2,8 @@ use crate::compile::except::{CompileError, Result};
 use crate::compile::llvmgen::{Codegen, Functiongen};
 use crate::compile::{AstVisitor, BasicValueType};
 use crate::parse::{
-    AstNode, CodeBlock, CrabAst, CrabType, Expression, FnCall, Func, FuncSignature, Ident,
-    Primitive,
+    Assignment, AstNode, CodeBlock, CrabAst, CrabType, Expression, FnCall, Func, FuncSignature,
+    Ident, Primitive,
 };
 use inkwell::context::Context;
 use inkwell::support::LLVMString;
@@ -136,12 +136,45 @@ impl<'ctx> AstVisitor for LlvmVisitor<'ctx> {
         Ok(())
     }
 
+    fn visit_Statement_ASSIGNMENT(&mut self, node: &Assignment) -> Result<()> {
+        self.visit(node)
+    }
+
+    fn visit_Assignment(&mut self, node: &Assignment) -> Result<()> {
+        self.visit(&node.expression)?;
+        Ok(())
+    }
+
+    fn post_visit_Assignment(&mut self, node: &Assignment) -> Result<()> {
+        self.funcgen
+            .as_mut()
+            .ok_or(CompileError::InvalidNoneOption)?
+            .build_assignment(
+                &node.var_name.clone(),
+                self.prev_basic_value
+                    .as_ref()
+                    .ok_or(CompileError::InvalidNoneOption)?,
+            )?;
+        self.prev_basic_value = None;
+        Ok(())
+    }
+
     fn visit_Expression_FN_CALL(&mut self, node: &FnCall) -> Result<()> {
         self.visit(node)
     }
 
     fn visit_Expression_PRIM(&mut self, node: &Primitive) -> Result<()> {
         self.visit(node)?;
+        Ok(())
+    }
+
+    fn visit_Expression_VARIABLE(&mut self, node: &Ident) -> Result<()> {
+        self.prev_basic_value = Some(
+            self.funcgen
+                .as_mut()
+                .ok_or(CompileError::InvalidNoneOption)?
+                .build_retrieve_var(node)?,
+        );
         Ok(())
     }
 

@@ -8,4 +8,6 @@ args:
       takes_value: true
       value_name: path
       multiple: true
-
+  - verbose:
+    help: Increase the logging verbosity
+    short: v

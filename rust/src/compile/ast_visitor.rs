@@ -1,7 +1,7 @@
 use crate::compile::Result;
 use crate::parse::{
-    AstNode, CodeBlock, CrabAst, CrabType, Expression, FnCall, Func, FuncSignature, Ident,
-    Primitive,
+    Assignment, AstNode, CodeBlock, CrabAst, CrabType, Expression, FnCall, Func, FuncSignature,
+    Ident, Primitive,
 };
 
 macro_rules! second_dispatch_fns {
@@ -64,13 +64,16 @@ pub trait AstVisitor {
         CodeBlock,
         Ident,
         CrabType,
-        FnCall
+        FnCall,
+        Assignment
     }
 
     second_dispatch_enums! {
         (Primitive, UINT64, u64),
         (Expression, PRIM, Primitive),
         (Expression, FN_CALL, FnCall),
-        (Statement, RETURN, Option<Expression>)
+        (Expression, VARIABLE, Ident),
+        (Statement, RETURN, Option<Expression>),
+        (Statement, ASSIGNMENT, Assignment)
     }
 }

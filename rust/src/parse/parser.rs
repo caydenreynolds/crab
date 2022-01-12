@@ -49,6 +49,13 @@ pub struct CodeBlock {
 #[derive(Debug)]
 pub enum Statement {
     RETURN(Option<Expression>),
+    ASSIGNMENT(Assignment),
+}
+
+#[derive(Debug)]
+pub struct Assignment {
+    pub var_name: Ident,
+    pub expression: Expression,
 }
 
 #[derive(Debug)]
@@ -61,6 +68,7 @@ pub struct FnCall {
 pub enum Expression {
     PRIM(Primitive),
     FN_CALL(FnCall),
+    VARIABLE(Ident),
 }
 
 #[derive(Debug)]
@@ -241,6 +249,7 @@ impl AstNode for Statement {
                     Err(ParseError::UnexpectedInner)
                 };
             }
+            Rule::assignment => Ok(Statement::ASSIGNMENT(Assignment::try_from(expr_type)?)),
             _ => Err(ParseError::NoMatch),
         };
     }
@@ -248,6 +257,7 @@ impl AstNode for Statement {
     fn pre_visit(&self, visitor: &mut dyn AstVisitor) -> compile::Result<()> {
         match self {
             Self::RETURN(ret) => visitor.pre_visit_Statement_RETURN(ret)?,
+            Self::ASSIGNMENT(ass) => visitor.pre_visit_Statement_ASSIGNMENT(ass)?,
             _ => unimplemented!(),
         }
         Ok(())
@@ -256,6 +266,7 @@ impl AstNode for Statement {
     fn visit(&self, visitor: &mut dyn AstVisitor) -> compile::Result<()> {
         match self {
             Self::RETURN(ret) => visitor.visit_Statement_RETURN(ret)?,
+            Self::ASSIGNMENT(ass) => visitor.visit_Statement_ASSIGNMENT(ass)?,
             _ => unimplemented!(),
         }
         Ok(())
@@ -264,6 +275,7 @@ impl AstNode for Statement {
     fn post_visit(&self, visitor: &mut dyn AstVisitor) -> compile::Result<()> {
         match self {
             Self::RETURN(ret) => visitor.post_visit_Statement_RETURN(ret)?,
+            Self::ASSIGNMENT(ass) => visitor.post_visit_Statement_ASSIGNMENT(ass)?,
             _ => unimplemented!(),
         }
         Ok(())
@@ -286,6 +298,7 @@ impl AstNode for Expression {
         return match expr_type.as_rule() {
             Rule::primitive => Ok(Expression::PRIM(Primitive::try_from(expr_type)?)),
             Rule::fn_call => Ok(Expression::FN_CALL(FnCall::try_from(expr_type)?)),
+            Rule::ident => Ok(Expression::VARIABLE(Ident::from(expr_type.as_str()))),
             _ => Err(ParseError::NoMatch),
         };
     }
@@ -294,6 +307,7 @@ impl AstNode for Expression {
         match self {
             Self::PRIM(prim) => visitor.pre_visit_Expression_PRIM(prim)?,
             Self::FN_CALL(fn_call) => visitor.pre_visit_Expression_FN_CALL(fn_call)?,
+            Self::VARIABLE(fn_call) => visitor.pre_visit_Expression_VARIABLE(fn_call)?,
             _ => unimplemented!(),
         }
         Ok(())
@@ -303,6 +317,7 @@ impl AstNode for Expression {
         match self {
             Self::PRIM(prim) => visitor.visit_Expression_PRIM(prim)?,
             Self::FN_CALL(fn_call) => visitor.visit_Expression_FN_CALL(fn_call)?,
+            Self::VARIABLE(fn_call) => visitor.visit_Expression_VARIABLE(fn_call)?,
             _ => unimplemented!(),
         }
         Ok(())
@@ -312,6 +327,7 @@ impl AstNode for Expression {
         match self {
             Self::PRIM(prim) => visitor.post_visit_Expression_PRIM(prim)?,
             Self::FN_CALL(fn_call) => visitor.post_visit_Expression_FN_CALL(fn_call)?,
+            Self::VARIABLE(fn_call) => visitor.post_visit_Expression_VARIABLE(fn_call)?,
             _ => unimplemented!(),
         }
         Ok(())
@@ -389,4 +405,20 @@ impl AstNode for FnCall {
     }
 
     visit_fns!(FnCall);
+}
+
+try_from_pair!(Assignment, Rule::assignment);
+impl AstNode for Assignment {
+    fn from_pair(pair: Pair<Rule>) -> Result<Self> {
+        let mut inner = pair.into_inner();
+        let var_name = Ident::from(inner.next().ok_or(ParseError::ExpectedInner)?.as_str());
+        let expression = Expression::try_from(inner.next().ok_or(ParseError::ExpectedInner)?)?;
+
+        Ok(Self {
+            var_name,
+            expression,
+        })
+    }
+
+    visit_fns!(Assignment);
 }

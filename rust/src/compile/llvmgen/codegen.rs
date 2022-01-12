@@ -3,6 +3,7 @@ use crate::compile::Result;
 use inkwell::context::Context;
 use inkwell::module::Module;
 use inkwell::support::LLVMString;
+use log::trace;
 use std::path::PathBuf;
 
 pub struct Codegen<'ctx> {
@@ -17,6 +18,7 @@ impl<'ctx> Codegen<'ctx> {
     }
 
     pub fn add_function(&mut self, name: &str) {
+        trace!("Registering new function with name {}", name);
         let fn_type = self.context.i64_type().fn_type(&[], false);
         let fn_value = self.module.add_function(name, fn_type, None);
         self.context.append_basic_block(fn_value, "entry");

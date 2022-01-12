@@ -9,7 +9,7 @@ pub enum BasicValueType<'ctx> {
 
 #[allow(unreachable_patterns)]
 impl<'ctx> BasicValueType<'ctx> {
-    pub(crate) fn to_crab_type(&self) -> CrabType {
+    pub fn to_crab_type(&self) -> CrabType {
         match self {
             Self::None => CrabType::VOID,
             Self::IntType(_, ct) => *ct,

@@ -11,9 +11,10 @@ fn_call = { ident ~ "(" ~ ")" }
 
 code_block = { "{" ~ statement* ~ "}" }
 
-statement = { (return_stmt) }
+statement = { (return_stmt | assignment) }
+assignment = { "let" ~ ident ~ "=" ~ expression }
 return_stmt = { "return" ~ expression? }
-expression = { (primitive | fn_call) }
+expression = { (primitive | fn_call | ident) }
 primitive = { (uint64_primitive) }
 uint64_primitive = { ASCII_DIGIT+ }
 
