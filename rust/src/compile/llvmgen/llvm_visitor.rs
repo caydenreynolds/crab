@@ -137,6 +137,14 @@ impl<'ctx> AstVisitor for LlvmVisitor<'ctx> {
     }
 
     fn visit_Statement_ASSIGNMENT(&mut self, node: &Assignment) -> Result<()> {
+        self.funcgen
+            .as_mut()
+            .ok_or(CompileError::InvalidNoneOption)?
+            .build_create_var(&node.var_name)?;
+        self.visit(node)
+    }
+
+    fn visit_Statement_REASSIGNMENT(&mut self, node: &Assignment) -> Result<()> {
         self.visit(node)
     }
 
@@ -149,7 +157,7 @@ impl<'ctx> AstVisitor for LlvmVisitor<'ctx> {
         self.funcgen
             .as_mut()
             .ok_or(CompileError::InvalidNoneOption)?
-            .build_assignment(
+            .build_set_var(
                 &node.var_name.clone(),
                 self.prev_basic_value
                     .as_ref()

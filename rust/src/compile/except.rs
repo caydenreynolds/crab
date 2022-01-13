@@ -20,5 +20,5 @@ pub enum CompileError {
     VarAlreadyExists(String),
 
     #[error("Variable with name {0} does not exist")]
-    NoVar(String),
+    VarDoesNotExist(String),
 }

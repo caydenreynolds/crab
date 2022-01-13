@@ -77,8 +77,8 @@ impl<'ctx> Functiongen<'ctx> {
         }
     }
 
-    pub fn build_assignment(&mut self, name: &Ident, value: &BasicValueType) -> Result<()> {
-        trace!("Building an assignment to variable with name {}", name);
+    pub fn build_create_var(&mut self, name: &Ident) -> Result<()> {
+        trace!("Creating a new variable with name {}", name);
         let val_ptr_result = self.variables.get(name);
         // Only support i64 constants for now, and error on attempting to mutate a variable
         let val_ptr = match val_ptr_result {
@@ -86,12 +86,23 @@ impl<'ctx> Functiongen<'ctx> {
             _ => return Err(CompileError::VarAlreadyExists(name.clone())),
         };
         self.variables.insert(name.clone(), val_ptr);
-        //TODO: Type checking
-        match value {
-            BasicValueType::IntType(v, _) => self.builder.build_store(val_ptr, *v),
-            _ => unimplemented!(),
-        };
         Ok(())
+    }
+
+    pub fn build_set_var(&mut self, name: &Ident, value: &BasicValueType) -> Result<()> {
+        trace!("Assigning to a variable with name {}", name);
+        let val_ptr_result = self.variables.get(name);
+        // Only support i64 constants for now, and error on attempting to mutate a variable
+        match val_ptr_result {
+            None => Err(CompileError::VarDoesNotExist(name.clone())),
+            Some(val_ptr) => {
+                match value {
+                    BasicValueType::IntType(v, _) => self.builder.build_store(*val_ptr, *v),
+                    _ => unimplemented!(),
+                };
+                Ok(())
+            }
+        }
     }
 
     pub fn build_retrieve_var(&mut self, name: &Ident) -> Result<BasicValueType<'ctx>> {
@@ -101,7 +112,7 @@ impl<'ctx> Functiongen<'ctx> {
                 self.builder.build_load(*ptr_val, name).into_int_value(),
                 CrabType::UINT,
             )),
-            None => Err(CompileError::NoVar(name.clone())),
+            None => Err(CompileError::VarDoesNotExist(name.clone())),
         }
     }
 }

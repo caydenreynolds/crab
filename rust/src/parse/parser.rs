@@ -50,6 +50,7 @@ pub struct CodeBlock {
 pub enum Statement {
     RETURN(Option<Expression>),
     ASSIGNMENT(Assignment),
+    REASSIGNMENT(Assignment),
 }
 
 #[derive(Debug)]
@@ -250,6 +251,7 @@ impl AstNode for Statement {
                 };
             }
             Rule::assignment => Ok(Statement::ASSIGNMENT(Assignment::try_from(expr_type)?)),
+            Rule::reassignment => Ok(Statement::REASSIGNMENT(Assignment::try_from(expr_type)?)),
             _ => Err(ParseError::NoMatch),
         };
     }
@@ -258,6 +260,7 @@ impl AstNode for Statement {
         match self {
             Self::RETURN(ret) => visitor.pre_visit_Statement_RETURN(ret)?,
             Self::ASSIGNMENT(ass) => visitor.pre_visit_Statement_ASSIGNMENT(ass)?,
+            Self::REASSIGNMENT(reass) => visitor.pre_visit_Statement_REASSIGNMENT(reass)?,
             _ => unimplemented!(),
         }
         Ok(())
@@ -267,6 +270,7 @@ impl AstNode for Statement {
         match self {
             Self::RETURN(ret) => visitor.visit_Statement_RETURN(ret)?,
             Self::ASSIGNMENT(ass) => visitor.visit_Statement_ASSIGNMENT(ass)?,
+            Self::REASSIGNMENT(reass) => visitor.visit_Statement_REASSIGNMENT(reass)?,
             _ => unimplemented!(),
         }
         Ok(())
@@ -276,6 +280,7 @@ impl AstNode for Statement {
         match self {
             Self::RETURN(ret) => visitor.post_visit_Statement_RETURN(ret)?,
             Self::ASSIGNMENT(ass) => visitor.post_visit_Statement_ASSIGNMENT(ass)?,
+            Self::REASSIGNMENT(reass) => visitor.post_visit_Statement_REASSIGNMENT(reass)?,
             _ => unimplemented!(),
         }
         Ok(())
@@ -407,7 +412,25 @@ impl AstNode for FnCall {
     visit_fns!(FnCall);
 }
 
-try_from_pair!(Assignment, Rule::assignment);
+/// Assignment requries a custom TryFrom implementation because it can be built from two different rules
+impl TryFrom<Pair<'_, Rule>> for Assignment {
+    type Error = ParseError;
+    fn try_from(pair: Pair<Rule>) -> std::result::Result<Assignment, Self::Error> {
+        match pair.as_rule() {
+            Rule::assignment => Assignment::from_pair(pair),
+            Rule::reassignment => Assignment::from_pair(pair),
+            _ => Err(ParseError::IncorrectRule(
+                String::from(stringify!(Assignment)),
+                format!(
+                    "{} or {}",
+                    stringify!(Rule::assignment),
+                    stringify!(Rule::reassignment)
+                ),
+                format!("{:?}", pair.as_rule()),
+            )),
+        }
+    }
+}
 impl AstNode for Assignment {
     fn from_pair(pair: Pair<Rule>) -> Result<Self> {
         let mut inner = pair.into_inner();

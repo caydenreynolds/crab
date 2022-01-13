@@ -3,7 +3,8 @@ fn main() -> uint {
 }
 
 fn ur_moms_a_ho() -> uint {
-    let ligma = 69
+    let ligma = 420
+    ligma = 69
     return ligma
 }
 

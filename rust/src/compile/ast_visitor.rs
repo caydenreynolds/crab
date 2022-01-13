@@ -74,6 +74,7 @@ pub trait AstVisitor {
         (Expression, FN_CALL, FnCall),
         (Expression, VARIABLE, Ident),
         (Statement, RETURN, Option<Expression>),
-        (Statement, ASSIGNMENT, Assignment)
+        (Statement, ASSIGNMENT, Assignment),
+        (Statement, REASSIGNMENT, Assignment)
     }
 }
