@@ -14,7 +14,7 @@ struct CrabParser;
 pub fn parse(source: &Path) -> Result<CrabAst> {
     let source = fs::read_to_string(source)?;
     let parsed = CrabParser::parse(Rule::program, &source)?;
-    trace!("Parsed AST is: {:#?}", parsed);
+    trace!("Parsed source is: {:#?}", parsed);
     // // There can only be one
     return match parsed.peek() {
         None => Err(ParseError::NoMatch),
@@ -47,8 +47,14 @@ pub struct CodeBlock {
 }
 
 #[derive(Debug)]
-pub enum Statement {
-    RETURN(Option<Expression>),
+pub struct Statement {
+    pub expression: Option<Expression>,
+    pub statement_type: StatementType,
+}
+
+#[derive(Debug)]
+pub enum StatementType {
+    RETURN,
     ASSIGNMENT(Assignment),
     REASSIGNMENT(Assignment),
 }
@@ -56,7 +62,6 @@ pub enum Statement {
 #[derive(Debug)]
 pub struct Assignment {
     pub var_name: Ident,
-    pub expression: Expression,
 }
 
 #[derive(Debug)]
@@ -75,12 +80,14 @@ pub enum Expression {
 #[derive(Debug)]
 pub enum Primitive {
     UINT(u64),
+    STRING(String),
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum CrabType {
     UINT,
     VOID,
+    STRING(u64),
 }
 
 pub trait AstNode {
@@ -228,8 +235,23 @@ impl AstNode for CodeBlock {
 }
 
 try_from_pair!(Statement, Rule::statement);
-#[allow(unreachable_patterns)]
 impl AstNode for Statement {
+    fn from_pair(pair: Pair<Rule>) -> Result<Self> {
+        let statement_type = StatementType::try_from(pair.clone())?;
+        let expression = statement_type.get_expression(pair)?;
+
+        Ok(Self {
+            statement_type,
+            expression,
+        })
+    }
+
+    visit_fns!(Statement);
+}
+
+try_from_pair!(StatementType, Rule::statement);
+#[allow(unreachable_patterns)]
+impl AstNode for StatementType {
     fn from_pair(pair: Pair<Rule>) -> Result<Self> {
         let mut inner = pair.into_inner();
         let expr_type = inner.next().ok_or(ParseError::ExpectedInner)?;
@@ -239,28 +261,28 @@ impl AstNode for Statement {
 
         return match expr_type.as_rule() {
             Rule::return_stmt => {
-                let mut expr_inner = expr_type.into_inner();
+                let expr_inner = expr_type.into_inner();
                 return if expr_inner.clone().count() == 1 {
-                    Ok(Statement::RETURN(Some(Expression::try_from(
-                        expr_inner.next().unwrap(),
-                    )?)))
+                    Ok(StatementType::RETURN)
                 } else if expr_inner.count() == 0 {
-                    Ok(Statement::RETURN(None))
+                    Ok(StatementType::RETURN)
                 } else {
                     Err(ParseError::UnexpectedInner)
                 };
             }
-            Rule::assignment => Ok(Statement::ASSIGNMENT(Assignment::try_from(expr_type)?)),
-            Rule::reassignment => Ok(Statement::REASSIGNMENT(Assignment::try_from(expr_type)?)),
+            Rule::assignment => Ok(StatementType::ASSIGNMENT(Assignment::try_from(expr_type)?)),
+            Rule::reassignment => Ok(StatementType::REASSIGNMENT(Assignment::try_from(
+                expr_type,
+            )?)),
             _ => Err(ParseError::NoMatch),
         };
     }
 
     fn pre_visit(&self, visitor: &mut dyn AstVisitor) -> compile::Result<()> {
         match self {
-            Self::RETURN(ret) => visitor.pre_visit_Statement_RETURN(ret)?,
-            Self::ASSIGNMENT(ass) => visitor.pre_visit_Statement_ASSIGNMENT(ass)?,
-            Self::REASSIGNMENT(reass) => visitor.pre_visit_Statement_REASSIGNMENT(reass)?,
+            Self::RETURN => visitor.pre_visit_StatementType_RETURN(&false)?,
+            Self::ASSIGNMENT(ass) => visitor.pre_visit_StatementType_ASSIGNMENT(ass)?,
+            Self::REASSIGNMENT(reass) => visitor.pre_visit_StatementType_REASSIGNMENT(reass)?,
             _ => unimplemented!(),
         }
         Ok(())
@@ -268,9 +290,9 @@ impl AstNode for Statement {
 
     fn visit(&self, visitor: &mut dyn AstVisitor) -> compile::Result<()> {
         match self {
-            Self::RETURN(ret) => visitor.visit_Statement_RETURN(ret)?,
-            Self::ASSIGNMENT(ass) => visitor.visit_Statement_ASSIGNMENT(ass)?,
-            Self::REASSIGNMENT(reass) => visitor.visit_Statement_REASSIGNMENT(reass)?,
+            Self::RETURN => visitor.visit_StatementType_RETURN(&false)?,
+            Self::ASSIGNMENT(ass) => visitor.visit_StatementType_ASSIGNMENT(ass)?,
+            Self::REASSIGNMENT(reass) => visitor.visit_StatementType_REASSIGNMENT(reass)?,
             _ => unimplemented!(),
         }
         Ok(())
@@ -278,12 +300,58 @@ impl AstNode for Statement {
 
     fn post_visit(&self, visitor: &mut dyn AstVisitor) -> compile::Result<()> {
         match self {
-            Self::RETURN(ret) => visitor.post_visit_Statement_RETURN(ret)?,
-            Self::ASSIGNMENT(ass) => visitor.post_visit_Statement_ASSIGNMENT(ass)?,
-            Self::REASSIGNMENT(reass) => visitor.post_visit_Statement_REASSIGNMENT(reass)?,
+            Self::RETURN => visitor.post_visit_StatementType_RETURN(&false)?,
+            Self::ASSIGNMENT(ass) => visitor.post_visit_StatementType_ASSIGNMENT(ass)?,
+            Self::REASSIGNMENT(reass) => visitor.post_visit_StatementType_REASSIGNMENT(reass)?,
             _ => unimplemented!(),
         }
         Ok(())
+    }
+}
+impl StatementType {
+    fn get_expression(&self, pair: Pair<Rule>) -> Result<Option<Expression>> {
+        return match pair.as_rule() {
+            Rule::statement => {
+                let mut inner = pair.into_inner();
+                let expr_type = inner.next().ok_or(ParseError::ExpectedInner)?;
+                if !inner.next().is_none() {
+                    return Err(ParseError::UnexpectedInner);
+                }
+
+                let mut expr_inner = expr_type.clone().into_inner();
+                return match expr_type.as_rule() {
+                    Rule::return_stmt => {
+                        return if expr_inner.clone().count() == 1 {
+                            Ok(Some(Expression::try_from(
+                                expr_inner.next().ok_or(ParseError::ExpectedInner)?,
+                            )?))
+                        } else {
+                            Ok(None)
+                        }
+                    }
+                    Rule::assignment => {
+                        // Assignment's first inner is an ident we need to skip over to find the real expression
+                        expr_inner.next().ok_or(ParseError::ExpectedInner)?;
+                        Ok(Some(Expression::try_from(
+                            expr_inner.next().ok_or(ParseError::ExpectedInner)?,
+                        )?))
+                    }
+                    Rule::reassignment => {
+                        // Reassignment's first inner is an ident we need to skip over to find the real expression
+                        expr_inner.next().ok_or(ParseError::ExpectedInner)?;
+                        Ok(Some(Expression::try_from(
+                            expr_inner.next().ok_or(ParseError::ExpectedInner)?,
+                        )?))
+                    }
+                    _ => unimplemented!(),
+                };
+            }
+            _ => Err(ParseError::IncorrectRule(
+                String::from(stringify!(Expression)),
+                String::from(stringify!(Rule::statement)),
+                format!("{:?}", pair.as_rule()),
+            )),
+        };
     }
 }
 
@@ -354,6 +422,13 @@ impl AstNode for Primitive {
 
         return match prim_type.as_rule() {
             Rule::uint64_primitive => Ok(Primitive::UINT(prim_type.as_str().parse()?)),
+            Rule::string_primitive => Ok(Primitive::STRING(String::from(
+                prim_type
+                    .into_inner()
+                    .next()
+                    .ok_or(ParseError::ExpectedInner)?
+                    .as_str(),
+            ))),
             _ => Err(ParseError::NoMatch),
         };
     }
@@ -361,6 +436,7 @@ impl AstNode for Primitive {
     fn pre_visit(&self, visitor: &mut dyn AstVisitor) -> compile::Result<()> {
         match self {
             Self::UINT(value) => visitor.pre_visit_Primitive_UINT64(value)?,
+            Self::STRING(value) => visitor.pre_visit_Primitive_STRING(value)?,
             _ => unimplemented!(),
         }
         Ok(())
@@ -369,6 +445,7 @@ impl AstNode for Primitive {
     fn visit(&self, visitor: &mut dyn AstVisitor) -> compile::Result<()> {
         match self {
             Self::UINT(value) => visitor.visit_Primitive_UINT64(value)?,
+            Self::STRING(value) => visitor.visit_Primitive_STRING(value)?,
             _ => unimplemented!(),
         }
         Ok(())
@@ -377,6 +454,7 @@ impl AstNode for Primitive {
     fn post_visit(&self, visitor: &mut dyn AstVisitor) -> compile::Result<()> {
         match self {
             Self::UINT(value) => visitor.post_visit_Primitive_UINT64(value)?,
+            Self::STRING(value) => visitor.post_visit_Primitive_STRING(value)?,
             _ => unimplemented!(),
         }
         Ok(())
@@ -435,12 +513,8 @@ impl AstNode for Assignment {
     fn from_pair(pair: Pair<Rule>) -> Result<Self> {
         let mut inner = pair.into_inner();
         let var_name = Ident::from(inner.next().ok_or(ParseError::ExpectedInner)?.as_str());
-        let expression = Expression::try_from(inner.next().ok_or(ParseError::ExpectedInner)?)?;
 
-        Ok(Self {
-            var_name,
-            expression,
-        })
+        Ok(Self { var_name })
     }
 
     visit_fns!(Assignment);

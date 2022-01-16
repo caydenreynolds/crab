@@ -16,8 +16,12 @@ assignment = { "let" ~ ident ~ "=" ~ expression }
 reassignment = { ident ~ "=" ~ expression }
 return_stmt = { "return" ~ expression? }
 expression = { (primitive | fn_call | ident) }
-primitive = { (uint64_primitive) }
-uint64_primitive = { ASCII_DIGIT+ }
+primitive = { (uint64_primitive | string_primitive) }
+uint64_primitive = @{ ASCII_DIGIT+ }
+
+string_primitive = ${ ("\"" | NEWLINE) ~ string_inner ~ "\"" }
+string_inner = @{ char* }
+char = @{ !"\"" ~ ANY }
 
 // For now, we're only allowing primitive types
 crab_type = { ("uint") }

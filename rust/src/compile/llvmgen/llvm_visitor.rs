@@ -2,8 +2,8 @@ use crate::compile::except::{CompileError, Result};
 use crate::compile::llvmgen::{Codegen, Functiongen};
 use crate::compile::{AstVisitor, BasicValueType};
 use crate::parse::{
-    Assignment, AstNode, CodeBlock, CrabAst, CrabType, Expression, FnCall, Func, FuncSignature,
-    Ident, Primitive,
+    Assignment, AstNode, CodeBlock, CrabAst, CrabType, FnCall, Func, FuncSignature, Ident,
+    Primitive, Statement,
 };
 use inkwell::context::Context;
 use inkwell::support::LLVMString;
@@ -43,10 +43,14 @@ impl<'ctx> LlvmVisitor<'ctx> {
                     Err(CompileError::InvalidReturn(*rt, ct))
                 }
             } else {
-                Err(CompileError::InvalidNoneOption)
+                Err(CompileError::InvalidNoneOption(String::from(
+                    "validate_return_type",
+                )))
             }
         } else {
-            Err(CompileError::InvalidNoneOption)
+            Err(CompileError::InvalidNoneOption(String::from(
+                "validate_return_type",
+            )))
         }
     }
 }
@@ -110,22 +114,27 @@ impl<'ctx> AstVisitor for LlvmVisitor<'ctx> {
         Ok(())
     }
 
-    fn visit_Statement_RETURN(&mut self, node: &Option<Expression>) -> Result<()> {
-        match node {
-            Some(expr) => self.visit(expr)?,
-            None => {} //Do nothing
+    fn visit_Statement(&mut self, node: &Statement) -> Result<()> {
+        if let Some(expr) = &node.expression {
+            self.visit(expr)?;
         }
+        self.visit(&node.statement_type)
+    }
+
+    fn post_visit_Statement(&mut self, _node: &Statement) -> Result<()> {
+        self.prev_basic_value = None;
         Ok(())
     }
 
-    fn post_visit_Statement_RETURN(&mut self, node: &Option<Expression>) -> Result<()> {
-        self.validate_return_type()?;
-        match node {
-            Some(_) => self
-                .funcgen
-                .as_mut()
-                .unwrap()
-                .build_return(&self.prev_basic_value.as_ref().unwrap()),
+    fn visit_StatementType_RETURN(&mut self, _node: &bool) -> Result<()> {
+        match self.prev_basic_value {
+            Some(_) => {
+                self.validate_return_type()?;
+                self.funcgen
+                    .as_mut()
+                    .unwrap()
+                    .build_return(&self.prev_basic_value.as_ref().unwrap())
+            }
             None => self
                 .funcgen
                 .as_mut()
@@ -136,32 +145,40 @@ impl<'ctx> AstVisitor for LlvmVisitor<'ctx> {
         Ok(())
     }
 
-    fn visit_Statement_ASSIGNMENT(&mut self, node: &Assignment) -> Result<()> {
+    fn visit_StatementType_ASSIGNMENT(&mut self, node: &Assignment) -> Result<()> {
+        let assignment_type = self
+            .prev_basic_value
+            .as_ref()
+            .ok_or(CompileError::InvalidNoneOption(String::from(
+                "visit_Statement_ASSIGNMENT",
+            )))?
+            .to_crab_type();
         self.funcgen
             .as_mut()
-            .ok_or(CompileError::InvalidNoneOption)?
-            .build_create_var(&node.var_name)?;
+            .ok_or(CompileError::InvalidNoneOption(String::from(
+                "visit_Statement_ASSIGNMENT",
+            )))?
+            .build_create_var(&node.var_name, assignment_type)?;
         self.visit(node)
     }
 
-    fn visit_Statement_REASSIGNMENT(&mut self, node: &Assignment) -> Result<()> {
+    fn visit_StatementType_REASSIGNMENT(&mut self, node: &Assignment) -> Result<()> {
         self.visit(node)
-    }
-
-    fn visit_Assignment(&mut self, node: &Assignment) -> Result<()> {
-        self.visit(&node.expression)?;
-        Ok(())
     }
 
     fn post_visit_Assignment(&mut self, node: &Assignment) -> Result<()> {
         self.funcgen
             .as_mut()
-            .ok_or(CompileError::InvalidNoneOption)?
+            .ok_or(CompileError::InvalidNoneOption(String::from(
+                "post_visit_Assignment",
+            )))?
             .build_set_var(
                 &node.var_name.clone(),
                 self.prev_basic_value
                     .as_ref()
-                    .ok_or(CompileError::InvalidNoneOption)?,
+                    .ok_or(CompileError::InvalidNoneOption(String::from(
+                        "post_visit_Assignment",
+                    )))?,
             )?;
         self.prev_basic_value = None;
         Ok(())
@@ -180,17 +197,24 @@ impl<'ctx> AstVisitor for LlvmVisitor<'ctx> {
         self.prev_basic_value = Some(
             self.funcgen
                 .as_mut()
-                .ok_or(CompileError::InvalidNoneOption)?
+                .ok_or(CompileError::InvalidNoneOption(String::from(
+                    "visit_Expression_VARIABLE",
+                )))?
                 .build_retrieve_var(node)?,
         );
         Ok(())
     }
 
     fn visit_Primitive_UINT64(&mut self, node: &u64) -> Result<()> {
-        self.prev_basic_value = Some(BasicValueType::IntType(
+        self.prev_basic_value = Some(BasicValueType::IntValue(
             self.funcgen.as_ref().unwrap().build_const_u64(*node),
             CrabType::UINT,
         ));
+        Ok(())
+    }
+
+    fn visit_Primitive_STRING(&mut self, node: &String) -> Result<()> {
+        self.prev_basic_value = Some(self.funcgen.as_ref().unwrap().build_const_string(node));
         Ok(())
     }
 

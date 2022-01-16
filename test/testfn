@@ -1,10 +1,13 @@
 fn main() -> uint {
-    return ur_moms_a_ho()
+    let yo_momma = so_ugly()
+    return yo_momma
 }
 
-fn ur_moms_a_ho() -> uint {
+fn so_ugly() -> uint {
     let ligma = 420
     ligma = 69
-    return ligma
+    let message = "Hello, World!"
+    message = "deez are nutz"
+    return ligma  
 }
 
