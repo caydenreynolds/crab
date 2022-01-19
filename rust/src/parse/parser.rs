@@ -87,7 +87,7 @@ pub enum Primitive {
 pub enum CrabType {
     UINT,
     VOID,
-    STRING(u64),
+    STRING,
 }
 
 pub trait AstNode {

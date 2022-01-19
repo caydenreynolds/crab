@@ -1,14 +1,16 @@
+use inkwell::AddressSpace;
 use std::collections::HashMap;
 // use inkwell::basic_block::BasicBlock;
 use crate::compile::llvmgen::VarValue;
-use crate::compile::BasicValueType;
 use crate::compile::{CompileError, Result};
+use crate::compile::{CrabValueType, LLVMValueEnum};
 use crate::parse::{CrabType, Ident};
 use inkwell::builder::Builder;
 use inkwell::context::Context;
 use inkwell::module::Module;
-use inkwell::values::{ArrayValue, CallSiteValue, IntValue, VectorValue};
+use inkwell::values::CallSiteValue;
 use log::trace;
+use uuid::Uuid;
 
 pub struct Functiongen<'ctx> {
     builder: Builder<'ctx>,
@@ -46,31 +48,35 @@ impl<'ctx> Functiongen<'ctx> {
     }
 
     #[allow(unreachable_patterns)]
-    pub fn build_return(&mut self, value: &BasicValueType<'ctx>) {
+    pub fn build_return(&mut self, value: &CrabValueType<'ctx>) {
         trace!("Building return statement");
-        match value {
-            BasicValueType::IntValue(value, _) => self.builder.build_return(Some(value)),
-            BasicValueType::None => self.builder.build_return(None),
-            BasicValueType::CallValue(value, _) => self.builder.build_return(Some(
+        // This line causes a compile error and I have no fucking idea why
+        // Especially because the CallSiteValue arm accepts an Option<BasicValueEnum> ... WTF?
+        // self.builder.build_return(value.get_as_basic_value().as_ref());
+        match value.get_llvm_type() {
+            LLVMValueEnum::IntValue(value) => self.builder.build_return(Some(value)),
+            LLVMValueEnum::None => self.builder.build_return(None),
+            LLVMValueEnum::CallSiteValue(value) => self.builder.build_return(Some(
                 &value
                     .try_as_basic_value()
-                    .expect_left("Idk what's going on here"),
+                    .expect_left("Expected BasicValueType from CallSiteValue"),
             )),
             _ => unimplemented!(),
         };
     }
 
-    pub fn build_const_u64(&self, value: u64) -> IntValue<'ctx> {
+    pub fn build_const_u64(&self, value: u64) -> CrabValueType<'ctx> {
         trace!("Building constant u64");
-        self.context.i64_type().const_int(value, false)
+        CrabValueType::new_uint(self.context.i64_type().const_int(value, false))
     }
 
-    pub fn build_const_string(&self, value: &String) -> BasicValueType<'ctx> {
+    pub fn build_const_string(&self, value: &String) -> Result<CrabValueType<'ctx>> {
         trace!("Building constant string");
-        BasicValueType::StringPrimitiveValue(
-            self.context.const_string(value.as_bytes(), true),
-            CrabType::STRING((value.len() + 1) as u64),
-        )
+        let str_ptr = self
+            .builder
+            .build_global_string_ptr(&value, &Uuid::new_v4().to_string())
+            .as_pointer_value();
+        Ok(CrabValueType::new_string(str_ptr))
     }
 
     pub fn build_fn_call(
@@ -93,11 +99,10 @@ impl<'ctx> Functiongen<'ctx> {
         let val_ptr = match val_ptr_result {
             None => match expr_type {
                 CrabType::UINT => self.builder.build_alloca(self.context.i64_type(), name),
-                CrabType::STRING(size) => self.builder.build_array_alloca(
-                    self.context.i8_type().array_type(size as u32),
-                    self.context.i64_type().const_int(size, false),
-                    name,
-                ),
+                // CrabType::STRING(size) => self.builder.build_alloca(self.context.i8_type().array_type(size).ptr_type(AddressSpace::Generic), name),
+                CrabType::STRING => self
+                    .builder
+                    .build_alloca(self.context.i8_type().ptr_type(AddressSpace::Generic), name),
                 _ => unimplemented!(),
             },
             _ => return Err(CompileError::VarAlreadyExists(name.clone())),
@@ -107,84 +112,46 @@ impl<'ctx> Functiongen<'ctx> {
         Ok(())
     }
 
-    pub fn build_set_var(&mut self, name: &Ident, value: &BasicValueType) -> Result<()> {
+    pub fn build_set_var(&mut self, name: &Ident, value: &CrabValueType) -> Result<()> {
         trace!("Assigning to a variable with name {}", name);
         let val_ptr_result = self.variables.get(name);
-        // Only support i64 constants for now, and error on attempting to mutate a variable
-        match val_ptr_result {
+        return match val_ptr_result {
             None => Err(CompileError::VarDoesNotExist(name.clone())),
             Some(var_value) => {
-                match value {
-                    BasicValueType::IntValue(v, ct) => {
-                        if *ct == var_value.crab_type {
-                            self.builder.build_store(var_value.pointer, *v);
-                        } else {
-                            return Err(CompileError::VarType(
-                                name.clone(),
-                                var_value.crab_type,
-                                *ct,
-                            ));
-                        }
-                    }
-                    BasicValueType::CallValue(v, ct) => {
-                        if *ct == var_value.crab_type {
-                            self.builder.build_store(
-                                var_value.pointer,
-                                v.try_as_basic_value()
-                                    .expect_left("Expected function to return a basic value"),
-                            );
-                        } else {
-                            return Err(CompileError::VarType(
-                                name.clone(),
-                                var_value.crab_type,
-                                *ct,
-                            ));
-                        }
-                    }
-                    BasicValueType::StringPrimitiveValue(v, ct) => {
-                        if *ct == var_value.crab_type {
-                            self.builder.build_store(var_value.pointer, *v);
-                        } else {
-                            return Err(CompileError::VarType(
-                                name.clone(),
-                                var_value.crab_type,
-                                *ct,
-                            ));
-                        }
-                    }
-                    BasicValueType::StringValue(v, ct) => {
-                        if *ct == var_value.crab_type {
-                            self.builder.build_store(var_value.pointer, *v);
-                        } else {
-                            return Err(CompileError::VarType(
-                                name.clone(),
-                                var_value.crab_type,
-                                *ct,
-                            ));
-                        }
-                    }
-                    _ => unimplemented!(),
-                };
-                Ok(())
+                if var_value.crab_type == value.get_crab_type() {
+                    self.builder.build_store(
+                        var_value.pointer,
+                        value
+                            .get_as_basic_value()
+                            .ok_or(CompileError::InvalidNoneOption(String::from(
+                                "build_set_var",
+                            )))?,
+                    );
+                    Ok(())
+                } else {
+                    Err(CompileError::VarType(
+                        name.clone(),
+                        var_value.crab_type,
+                        value.get_crab_type(),
+                    ))
+                }
             }
-        }
+        };
     }
 
-    pub fn build_retrieve_var(&mut self, name: &Ident) -> Result<BasicValueType<'ctx>> {
+    pub fn build_retrieve_var(&mut self, name: &Ident) -> Result<CrabValueType<'ctx>> {
         trace!("Retreiving a variable with name {}", name);
         match self.variables.get(name) {
             Some(var_val) => match var_val.crab_type {
-                CrabType::UINT => Ok(BasicValueType::IntValue(
+                CrabType::UINT => Ok(CrabValueType::new_uint(
                     self.builder
                         .build_load(var_val.pointer, name)
                         .into_int_value(),
-                    var_val.crab_type,
                 )),
-                CrabType::STRING(_) => Ok(BasicValueType::StringValue(
+                CrabType::STRING => Ok(CrabValueType::new_string(
                     self.builder
                         .build_load(var_val.pointer, name)
-                        .into_array_value(),
-                    var_val.crab_type,
+                        .into_pointer_value(),
                 )),
                 _ => unimplemented!(),
             },

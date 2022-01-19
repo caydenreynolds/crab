@@ -6,7 +6,7 @@ pub use ast_visitor::*;
 mod builtins;
 pub use builtins::*;
 
-pub use llvmgen::basic_value_type::*;
+pub use llvmgen::crab_value_type::*;
 
 mod except;
 pub use except::*;

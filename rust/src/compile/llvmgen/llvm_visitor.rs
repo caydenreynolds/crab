@@ -1,6 +1,6 @@
 use crate::compile::except::{CompileError, Result};
 use crate::compile::llvmgen::{Codegen, Functiongen};
-use crate::compile::{AstVisitor, BasicValueType};
+use crate::compile::{AstVisitor, CrabValueType};
 use crate::parse::{
     Assignment, AstNode, CodeBlock, CrabAst, CrabType, FnCall, Func, FuncSignature, Ident,
     Primitive, Statement,
@@ -13,7 +13,7 @@ use std::path::PathBuf;
 pub struct LlvmVisitor<'ctx> {
     codegen: Codegen<'ctx>,
     funcgen: Option<Functiongen<'ctx>>,
-    prev_basic_value: Option<BasicValueType<'ctx>>,
+    prev_basic_value: Option<CrabValueType<'ctx>>,
     return_type: Option<CrabType>,
     functions: HashMap<Ident, FuncSignature>,
 }
@@ -36,7 +36,7 @@ impl<'ctx> LlvmVisitor<'ctx> {
     fn validate_return_type(&self) -> Result<()> {
         if let Some(bv) = &self.prev_basic_value {
             if let Some(rt) = &self.return_type {
-                let ct = bv.to_crab_type();
+                let ct = bv.get_crab_type();
                 if ct == *rt {
                     Ok(())
                 } else {
@@ -139,7 +139,7 @@ impl<'ctx> AstVisitor for LlvmVisitor<'ctx> {
                 .funcgen
                 .as_mut()
                 .unwrap()
-                .build_return(&BasicValueType::None),
+                .build_return(&CrabValueType::new_none()),
         }
         self.prev_basic_value = None;
         Ok(())
@@ -152,7 +152,7 @@ impl<'ctx> AstVisitor for LlvmVisitor<'ctx> {
             .ok_or(CompileError::InvalidNoneOption(String::from(
                 "visit_Statement_ASSIGNMENT",
             )))?
-            .to_crab_type();
+            .get_crab_type();
         self.funcgen
             .as_mut()
             .ok_or(CompileError::InvalidNoneOption(String::from(
@@ -206,15 +206,12 @@ impl<'ctx> AstVisitor for LlvmVisitor<'ctx> {
     }
 
     fn visit_Primitive_UINT64(&mut self, node: &u64) -> Result<()> {
-        self.prev_basic_value = Some(BasicValueType::IntValue(
-            self.funcgen.as_ref().unwrap().build_const_u64(*node),
-            CrabType::UINT,
-        ));
+        self.prev_basic_value = Some(self.funcgen.as_ref().unwrap().build_const_u64(*node));
         Ok(())
     }
 
     fn visit_Primitive_STRING(&mut self, node: &String) -> Result<()> {
-        self.prev_basic_value = Some(self.funcgen.as_ref().unwrap().build_const_string(node));
+        self.prev_basic_value = Some(self.funcgen.as_ref().unwrap().build_const_string(node)?);
         Ok(())
     }
 
@@ -226,8 +223,10 @@ impl<'ctx> AstVisitor for LlvmVisitor<'ctx> {
             .build_fn_call(&node.name, self.codegen.get_module())?;
         let fn_header_opt = self.functions.get(&node.name);
         if let Some(fn_header) = fn_header_opt {
-            self.prev_basic_value =
-                Some(BasicValueType::CallValue(call_value, fn_header.return_type));
+            self.prev_basic_value = Some(CrabValueType::new_call_value(
+                call_value,
+                fn_header.return_type,
+            ));
         } else {
             return Err(CompileError::CouldNotFindFunction(String::from(&node.name)));
         }

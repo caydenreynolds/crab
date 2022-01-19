@@ -24,4 +24,7 @@ pub enum CompileError {
 
     #[error("Cannot assign a {2:?} to variable {0} because the variable type is {1:?}")]
     VarType(Ident, CrabType, CrabType),
+
+    #[error("The following error occurred while building a malloc operation: {0}")]
+    MallocErr(String),
 }

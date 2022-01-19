@@ -7,7 +7,7 @@ fn so_ugly() -> uint {
     let ligma = 420
     ligma = 69
     let message = "Hello, World!"
-    message = "deez are nutz"
+    message = "deez nutz"
     return ligma  
 }
 
