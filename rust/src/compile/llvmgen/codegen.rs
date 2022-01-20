@@ -1,5 +1,6 @@
 use crate::compile::llvmgen::Functiongen;
 use crate::compile::Result;
+use crate::parse::CrabType;
 use inkwell::context::Context;
 use inkwell::module::Module;
 use inkwell::support::LLVMString;
@@ -17,9 +18,9 @@ impl<'ctx> Codegen<'ctx> {
         Self { context, module }
     }
 
-    pub fn add_function(&mut self, name: &str) {
+    pub fn add_function(&mut self, name: &str, return_type: CrabType) {
         trace!("Registering new function with name {}", name);
-        let fn_type = self.context.i64_type().fn_type(&[], false);
+        let fn_type = return_type.as_fn_type(self.context);
         let fn_value = self.module.add_function(name, fn_type, None);
         self.context.append_basic_block(fn_value, "entry");
     }

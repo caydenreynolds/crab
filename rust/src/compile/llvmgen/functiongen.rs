@@ -2,8 +2,8 @@ use inkwell::AddressSpace;
 use std::collections::HashMap;
 // use inkwell::basic_block::BasicBlock;
 use crate::compile::llvmgen::VarValue;
+use crate::compile::CrabValueType;
 use crate::compile::{CompileError, Result};
-use crate::compile::{CrabValueType, LLVMValueEnum};
 use crate::parse::{CrabType, Ident};
 use inkwell::builder::Builder;
 use inkwell::context::Context;
@@ -50,18 +50,10 @@ impl<'ctx> Functiongen<'ctx> {
     #[allow(unreachable_patterns)]
     pub fn build_return(&mut self, value: &CrabValueType<'ctx>) {
         trace!("Building return statement");
-        // This line causes a compile error and I have no fucking idea why
-        // Especially because the CallSiteValue arm accepts an Option<BasicValueEnum> ... WTF?
-        // self.builder.build_return(value.get_as_basic_value().as_ref());
-        match value.get_llvm_type() {
-            LLVMValueEnum::IntValue(value) => self.builder.build_return(Some(value)),
-            LLVMValueEnum::None => self.builder.build_return(None),
-            LLVMValueEnum::CallSiteValue(value) => self.builder.build_return(Some(
-                &value
-                    .try_as_basic_value()
-                    .expect_left("Expected BasicValueType from CallSiteValue"),
-            )),
-            _ => unimplemented!(),
+        // Have to do this match block for reasons. Surprised Rust doesn't have a function that just handles this.
+        match value.get_as_basic_value() {
+            Some(x) => self.builder.build_return(Some(&x)),
+            None => self.builder.build_return(None),
         };
     }
 

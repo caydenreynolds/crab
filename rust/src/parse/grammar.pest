@@ -24,4 +24,4 @@ string_inner = @{ char* }
 char = @{ !"\"" ~ ANY }
 
 // For now, we're only allowing primitive types
-crab_type = { ("uint") }
+crab_type = { ( "Int" | "String" ) }

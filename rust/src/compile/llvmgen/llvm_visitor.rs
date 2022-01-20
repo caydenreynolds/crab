@@ -95,7 +95,8 @@ impl<'ctx> AstVisitor for LlvmVisitor<'ctx> {
     }
 
     fn pre_visit_FuncSignature(&mut self, node: &FuncSignature) -> Result<()> {
-        self.codegen.add_function(node.name.as_str());
+        self.codegen
+            .add_function(node.name.as_str(), node.return_type);
         self.functions.insert(node.name.clone(), node.clone());
 
         Ok(())

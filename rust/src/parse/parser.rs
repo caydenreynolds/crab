@@ -1,6 +1,9 @@
 use crate::compile;
 use crate::compile::AstVisitor;
 use crate::parse::{ParseError, Result};
+use inkwell::context::Context;
+use inkwell::types::{AnyTypeEnum, FunctionType};
+use inkwell::AddressSpace;
 use log::trace;
 use pest::{iterators::Pair, Parser};
 use std::convert::TryFrom;
@@ -468,12 +471,38 @@ impl AstNode for CrabType {
         Self: Sized,
     {
         match pair.as_str() {
-            "uint" => Ok(Self::UINT),
+            "Int" => Ok(Self::UINT),
+            "String" => Ok(Self::STRING),
             s => Err(ParseError::InvalidCrabType(String::from(s))),
         }
     }
 
     visit_fns!(CrabType);
+}
+impl<'ctx> CrabType {
+    pub fn as_llvm_type(&self, context: &'ctx Context) -> AnyTypeEnum<'ctx> {
+        return match self {
+            Self::UINT => AnyTypeEnum::IntType(context.i64_type()),
+            // TODO: Figure out what to do about address spaces
+            Self::STRING => {
+                AnyTypeEnum::PointerType(context.i8_type().ptr_type(AddressSpace::Generic))
+            }
+            Self::VOID => AnyTypeEnum::VoidType(context.void_type()),
+        };
+    }
+
+    pub fn as_fn_type(&self, context: &'ctx Context) -> FunctionType<'ctx> {
+        trace!("CrabType as fn_type");
+        return match self {
+            Self::UINT => context.i64_type().fn_type(&[], false),
+            // TODO: Figure out what to do about address spaces
+            Self::STRING => context
+                .i8_type()
+                .ptr_type(AddressSpace::Generic)
+                .fn_type(&[], false),
+            Self::VOID => context.void_type().fn_type(&[], false),
+        };
+    }
 }
 
 try_from_pair!(FnCall, Rule::fn_call);

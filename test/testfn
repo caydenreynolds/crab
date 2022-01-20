@@ -1,13 +1,18 @@
-fn main() -> uint {
+fn main() -> Int {
     let yo_momma = so_ugly()
     return yo_momma
 }
 
-fn so_ugly() -> uint {
+fn so_ugly() -> Int {
     let ligma = 420
     ligma = 69
     let message = "Hello, World!"
     message = "deez nutz"
+    message = get_str()
     return ligma  
 }
 
+fn get_str() -> String {
+    let message = "ligma"
+    return message
+}
