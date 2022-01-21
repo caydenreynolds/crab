@@ -6,10 +6,12 @@ fn main() -> Int {
 fn so_ugly() -> Int {
     let ligma = 420
     ligma = 69
-    let message = "Hello, World!"
-    message = "deez nutz"
+    let message = "deez"
+    __printf__(message)
+    __printf__("dragon")
     message = get_str()
-    return ligma  
+    __printf__(get_str())
+    return ligma
 }
 
 fn get_str() -> String {

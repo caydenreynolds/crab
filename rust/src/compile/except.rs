@@ -27,4 +27,7 @@ pub enum CompileError {
 
     #[error("The following error occurred while building a malloc operation: {0}")]
     MallocErr(String),
+
+    #[error("A function may not accept an argument of type {0}")]
+    InvalidArgType(String),
 }

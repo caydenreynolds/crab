@@ -1,14 +1,13 @@
 use crate::compile::except::{CompileError, Result};
 use crate::compile::llvmgen::{Codegen, Functiongen};
-use crate::compile::{AstVisitor, CrabValueType};
-use crate::parse::{
-    Assignment, AstNode, CodeBlock, CrabAst, CrabType, FnCall, Func, FuncSignature, Ident,
-    Primitive, Statement,
-};
+use crate::compile::AstVisitor;
+use crate::parse::{Assignment, AstNode, CodeBlock, CrabAst, CrabType, FnCall, Func, FuncSignature, Ident, Primitive, Statement, TypedIdent, TypedIdentList};
 use inkwell::context::Context;
 use inkwell::support::LLVMString;
 use std::collections::HashMap;
 use std::path::PathBuf;
+use inkwell::module::Linkage;
+use crate::compile::llvmgen::crab_value_type::CrabValueType;
 
 pub struct LlvmVisitor<'ctx> {
     codegen: Codegen<'ctx>,
@@ -53,7 +52,43 @@ impl<'ctx> LlvmVisitor<'ctx> {
             )))
         }
     }
+
+    /*
+      *******************************************************************************
+      *                                                                             *
+      *                                BUILTINS                                     *
+      *                                                                             *
+      *******************************************************************************
+    */
+    fn add_builtin_fns(&mut self) -> Result<()> {
+        self.add_printf()
+    }
+
+    /// define and add the printf function to the module
+    fn add_printf(&mut self) -> Result<()> {
+        self.codegen.add_function("printf", CrabType::FLOAT, &[CrabType::STRING], true, Some(Linkage::External))?;
+        let signature = FuncSignature {
+            name: Ident::from("printf"),
+            return_type: CrabType::FLOAT,
+            args: Some(TypedIdentList {
+                typed_idents: vec![TypedIdent {
+                    name: Ident::from("str"),
+                    crab_type: CrabType::STRING,
+                }]
+            })
+        };
+        self.functions.insert(Ident::from("__printf__"), signature);
+        Ok(())
+    }
 }
+
+/*
+  *******************************************************************************
+  *                                                                             *
+  *                              COMPILE AST                                    *
+  *                                                                             *
+  *******************************************************************************
+*/
 
 impl<'ctx> AstVisitor for LlvmVisitor<'ctx> {
     fn pre_visit(&mut self, node: &dyn AstNode) -> Result<()> {
@@ -68,6 +103,7 @@ impl<'ctx> AstVisitor for LlvmVisitor<'ctx> {
     }
 
     fn visit_CrabAst(&mut self, node: &CrabAst) -> Result<()> {
+        self.add_builtin_fns()?;
         for func in &node.functions {
             self.pre_visit(func)?;
         }
@@ -96,7 +132,7 @@ impl<'ctx> AstVisitor for LlvmVisitor<'ctx> {
 
     fn pre_visit_FuncSignature(&mut self, node: &FuncSignature) -> Result<()> {
         self.codegen
-            .add_function(node.name.as_str(), node.return_type);
+            .add_function(node.name.as_str(), node.return_type, &[], false, None)?;
         self.functions.insert(node.name.clone(), node.clone());
 
         Ok(())
@@ -167,6 +203,10 @@ impl<'ctx> AstVisitor for LlvmVisitor<'ctx> {
         self.visit(node)
     }
 
+    fn visit_StatementType_FN_CALL(&mut self, node: &FnCall) -> Result<()> {
+        self.visit(node)
+    }
+
     fn post_visit_Assignment(&mut self, node: &Assignment) -> Result<()> {
         self.funcgen
             .as_mut()
@@ -217,13 +257,19 @@ impl<'ctx> AstVisitor for LlvmVisitor<'ctx> {
     }
 
     fn visit_FnCall(&mut self, node: &FnCall) -> Result<()> {
-        let call_value = self
-            .funcgen
-            .as_mut()
-            .unwrap()
-            .build_fn_call(&node.name, self.codegen.get_module())?;
+        let mut args = vec![];
+        for arg in &node.args.expressions {
+            self.visit(arg)?;
+            args.push(self.prev_basic_value.clone().ok_or(CompileError::InvalidNoneOption(String::from("visist_FnCall")))?);
+        }
+
         let fn_header_opt = self.functions.get(&node.name);
         if let Some(fn_header) = fn_header_opt {
+            let call_value = self
+                .funcgen
+                .as_mut()
+                .unwrap()
+                .build_fn_call(&fn_header.name, args.as_slice(), self.codegen.get_module())?;
             self.prev_basic_value = Some(CrabValueType::new_call_value(
                 call_value,
                 fn_header.return_type,

@@ -2,16 +2,21 @@ WHITESPACE = _{ " " | NEWLINE }
 COMMENT = _{ ("#" | "//") ~ (!NEWLINE ~ ANY)* ~ NEWLINE }
 
 ident = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
+typed_ident = { ident ~ ":" ~ crab_type }
+
+ident_list = { (ident ~ "," )* ~ ident ~ ","? }
+typed_ident_list = { (typed_ident ~ "," )* ~ typed_ident ~ ","? }
+expression_list = { (expression ~ "," )* ~ expression ~ ","? }
 
 program = { SOI ~ function+ ~ EOI }
 
 function = { fn_signature ~ code_block }
-fn_signature = { "fn" ~ ident ~ "(" ~ ")" ~ ("->" ~ crab_type)? }
-fn_call = { ident ~ "(" ~ ")" }
+fn_signature = { "fn" ~ ident ~ "(" ~ typed_ident* ~ ")" ~ ("->" ~ crab_type)? }
+fn_call = { ident ~ "(" ~ expression_list? ~ ")" }
 
 code_block = { "{" ~ statement* ~ "}" }
 
-statement = { (return_stmt | assignment | reassignment) }
+statement = { (return_stmt | assignment | reassignment | fn_call ) }
 assignment = { "let" ~ ident ~ "=" ~ expression }
 reassignment = { ident ~ "=" ~ expression }
 return_stmt = { "return" ~ expression? }
@@ -24,4 +29,4 @@ string_inner = @{ char* }
 char = @{ !"\"" ~ ANY }
 
 // For now, we're only allowing primitive types
-crab_type = { ( "Int" | "String" ) }
+crab_type = @{ ( "Int" | "String" | "Float" ) }

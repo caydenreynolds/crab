@@ -1,13 +1,14 @@
 use crate::parse::CrabType;
-use inkwell::values::{
-    ArrayValue, BasicValueEnum, CallSiteValue, IntValue, PointerValue, VectorValue,
-};
+use inkwell::values::{ArrayValue, BasicMetadataValueEnum, BasicValueEnum, CallSiteValue, IntValue, PointerValue, VectorValue};
+use crate::compile::{CompileError, Result};
 
+#[derive(Clone)]
 pub struct CrabValueType<'ctx> {
     llvm_value: LLVMValueEnum<'ctx>,
     crab_type: CrabType,
 }
 
+#[derive(Clone)]
 pub enum LLVMValueEnum<'ctx> {
     IntValue(IntValue<'ctx>),
     ArrayValue(ArrayValue<'ctx>),
@@ -62,5 +63,9 @@ impl<'ctx> CrabValueType<'ctx> {
             ),
             LLVMValueEnum::None => None,
         };
+    }
+
+    pub fn try_as_basic_metadata_value(&self) -> Result<BasicMetadataValueEnum<'ctx>> {
+        Ok(BasicMetadataValueEnum::from(self.get_as_basic_value().ok_or(CompileError::InvalidArgType(String::from(stringify!(CrabType::VOID))))?))
     }
 }

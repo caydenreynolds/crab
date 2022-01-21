@@ -2,7 +2,7 @@ use crate::compile::llvmgen::Functiongen;
 use crate::compile::Result;
 use crate::parse::CrabType;
 use inkwell::context::Context;
-use inkwell::module::Module;
+use inkwell::module::{Linkage, Module};
 use inkwell::support::LLVMString;
 use log::trace;
 use std::path::PathBuf;
@@ -18,11 +18,12 @@ impl<'ctx> Codegen<'ctx> {
         Self { context, module }
     }
 
-    pub fn add_function(&mut self, name: &str, return_type: CrabType) {
+    //TODO: The linkage, mason! What does it mean?
+    pub fn add_function(&mut self, name: &str, return_type: CrabType, arg_types: &[CrabType], variadic: bool, linkage: Option<Linkage>) -> Result<()> {
         trace!("Registering new function with name {}", name);
-        let fn_type = return_type.as_fn_type(self.context);
-        let fn_value = self.module.add_function(name, fn_type, None);
-        self.context.append_basic_block(fn_value, "entry");
+        let fn_type = return_type.as_fn_type(self.context, arg_types, variadic)?;
+        let _fn_value = self.module.add_function(name, fn_type, linkage);
+        Ok(())
     }
 
     pub fn get_function(&mut self, name: &str) -> Result<Functiongen<'ctx>> {
@@ -36,4 +37,6 @@ impl<'ctx> Codegen<'ctx> {
     pub fn get_module(&self) -> &Module<'ctx> {
         &self.module
     }
+
+    pub fn get_context(&self) -> &Context { &self.context }
 }

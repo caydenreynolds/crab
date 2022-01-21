@@ -2,7 +2,6 @@ use inkwell::AddressSpace;
 use std::collections::HashMap;
 // use inkwell::basic_block::BasicBlock;
 use crate::compile::llvmgen::VarValue;
-use crate::compile::CrabValueType;
 use crate::compile::{CompileError, Result};
 use crate::parse::{CrabType, Ident};
 use inkwell::builder::Builder;
@@ -11,6 +10,7 @@ use inkwell::module::Module;
 use inkwell::values::CallSiteValue;
 use log::trace;
 use uuid::Uuid;
+use crate::compile::llvmgen::crab_value_type::CrabValueType;
 
 pub struct Functiongen<'ctx> {
     builder: Builder<'ctx>,
@@ -29,10 +29,9 @@ impl<'ctx> Functiongen<'ctx> {
         let fn_value_opt = module.get_function(name);
         match fn_value_opt {
             Some(fn_value) => {
-                let basic_blocks = fn_value.get_basic_blocks();
-                let basic_block = basic_blocks.get(0).unwrap();
+                let basic_block = context.append_basic_block(fn_value, "entry");
                 let builder = context.create_builder();
-                builder.position_at_end(*basic_block);
+                builder.position_at_end(basic_block);
                 let variables = HashMap::new();
                 Ok(Self {
                     builder,
@@ -74,12 +73,17 @@ impl<'ctx> Functiongen<'ctx> {
     pub fn build_fn_call(
         &mut self,
         fn_name: &Ident,
+        args: &[CrabValueType<'ctx>],
         module: &Module<'ctx>,
     ) -> Result<CallSiteValue<'ctx>> {
         trace!("Building a call to function {}", fn_name);
         let fn_value_opt = module.get_function(fn_name);
+        let mut llvm_args = vec![];
+        for arg in args {
+            llvm_args.push(arg.try_as_basic_metadata_value()?);
+        }
         match fn_value_opt {
-            Some(fn_value) => Ok(self.builder.build_call(fn_value, &[], "call")),
+            Some(fn_value) => Ok(self.builder.build_call(fn_value, llvm_args.as_slice(), "call")),
             None => Err(CompileError::CouldNotFindFunction(String::from(fn_name))),
         }
     }

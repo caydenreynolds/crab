@@ -9,8 +9,8 @@ pub enum ParseError {
     #[error("This is a dummy error for when no error occurred but a function returned no result. Useful to avoid wrapping an option in a result")]
     None,
 
-    #[error("Could not build a crab tree because the parser did not find a match")]
-    NoMatch,
+    #[error("Could not build a crab tree because the parser did not find a match in function {0}")]
+    NoMatch(String),
 
     #[error("Failed to convert pair to {0} because the rule type is incorrect. Expected {1}, instead got {2}")]
     IncorrectRule(String, String, String),

@@ -1,8 +1,8 @@
 use crate::compile;
-use crate::compile::AstVisitor;
+use crate::compile::{AstVisitor, CompileError};
 use crate::parse::{ParseError, Result};
 use inkwell::context::Context;
-use inkwell::types::{AnyTypeEnum, FunctionType};
+use inkwell::types::{AnyTypeEnum, BasicMetadataTypeEnum, BasicTypeEnum, FunctionType};
 use inkwell::AddressSpace;
 use log::trace;
 use pest::{iterators::Pair, Parser};
@@ -20,17 +20,25 @@ pub fn parse(source: &Path) -> Result<CrabAst> {
     trace!("Parsed source is: {:#?}", parsed);
     // // There can only be one
     return match parsed.peek() {
-        None => Err(ParseError::NoMatch),
+        None => Err(ParseError::NoMatch(String::from("parse"))),
         Some(pair) => CrabAst::try_from(pair),
     };
 }
 
-#[derive(Debug)]
+/*
+  *******************************************************************************
+  *                                                                             *
+  *                                STRUCTS                                      *
+  *                                                                             *
+  *******************************************************************************
+*/
+
+#[derive(Debug, Clone)]
 pub struct CrabAst {
     pub functions: Vec<Func>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Func {
     pub signature: FuncSignature,
     pub body: CodeBlock,
@@ -40,39 +48,64 @@ pub struct Func {
 pub struct FuncSignature {
     pub name: Ident,
     pub return_type: CrabType,
+    pub args: Option<TypedIdentList>,
 }
 
 pub type Ident = String;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
+pub struct TypedIdent {
+    pub name: Ident,
+    pub crab_type: CrabType,
+}
+
+#[derive(Debug, Clone)]
+pub struct IdentList {
+    pub idents: Vec<Ident>,
+}
+
+#[derive(Debug, Clone)]
+pub struct TypedIdentList {
+    pub typed_idents: Vec<TypedIdent>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ExpressionList {
+    pub expressions: Vec<Expression>,
+}
+
+#[derive(Debug, Clone)]
 pub struct CodeBlock {
     pub statements: Vec<Statement>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Statement {
     pub expression: Option<Expression>,
     pub statement_type: StatementType,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
+#[allow(non_camel_case_types)]
 pub enum StatementType {
     RETURN,
     ASSIGNMENT(Assignment),
     REASSIGNMENT(Assignment),
+    FN_CALL(FnCall),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Assignment {
     pub var_name: Ident,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FnCall {
     pub name: Ident,
+    pub args: ExpressionList,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[allow(non_camel_case_types)]
 pub enum Expression {
     PRIM(Primitive),
@@ -80,7 +113,7 @@ pub enum Expression {
     VARIABLE(Ident),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Primitive {
     UINT(u64),
     STRING(String),
@@ -91,7 +124,16 @@ pub enum CrabType {
     UINT,
     VOID,
     STRING,
+    FLOAT,
 }
+
+/*
+  *******************************************************************************
+  *                                                                             *
+  *                              TRAITS 'N STUFF                                *
+  *                                                                             *
+  *******************************************************************************
+*/
 
 pub trait AstNode {
     // Build an instance of self from the given pair, assuming that the pair's rule type is correct
@@ -164,6 +206,14 @@ macro_rules! visit_fns {
     };
 }
 
+/*
+  *******************************************************************************
+  *                                                                             *
+  *                               BUILD AST                                     *
+  *                                                                             *
+  *******************************************************************************
+*/
+
 try_from_pair!(CrabAst, Rule::program);
 impl AstNode for CrabAst {
     fn from_pair(pair: Pair<Rule>) -> Result<Self> {
@@ -205,12 +255,32 @@ impl AstNode for FuncSignature {
     fn from_pair(pair: Pair<Rule>) -> Result<Self> {
         let mut inner = pair.into_inner();
         let name = Ident::from(inner.next().ok_or(ParseError::ExpectedInner)?.as_str());
-        let return_type = match inner.next() {
-            Some(return_pair) => CrabType::try_from(return_pair)?,
-            None => CrabType::VOID,
+
+        let (args, return_type) = match inner.clone().count() {
+            1 => (
+                None,
+                match inner.next() {
+                    Some(return_pair) => CrabType::try_from(return_pair)?,
+                    None => CrabType::VOID,
+                },
+            ),
+            2 => (
+                Some(TypedIdentList::try_from(
+                    inner.next().ok_or(ParseError::ExpectedInner)?,
+                )?),
+                match inner.next() {
+                    Some(return_pair) => CrabType::try_from(return_pair)?,
+                    None => CrabType::VOID,
+                },
+            ),
+            _ => return Err(ParseError::NoMatch(String::from("FuncSignature::from_pair"))),
         };
 
-        Ok(FuncSignature { name, return_type })
+        Ok(FuncSignature {
+            name,
+            return_type,
+            args,
+        })
     }
 
     visit_fns!(FuncSignature);
@@ -277,7 +347,8 @@ impl AstNode for StatementType {
             Rule::reassignment => Ok(StatementType::REASSIGNMENT(Assignment::try_from(
                 expr_type,
             )?)),
-            _ => Err(ParseError::NoMatch),
+            Rule::fn_call => Ok(StatementType::FN_CALL(FnCall::try_from(expr_type)?)),
+            _ => Err(ParseError::NoMatch(String::from("StatementType::from_pair"))),
         };
     }
 
@@ -286,6 +357,7 @@ impl AstNode for StatementType {
             Self::RETURN => visitor.pre_visit_StatementType_RETURN(&false)?,
             Self::ASSIGNMENT(ass) => visitor.pre_visit_StatementType_ASSIGNMENT(ass)?,
             Self::REASSIGNMENT(reass) => visitor.pre_visit_StatementType_REASSIGNMENT(reass)?,
+            Self::FN_CALL(fn_call) => visitor.pre_visit_StatementType_FN_CALL(fn_call)?,
             _ => unimplemented!(),
         }
         Ok(())
@@ -296,6 +368,7 @@ impl AstNode for StatementType {
             Self::RETURN => visitor.visit_StatementType_RETURN(&false)?,
             Self::ASSIGNMENT(ass) => visitor.visit_StatementType_ASSIGNMENT(ass)?,
             Self::REASSIGNMENT(reass) => visitor.visit_StatementType_REASSIGNMENT(reass)?,
+            Self::FN_CALL(fn_call) => visitor.visit_StatementType_FN_CALL(fn_call)?,
             _ => unimplemented!(),
         }
         Ok(())
@@ -306,6 +379,7 @@ impl AstNode for StatementType {
             Self::RETURN => visitor.post_visit_StatementType_RETURN(&false)?,
             Self::ASSIGNMENT(ass) => visitor.post_visit_StatementType_ASSIGNMENT(ass)?,
             Self::REASSIGNMENT(reass) => visitor.post_visit_StatementType_REASSIGNMENT(reass)?,
+            Self::FN_CALL(fn_call) => visitor.post_visit_StatementType_FN_CALL(fn_call)?,
             _ => unimplemented!(),
         }
         Ok(())
@@ -346,6 +420,7 @@ impl StatementType {
                             expr_inner.next().ok_or(ParseError::ExpectedInner)?,
                         )?))
                     }
+                    Rule::fn_call => Ok(None),
                     _ => unimplemented!(),
                 };
             }
@@ -375,7 +450,7 @@ impl AstNode for Expression {
             Rule::primitive => Ok(Expression::PRIM(Primitive::try_from(expr_type)?)),
             Rule::fn_call => Ok(Expression::FN_CALL(FnCall::try_from(expr_type)?)),
             Rule::ident => Ok(Expression::VARIABLE(Ident::from(expr_type.as_str()))),
-            _ => Err(ParseError::NoMatch),
+            _ => Err(ParseError::NoMatch(String::from("Expression::from_pair"))),
         };
     }
 
@@ -432,7 +507,7 @@ impl AstNode for Primitive {
                     .ok_or(ParseError::ExpectedInner)?
                     .as_str(),
             ))),
-            _ => Err(ParseError::NoMatch),
+            _ => Err(ParseError::NoMatch(String::from("Primitive::from_pair"))),
         };
     }
 
@@ -473,6 +548,7 @@ impl AstNode for CrabType {
         match pair.as_str() {
             "Int" => Ok(Self::UINT),
             "String" => Ok(Self::STRING),
+            "Float" => Ok(Self::FLOAT),
             s => Err(ParseError::InvalidCrabType(String::from(s))),
         }
     }
@@ -486,21 +562,47 @@ impl<'ctx> CrabType {
             // TODO: Figure out what to do about address spaces
             Self::STRING => {
                 AnyTypeEnum::PointerType(context.i8_type().ptr_type(AddressSpace::Generic))
-            }
+            },
+            Self::FLOAT => AnyTypeEnum::FloatType(context.f64_type()),
             Self::VOID => AnyTypeEnum::VoidType(context.void_type()),
         };
     }
 
-    pub fn as_fn_type(&self, context: &'ctx Context) -> FunctionType<'ctx> {
-        trace!("CrabType as fn_type");
+    pub fn try_as_basic_type(&self, context: &'ctx Context) -> compile::Result<BasicTypeEnum<'ctx>> {
         return match self {
-            Self::UINT => context.i64_type().fn_type(&[], false),
+            Self::UINT => Ok(BasicTypeEnum::IntType(context.i64_type())),
             // TODO: Figure out what to do about address spaces
-            Self::STRING => context
+            Self::STRING => {
+                Ok(BasicTypeEnum::PointerType(context.i8_type().ptr_type(AddressSpace::Generic)))
+            }
+            Self::FLOAT => Ok(BasicTypeEnum::FloatType(context.f64_type())),
+            Self::VOID => Err(CompileError::InvalidArgType(String::from(stringify!(CrabType::Void)))),
+        };
+    }
+
+    pub fn try_as_basic_metadata_type(&self, context: &'ctx Context) -> compile::Result<BasicMetadataTypeEnum<'ctx>> {
+        Ok(BasicMetadataTypeEnum::from(self.try_as_basic_type(context)?))
+
+    }
+
+    pub fn as_fn_type(&self, context: &'ctx Context, arg_types: &[CrabType], variadic: bool) -> compile::Result<FunctionType<'ctx>> {
+        trace!("CrabType as fn_type");
+
+        let mut param_vec = vec![];
+        for ct in arg_types {
+            param_vec.push(ct.try_as_basic_metadata_type(context)?);
+        }
+        let param_types = param_vec.as_slice();
+
+        return match self {
+            Self::UINT => Ok(context.i64_type().fn_type(param_types, variadic)),
+            // TODO: Figure out what to do about address spaces
+            Self::STRING => Ok(context
                 .i8_type()
                 .ptr_type(AddressSpace::Generic)
-                .fn_type(&[], false),
-            Self::VOID => context.void_type().fn_type(&[], false),
+                .fn_type(param_types, false)),
+            Self::FLOAT => Ok(context.f64_type().fn_type(param_types, variadic)),
+            Self::VOID => Ok(context.void_type().fn_type(param_types, variadic)),
         };
     }
 }
@@ -513,10 +615,84 @@ impl AstNode for FnCall {
     {
         let mut inner = pair.into_inner();
         let name = Ident::from(inner.next().ok_or(ParseError::ExpectedInner)?.as_str());
-        Ok(Self { name })
+        let args = match inner.next() {
+            None => ExpressionList { expressions: vec![] },
+            Some(n) => ExpressionList::try_from(n)?,
+        };
+        Ok(Self { name, args })
     }
 
     visit_fns!(FnCall);
+}
+
+try_from_pair!(TypedIdent, Rule::typed_ident);
+impl AstNode for TypedIdent {
+    fn from_pair(pair: Pair<Rule>) -> Result<Self>
+    where
+        Self: Sized,
+    {
+        let mut inner = pair.into_inner();
+        let name = Ident::from(inner.next().ok_or(ParseError::ExpectedInner)?.as_str());
+        let crab_type = CrabType::try_from(inner.next().ok_or(ParseError::ExpectedInner)?)?;
+
+        Ok(Self { name, crab_type })
+    }
+
+    visit_fns!(TypedIdent);
+}
+
+try_from_pair!(IdentList, Rule::ident_list);
+impl AstNode for IdentList {
+    fn from_pair(pair: Pair<Rule>) -> Result<Self>
+    where
+        Self: Sized,
+    {
+        let mut idents = vec![];
+
+        for ident in pair.into_inner() {
+            idents.push(Ident::from(ident.as_str()));
+        }
+
+        Ok(Self { idents })
+    }
+
+    visit_fns!(IdentList);
+}
+
+try_from_pair!(TypedIdentList, Rule::typed_ident_list);
+impl AstNode for TypedIdentList {
+    fn from_pair(pair: Pair<Rule>) -> Result<Self>
+    where
+        Self: Sized,
+    {
+        let mut typed_idents = vec![];
+
+        for ty_id in pair.into_inner() {
+            typed_idents.push(TypedIdent::try_from(ty_id)?);
+        }
+
+        Ok(Self { typed_idents })
+    }
+
+    visit_fns!(TypedIdentList);
+}
+
+try_from_pair!(ExpressionList, Rule::expression_list);
+impl AstNode for ExpressionList {
+    fn from_pair(pair: Pair<Rule>) -> Result<Self>
+    where
+        Self: Sized,
+    {
+        let mut expressions = vec![];
+
+        for expr in pair.into_inner() {
+            expressions.push(Expression::try_from(expr)?);
+        }
+
+        Ok(Self { expressions })
+    }
+
+    visit_fns!(ExpressionList);
 }
 
 /// Assignment requries a custom TryFrom implementation because it can be built from two different rules
