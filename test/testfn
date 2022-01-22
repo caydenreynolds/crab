@@ -6,6 +6,8 @@ fn print(String str) {
 
 fn main() -> Int {
     let yo_momma = so_ugly()
+    let t = true
+    let f = false
     return yo_momma
 }
 

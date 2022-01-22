@@ -258,6 +258,11 @@ impl<'ctx> AstVisitor for LlvmVisitor<'ctx> {
         Ok(())
     }
 
+    fn visit_Primitive_BOOL(&mut self, node: &bool) -> Result<()> {
+        self.prev_basic_value = Some(self.funcgen.as_ref().unwrap().build_const_bool(*node));
+        Ok(())
+    }
+
     fn visit_FnCall(&mut self, node: &FnCall) -> Result<()> {
         let mut args = vec![];
         for arg in &node.args.expressions {

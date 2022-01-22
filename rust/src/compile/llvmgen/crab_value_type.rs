@@ -45,6 +45,10 @@ impl<'ctx> CrabValueType<'ctx> {
         Self::new(LLVMValueEnum::PointerValue(value), ct)
     }
 
+    pub fn new_bool(val: IntValue<'ctx>) -> Self {
+        Self::new(LLVMValueEnum::IntValue(val), CrabType::BOOL)
+    }
+
     pub fn new_none() -> Self {
         Self::new(LLVMValueEnum::None, CrabType::VOID)
     }

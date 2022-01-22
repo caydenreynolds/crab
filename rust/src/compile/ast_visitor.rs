@@ -77,6 +77,7 @@ pub trait AstVisitor {
     second_dispatch_enums! {
         (Primitive, UINT64, u64),
         (Primitive, STRING, String),
+        (Primitive, BOOL, bool),
         (Expression, PRIM, Primitive),
         (Expression, FN_CALL, FnCall),
         (Expression, VARIABLE, Ident),

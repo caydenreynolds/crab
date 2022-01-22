@@ -117,6 +117,7 @@ pub enum Expression {
 pub enum Primitive {
     UINT(u64),
     STRING(String),
+    BOOL(bool),
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -125,6 +126,7 @@ pub enum CrabType {
     VOID,
     STRING,
     FLOAT,
+    BOOL,
 }
 
 /*
@@ -533,6 +535,7 @@ impl AstNode for Primitive {
                     .ok_or(ParseError::ExpectedInner)?
                     .as_str(),
             ))),
+            Rule::bool_primitive => Ok(Primitive::BOOL(prim_type.as_str() == "true")),
             _ => Err(ParseError::NoMatch(String::from("Primitive::from_pair"))),
         };
     }
@@ -541,6 +544,7 @@ impl AstNode for Primitive {
         match self {
             Self::UINT(value) => visitor.pre_visit_Primitive_UINT64(value)?,
             Self::STRING(value) => visitor.pre_visit_Primitive_STRING(value)?,
+            Self::BOOL(value) => visitor.pre_visit_Primitive_BOOL(value)?,
             _ => unimplemented!(),
         }
         Ok(())
@@ -550,6 +554,7 @@ impl AstNode for Primitive {
         match self {
             Self::UINT(value) => visitor.visit_Primitive_UINT64(value)?,
             Self::STRING(value) => visitor.visit_Primitive_STRING(value)?,
+            Self::BOOL(value) => visitor.visit_Primitive_BOOL(value)?,
             _ => unimplemented!(),
         }
         Ok(())
@@ -559,6 +564,8 @@ impl AstNode for Primitive {
         match self {
             Self::UINT(value) => visitor.post_visit_Primitive_UINT64(value)?,
             Self::STRING(value) => visitor.post_visit_Primitive_STRING(value)?,
+            Self::BOOL(value) => visitor.post_visit_Primitive_BOOL(value)?,
+
             _ => unimplemented!(),
         }
         Ok(())
@@ -575,6 +582,7 @@ impl AstNode for CrabType {
             "Int" => Ok(Self::UINT),
             "String" => Ok(Self::STRING),
             "Float" => Ok(Self::FLOAT),
+            "Bool" => Ok(Self::BOOL),
             s => Err(ParseError::InvalidCrabType(String::from(s))),
         }
     }
@@ -590,6 +598,7 @@ impl<'ctx> CrabType {
                 AnyTypeEnum::PointerType(context.i8_type().ptr_type(AddressSpace::Generic))
             },
             Self::FLOAT => AnyTypeEnum::FloatType(context.f64_type()),
+            Self::BOOL => AnyTypeEnum::IntType(context.custom_width_int_type(1)),
             Self::VOID => AnyTypeEnum::VoidType(context.void_type()),
         };
     }
@@ -602,6 +611,7 @@ impl<'ctx> CrabType {
                 Ok(BasicTypeEnum::PointerType(context.i8_type().ptr_type(AddressSpace::Generic)))
             }
             Self::FLOAT => Ok(BasicTypeEnum::FloatType(context.f64_type())),
+            Self::BOOL => Ok(BasicTypeEnum::IntType(context.custom_width_int_type(1))),
             Self::VOID => Err(CompileError::InvalidArgType(String::from(stringify!(CrabType::Void)))),
         };
     }
@@ -627,6 +637,7 @@ impl<'ctx> CrabType {
                 .i8_type()
                 .ptr_type(AddressSpace::Generic)
                 .fn_type(param_types, false)),
+            Self::BOOL => Ok(context.custom_width_int_type(1).fn_type(param_types, variadic)),
             Self::FLOAT => Ok(context.f64_type().fn_type(param_types, variadic)),
             Self::VOID => Ok(context.void_type().fn_type(param_types, variadic)),
         };

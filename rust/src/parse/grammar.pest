@@ -1,7 +1,8 @@
 WHITESPACE = _{ " " | NEWLINE }
 COMMENT = _{ ("#" | "//") ~ (!NEWLINE ~ ANY)* ~ NEWLINE }
 
-ident = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
+reserved_word = { ( "true" | "false" ) }
+ident = @{ !(reserved_word) ~ ((ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")*) }
 typed_ident = { crab_type ~ ident }
 
 ident_list = { (ident ~ "," )* ~ ident ~ ","? }
@@ -21,12 +22,14 @@ assignment = { "let" ~ ident ~ "=" ~ expression }
 reassignment = { ident ~ "=" ~ expression }
 return_stmt = { "return" ~ expression? }
 expression = { (primitive | fn_call | ident) }
-primitive = { (uint64_primitive | string_primitive) }
+
+primitive = { (uint64_primitive | string_primitive | bool_primitive) }
 uint64_primitive = @{ ASCII_DIGIT+ }
+bool_primitive = { "true" | "false" }
 
 string_primitive = ${ ("\"" | NEWLINE) ~ string_inner ~ "\"" }
 string_inner = @{ char* }
 char = @{ !("\"" | "\\") ~ ANY | ("\\" ~ ( "n" )) }
 
 // For now, we're only allowing primitive types
-crab_type = @{ ( "Int" | "String" | "Float" ) }
+crab_type = @{ ( "Int" | "String" | "Float" | "Bool" ) }

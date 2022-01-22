@@ -64,17 +64,26 @@ impl<'ctx> Functiongen<'ctx> {
     }
 
     pub fn build_const_u64(&self, value: u64) -> CrabValueType<'ctx> {
-        trace!("Building constant u64");
+        trace!("Building constant u64 with value {0}", value);
         CrabValueType::new_uint(self.context.i64_type().const_int(value, false))
     }
 
     pub fn build_const_string(&self, value: &String) -> Result<CrabValueType<'ctx>> {
-        trace!("Building constant string");
+        trace!("Building constant string with value {0}", value.clone());
         let str_ptr = self
             .builder
             .build_global_string_ptr(&value, &Uuid::new_v4().to_string())
             .as_pointer_value();
         Ok(CrabValueType::new_string(str_ptr))
+    }
+
+    pub fn build_const_bool(&self, value: bool) -> CrabValueType<'ctx> {
+        trace!("Building constant bool with value {0}", value);
+        let val_num = match value {
+            true => 1,
+            false => 0,
+        };
+        CrabValueType::new_bool(self.context.custom_width_int_type(1).const_int(val_num, false))
     }
 
     pub fn build_fn_call(
@@ -102,10 +111,10 @@ impl<'ctx> Functiongen<'ctx> {
         let val_ptr = match val_ptr_result {
             None => match expr_type {
                 CrabType::UINT => self.builder.build_alloca(self.context.i64_type(), name),
-                // CrabType::STRING(size) => self.builder.build_alloca(self.context.i8_type().array_type(size).ptr_type(AddressSpace::Generic), name),
                 CrabType::STRING => self
                     .builder
                     .build_alloca(self.context.i8_type().ptr_type(AddressSpace::Generic), name),
+                CrabType::BOOL => self.builder.build_alloca(self.context.custom_width_int_type(1), name),
                 _ => unimplemented!(),
             },
             _ => return Err(CompileError::VarAlreadyExists(name.clone())),
