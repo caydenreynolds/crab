@@ -1,3 +1,9 @@
+fn print(String str) {
+    __printf__(str)
+    __printf__("\n")
+    return
+}
+
 fn main() -> Int {
     let yo_momma = so_ugly()
     return yo_momma
@@ -7,10 +13,10 @@ fn so_ugly() -> Int {
     let ligma = 420
     ligma = 69
     let message = "deez"
-    __printf__(message)
-    __printf__("dragon")
+    print(message)
+    print("dragon")
     message = get_str()
-    __printf__(get_str())
+    print(get_str())
     return ligma
 }
 

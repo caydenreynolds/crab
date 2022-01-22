@@ -61,12 +61,14 @@ impl<'ctx> LlvmVisitor<'ctx> {
       *******************************************************************************
     */
     fn add_builtin_fns(&mut self) -> Result<()> {
+        //TODO: If a use writes a function with the same name as an internal builtin (e.g. prinf), it overwrites the real printf and causes llc to barf
+        //TODO: Writing a function named __printf__ also causes an overwrite (I think) and this would probably be ok, except we need to make sure it's a local overwrite, not a global one. Namespacing should fix this issue.
         self.add_printf()
     }
 
     /// define and add the printf function to the module
     fn add_printf(&mut self) -> Result<()> {
-        self.codegen.add_function("printf", CrabType::FLOAT, &[CrabType::STRING], true, Some(Linkage::External))?;
+        self.codegen.add_function("printf", CrabType::FLOAT, &[TypedIdent { name: String::from("str"), crab_type: CrabType::STRING }], true, Some(Linkage::External))?;
         let signature = FuncSignature {
             name: Ident::from("printf"),
             return_type: CrabType::FLOAT,
@@ -132,14 +134,14 @@ impl<'ctx> AstVisitor for LlvmVisitor<'ctx> {
 
     fn pre_visit_FuncSignature(&mut self, node: &FuncSignature) -> Result<()> {
         self.codegen
-            .add_function(node.name.as_str(), node.return_type, &[], false, None)?;
+            .add_function(node.name.as_str(), node.return_type, node.get_args(), false, None)?;
         self.functions.insert(node.name.clone(), node.clone());
 
         Ok(())
     }
 
     fn visit_FuncSignature(&mut self, node: &FuncSignature) -> Result<()> {
-        self.funcgen = Some(self.codegen.get_function(node.name.as_str())?);
+        self.funcgen = Some(self.codegen.get_function(node.name.as_str(), node.get_args())?);
         self.return_type = Some(node.return_type);
         Ok(())
     }

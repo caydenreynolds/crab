@@ -1,5 +1,5 @@
 use crate::parse::CrabType;
-use inkwell::values::{ArrayValue, BasicMetadataValueEnum, BasicValueEnum, CallSiteValue, IntValue, PointerValue, VectorValue};
+use inkwell::values::{ArrayValue, BasicMetadataValueEnum, BasicValueEnum, CallSiteValue, FloatValue, IntValue, PointerValue, StructValue, VectorValue};
 use crate::compile::{CompileError, Result};
 
 #[derive(Clone)]
@@ -15,6 +15,8 @@ pub enum LLVMValueEnum<'ctx> {
     CallSiteValue(CallSiteValue<'ctx>),
     PointerValue(PointerValue<'ctx>),
     VectorValue(VectorValue<'ctx>),
+    FloatValue(FloatValue<'ctx>),
+    StructValue(StructValue<'ctx>),
     None,
 }
 
@@ -39,8 +41,24 @@ impl<'ctx> CrabValueType<'ctx> {
         Self::new(LLVMValueEnum::CallSiteValue(value), ct)
     }
 
+    pub fn new_ptr(value: PointerValue<'ctx>, ct: CrabType) -> Self {
+        Self::new(LLVMValueEnum::PointerValue(value), ct)
+    }
+
     pub fn new_none() -> Self {
         Self::new(LLVMValueEnum::None, CrabType::VOID)
+    }
+
+    pub fn from_basic_value_enum(bve: BasicValueEnum<'ctx>, ct: CrabType) -> Self {
+        let llvm_value = match bve {
+            BasicValueEnum::ArrayValue(val) => LLVMValueEnum::ArrayValue(val),
+            BasicValueEnum::PointerValue(val) => LLVMValueEnum::PointerValue(val),
+            BasicValueEnum::VectorValue(val) => LLVMValueEnum::VectorValue(val),
+            BasicValueEnum::IntValue(val) => LLVMValueEnum::IntValue(val),
+            BasicValueEnum::FloatValue(val) => LLVMValueEnum::FloatValue(val),
+            BasicValueEnum::StructValue(val) => LLVMValueEnum::StructValue(val),
+        };
+        Self::new(llvm_value, ct)
     }
 
     pub fn get_crab_type(&self) -> CrabType {
@@ -61,11 +79,20 @@ impl<'ctx> CrabValueType<'ctx> {
                 v.try_as_basic_value()
                     .expect_left("Expected function call to return a basic value"),
             ),
+            LLVMValueEnum::FloatValue(v) => Some(BasicValueEnum::FloatValue(v)),
+            LLVMValueEnum::StructValue(v) => Some(BasicValueEnum::StructValue(v)),
             LLVMValueEnum::None => None,
         };
     }
 
     pub fn try_as_basic_metadata_value(&self) -> Result<BasicMetadataValueEnum<'ctx>> {
         Ok(BasicMetadataValueEnum::from(self.get_as_basic_value().ok_or(CompileError::InvalidArgType(String::from(stringify!(CrabType::VOID))))?))
+    }
+
+    pub fn try_as_ptr_value(&self) -> Result<PointerValue<'ctx>> {
+        match self.llvm_value {
+            LLVMValueEnum::PointerValue(val) => Ok(val),
+            _ => Err(CompileError::VarValueType(String::from("PointerValue"))),
+        }
     }
 }

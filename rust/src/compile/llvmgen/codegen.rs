@@ -1,6 +1,6 @@
 use crate::compile::llvmgen::Functiongen;
 use crate::compile::Result;
-use crate::parse::CrabType;
+use crate::parse::{CrabType, TypedIdent};
 use inkwell::context::Context;
 use inkwell::module::{Linkage, Module};
 use inkwell::support::LLVMString;
@@ -19,15 +19,15 @@ impl<'ctx> Codegen<'ctx> {
     }
 
     //TODO: The linkage, mason! What does it mean?
-    pub fn add_function(&mut self, name: &str, return_type: CrabType, arg_types: &[CrabType], variadic: bool, linkage: Option<Linkage>) -> Result<()> {
-        trace!("Registering new function with name {}", name);
+    pub fn add_function(&mut self, name: &str, return_type: CrabType, arg_types: &[TypedIdent], variadic: bool, linkage: Option<Linkage>) -> Result<()> {
+        trace!("Registering new function with name {} and {} args", name, arg_types.len());
         let fn_type = return_type.as_fn_type(self.context, arg_types, variadic)?;
         let _fn_value = self.module.add_function(name, fn_type, linkage);
         Ok(())
     }
 
-    pub fn get_function(&mut self, name: &str) -> Result<Functiongen<'ctx>> {
-        Functiongen::new(name, &self.context, &self.module)
+    pub fn get_function(&mut self, name: &str, args: &[TypedIdent]) -> Result<Functiongen<'ctx>> {
+        Functiongen::new(name, &self.context, &self.module, args)
     }
 
     pub fn print_to_file(&self, path: PathBuf) -> std::result::Result<(), LLVMString> {

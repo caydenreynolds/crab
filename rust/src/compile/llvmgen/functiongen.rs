@@ -1,9 +1,7 @@
 use inkwell::AddressSpace;
 use std::collections::HashMap;
-// use inkwell::basic_block::BasicBlock;
-use crate::compile::llvmgen::VarValue;
 use crate::compile::{CompileError, Result};
-use crate::parse::{CrabType, Ident};
+use crate::parse::{CrabType, Ident, TypedIdent};
 use inkwell::builder::Builder;
 use inkwell::context::Context;
 use inkwell::module::Module;
@@ -15,8 +13,7 @@ use crate::compile::llvmgen::crab_value_type::CrabValueType;
 pub struct Functiongen<'ctx> {
     builder: Builder<'ctx>,
     context: &'ctx Context,
-    variables: HashMap<Ident, VarValue<'ctx>>,
-    //basic_block: BasicBlock<'ctx>,
+    variables: HashMap<Ident, CrabValueType<'ctx>>,
 }
 
 impl<'ctx> Functiongen<'ctx> {
@@ -24,6 +21,7 @@ impl<'ctx> Functiongen<'ctx> {
         name: &str,
         context: &'ctx Context,
         module: &Module<'ctx>,
+        args: &[TypedIdent],
     ) -> Result<Functiongen<'ctx>> {
         trace!("Creating new functiongen for a function with name {}", name);
         let fn_value_opt = module.get_function(name);
@@ -33,13 +31,22 @@ impl<'ctx> Functiongen<'ctx> {
                 let builder = context.create_builder();
                 builder.position_at_end(basic_block);
                 let variables = HashMap::new();
-                Ok(Self {
+                let mut s = Self {
                     builder,
                     context,
                     variables,
-                    // module,
-                    //basic_block
-                })
+                };
+
+                // Add variables
+                // Let's just immediately store them, because that's an easy way to make the types work out
+                let mut n = 0;
+                for arg in args {
+                    s.build_create_var(&arg.name, arg.crab_type)?;
+                    s.build_set_var(&arg.name, &CrabValueType::from_basic_value_enum(fn_value.get_nth_param(n).ok_or(CompileError::Internal(format!("Failed to get function because the param count did not match the expected number of params. i = {0}, fn_name = {1}", n, name)))?, arg.crab_type))?;
+                    n += 1;
+                }
+
+                Ok(s)
             }
             // This should never happen
             None => Err(CompileError::CouldNotFindFunction(String::from(name))),
@@ -104,7 +111,7 @@ impl<'ctx> Functiongen<'ctx> {
             _ => return Err(CompileError::VarAlreadyExists(name.clone())),
         };
         self.variables
-            .insert(name.clone(), VarValue::new(val_ptr, expr_type));
+            .insert(name.clone(), CrabValueType::new_ptr(val_ptr, expr_type));
         Ok(())
     }
 
@@ -114,9 +121,9 @@ impl<'ctx> Functiongen<'ctx> {
         return match val_ptr_result {
             None => Err(CompileError::VarDoesNotExist(name.clone())),
             Some(var_value) => {
-                if var_value.crab_type == value.get_crab_type() {
+                if var_value.get_crab_type() == value.get_crab_type() {
                     self.builder.build_store(
-                        var_value.pointer,
+                        var_value.try_as_ptr_value()?,
                         value
                             .get_as_basic_value()
                             .ok_or(CompileError::InvalidNoneOption(String::from(
@@ -127,7 +134,7 @@ impl<'ctx> Functiongen<'ctx> {
                 } else {
                     Err(CompileError::VarType(
                         name.clone(),
-                        var_value.crab_type,
+                        var_value.get_crab_type(),
                         value.get_crab_type(),
                     ))
                 }
@@ -138,17 +145,18 @@ impl<'ctx> Functiongen<'ctx> {
     pub fn build_retrieve_var(&mut self, name: &Ident) -> Result<CrabValueType<'ctx>> {
         trace!("Retreiving a variable with name {}", name);
         match self.variables.get(name) {
-            Some(var_val) => match var_val.crab_type {
+            Some(var_val) => match var_val.get_crab_type() {
                 CrabType::UINT => Ok(CrabValueType::new_uint(
                     self.builder
-                        .build_load(var_val.pointer, name)
+                        .build_load(var_val.try_as_ptr_value()?, name)
                         .into_int_value(),
                 )),
-                CrabType::STRING => Ok(CrabValueType::new_string(
+                CrabType::STRING => {
+                    Ok(CrabValueType::new_string(
                     self.builder
-                        .build_load(var_val.pointer, name)
+                        .build_load(var_val.try_as_ptr_value()?, name)
                         .into_pointer_value(),
-                )),
+                ))},
                 _ => unimplemented!(),
             },
             None => Err(CompileError::VarDoesNotExist(name.clone())),

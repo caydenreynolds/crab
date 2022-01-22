@@ -30,4 +30,10 @@ pub enum CompileError {
 
     #[error("A function may not accept an argument of type {0}")]
     InvalidArgType(String),
+
+    #[error("{0}")]
+    Internal(String),
+
+    #[error("Failed to get var value type as {0}")]
+    VarValueType(String),
 }

@@ -1,6 +1,6 @@
 use crate::compile;
 use crate::compile::{AstVisitor, CompileError};
-use crate::parse::{ParseError, Result};
+use crate::parse::{parse_string, ParseError, Result};
 use inkwell::context::Context;
 use inkwell::types::{AnyTypeEnum, BasicMetadataTypeEnum, BasicTypeEnum, FunctionType};
 use inkwell::AddressSpace;
@@ -257,13 +257,30 @@ impl AstNode for FuncSignature {
         let name = Ident::from(inner.next().ok_or(ParseError::ExpectedInner)?.as_str());
 
         let (args, return_type) = match inner.clone().count() {
-            1 => (
-                None,
-                match inner.next() {
-                    Some(return_pair) => CrabType::try_from(return_pair)?,
-                    None => CrabType::VOID,
-                },
-            ),
+            0 => (None, CrabType::VOID),
+            1 => {
+                // Determine whether we have args or a return
+                let in_pair = inner.next().ok_or(ParseError::None)?;
+                trace!("{:#?}", in_pair.clone().as_rule());
+                match in_pair.clone().as_rule() {
+                    // We have args
+                    Rule::typed_ident_list => {
+                        (
+                            Some(TypedIdentList::try_from(in_pair)?),
+                            CrabType::VOID,
+                        )
+                    }
+                    // We have a return
+                    Rule::crab_type => {
+                        (
+                            None,
+                            CrabType::try_from(in_pair)?,
+                        )
+                    }
+                    // This should never happen
+                    _ => return Err(ParseError::NoMatch(String::from("FuncSignature::from_pair_0")))
+                }
+            }
             2 => (
                 Some(TypedIdentList::try_from(
                     inner.next().ok_or(ParseError::ExpectedInner)?,
@@ -273,7 +290,7 @@ impl AstNode for FuncSignature {
                     None => CrabType::VOID,
                 },
             ),
-            _ => return Err(ParseError::NoMatch(String::from("FuncSignature::from_pair"))),
+            _ => return Err(ParseError::NoMatch(String::from("FuncSignature::from_pair_1"))),
         };
 
         Ok(FuncSignature {
@@ -284,6 +301,15 @@ impl AstNode for FuncSignature {
     }
 
     visit_fns!(FuncSignature);
+}
+
+impl FuncSignature {
+    pub fn get_args(&self) -> &[TypedIdent] {
+        return match &self.args {
+            Some(ident_list) => ident_list.typed_idents.as_slice(),
+            None => &[],
+        }
+    }
 }
 
 try_from_pair!(CodeBlock, Rule::code_block);
@@ -500,7 +526,7 @@ impl AstNode for Primitive {
 
         return match prim_type.as_rule() {
             Rule::uint64_primitive => Ok(Primitive::UINT(prim_type.as_str().parse()?)),
-            Rule::string_primitive => Ok(Primitive::STRING(String::from(
+            Rule::string_primitive => Ok(Primitive::STRING(parse_string(
                 prim_type
                     .into_inner()
                     .next()
@@ -585,12 +611,12 @@ impl<'ctx> CrabType {
 
     }
 
-    pub fn as_fn_type(&self, context: &'ctx Context, arg_types: &[CrabType], variadic: bool) -> compile::Result<FunctionType<'ctx>> {
+    pub fn as_fn_type(&self, context: &'ctx Context, args: &[TypedIdent], variadic: bool) -> compile::Result<FunctionType<'ctx>> {
         trace!("CrabType as fn_type");
 
         let mut param_vec = vec![];
-        for ct in arg_types {
-            param_vec.push(ct.try_as_basic_metadata_type(context)?);
+        for ti in args {
+            param_vec.push(ti.crab_type.try_as_basic_metadata_type(context)?);
         }
         let param_types = param_vec.as_slice();
 
@@ -632,8 +658,8 @@ impl AstNode for TypedIdent {
         Self: Sized,
     {
         let mut inner = pair.into_inner();
-        let name = Ident::from(inner.next().ok_or(ParseError::ExpectedInner)?.as_str());
         let crab_type = CrabType::try_from(inner.next().ok_or(ParseError::ExpectedInner)?)?;
+        let name = Ident::from(inner.next().ok_or(ParseError::ExpectedInner)?.as_str());
 
         Ok(Self { name, crab_type })
     }
