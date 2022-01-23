@@ -1,19 +1,23 @@
-use inkwell::AddressSpace;
-use std::collections::HashMap;
+use crate::compile::llvmgen::crab_value_type::CrabValueType;
 use crate::compile::{CompileError, Result};
 use crate::parse::{CrabType, Ident, TypedIdent};
+use inkwell::basic_block::BasicBlock;
 use inkwell::builder::Builder;
 use inkwell::context::Context;
 use inkwell::module::Module;
-use inkwell::values::CallSiteValue;
+use inkwell::values::{CallSiteValue, FunctionValue};
+use inkwell::AddressSpace;
 use log::trace;
+use std::collections::HashMap;
 use uuid::Uuid;
-use crate::compile::llvmgen::crab_value_type::CrabValueType;
 
 pub struct Functiongen<'ctx> {
     builder: Builder<'ctx>,
     context: &'ctx Context,
     variables: HashMap<Ident, CrabValueType<'ctx>>,
+    else_stack: Vec<BasicBlock<'ctx>>,
+    always_stack: Vec<BasicBlock<'ctx>>,
+    fn_value: FunctionValue<'ctx>,
 }
 
 impl<'ctx> Functiongen<'ctx> {
@@ -27,7 +31,7 @@ impl<'ctx> Functiongen<'ctx> {
         let fn_value_opt = module.get_function(name);
         match fn_value_opt {
             Some(fn_value) => {
-                let basic_block = context.append_basic_block(fn_value, "entry");
+                let basic_block = context.append_basic_block(fn_value, &Uuid::new_v4().to_string());
                 let builder = context.create_builder();
                 builder.position_at_end(basic_block);
                 let variables = HashMap::new();
@@ -35,6 +39,9 @@ impl<'ctx> Functiongen<'ctx> {
                     builder,
                     context,
                     variables,
+                    else_stack: vec![],
+                    always_stack: vec![],
+                    fn_value,
                 };
 
                 // Add variables
@@ -83,7 +90,11 @@ impl<'ctx> Functiongen<'ctx> {
             true => 1,
             false => 0,
         };
-        CrabValueType::new_bool(self.context.custom_width_int_type(1).const_int(val_num, false))
+        CrabValueType::new_bool(
+            self.context
+                .custom_width_int_type(1)
+                .const_int(val_num, false),
+        )
     }
 
     pub fn build_fn_call(
@@ -99,7 +110,9 @@ impl<'ctx> Functiongen<'ctx> {
             llvm_args.push(arg.try_as_basic_metadata_value()?);
         }
         match fn_value_opt {
-            Some(fn_value) => Ok(self.builder.build_call(fn_value, llvm_args.as_slice(), "call")),
+            Some(fn_value) => Ok(self
+                .builder
+                .build_call(fn_value, llvm_args.as_slice(), "call")),
             None => Err(CompileError::CouldNotFindFunction(String::from(fn_name))),
         }
     }
@@ -114,7 +127,9 @@ impl<'ctx> Functiongen<'ctx> {
                 CrabType::STRING => self
                     .builder
                     .build_alloca(self.context.i8_type().ptr_type(AddressSpace::Generic), name),
-                CrabType::BOOL => self.builder.build_alloca(self.context.custom_width_int_type(1), name),
+                CrabType::BOOL => self
+                    .builder
+                    .build_alloca(self.context.custom_width_int_type(1), name),
                 _ => unimplemented!(),
             },
             _ => return Err(CompileError::VarAlreadyExists(name.clone())),
@@ -160,15 +175,81 @@ impl<'ctx> Functiongen<'ctx> {
                         .build_load(var_val.try_as_ptr_value()?, name)
                         .into_int_value(),
                 )),
-                CrabType::STRING => {
-                    Ok(CrabValueType::new_string(
+                CrabType::STRING => Ok(CrabValueType::new_string(
                     self.builder
                         .build_load(var_val.try_as_ptr_value()?, name)
                         .into_pointer_value(),
-                ))},
+                )),
+                CrabType::BOOL => Ok(CrabValueType::new_bool(
+                    self.builder
+                        .build_load(var_val.try_as_ptr_value()?, name)
+                        .into_int_value(),
+                )),
                 _ => unimplemented!(),
             },
             None => Err(CompileError::VarDoesNotExist(name.clone())),
         }
+    }
+
+    pub fn build_unreachable(&mut self) -> Result<()> {
+        self.builder.build_unreachable();
+        Ok(())
+    }
+
+    pub fn begin_if_then(&mut self, condition: &CrabValueType) -> Result<()> {
+        let then_block = self
+            .context
+            .append_basic_block(self.fn_value, &Uuid::new_v4().to_string());
+        let else_block = self
+            .context
+            .append_basic_block(self.fn_value, &Uuid::new_v4().to_string());
+        let always_block = self
+            .context
+            .append_basic_block(self.fn_value, &Uuid::new_v4().to_string());
+
+        self.builder.build_conditional_branch(
+            condition.try_as_bool_value()?,
+            then_block,
+            else_block,
+        );
+
+        self.add_terminating_instruction(then_block, always_block);
+        self.add_terminating_instruction(else_block, always_block);
+
+        self.else_stack.push(else_block);
+        self.always_stack.push(always_block);
+
+        self.builder
+            .position_before(&then_block.get_first_instruction().unwrap());
+
+        Ok(())
+    }
+
+    pub fn begin_if_else(&mut self) -> Result<()> {
+        let else_block = self
+            .else_stack
+            .pop()
+            .ok_or(CompileError::EmptyStack(String::from("else_stack")))?;
+        self.builder
+            .position_before(&else_block.get_first_instruction().unwrap());
+        Ok(())
+    }
+
+    pub fn end_if(&mut self) -> Result<()> {
+        let always_block = self
+            .always_stack
+            .pop()
+            .ok_or(CompileError::EmptyStack(String::from("always_stack")))?;
+        self.builder.position_at_end(always_block);
+        Ok(())
+    }
+
+    fn add_terminating_instruction(
+        &mut self,
+        block: BasicBlock<'ctx>,
+        always_block: BasicBlock<'ctx>,
+    ) {
+        self.builder.position_at_end(block);
+        self.builder.build_unconditional_branch(always_block);
     }
 }

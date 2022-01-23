@@ -1,19 +1,23 @@
 fn print(String str) {
     __printf__(str)
     __printf__("\n")
-    return
 }
 
 fn main() -> Int {
     let yo_momma = so_ugly()
-    let t = true
-    let f = false
     return yo_momma
 }
 
 fn so_ugly() -> Int {
     let ligma = 420
-    ligma = 69
+    let b = false
+    if b {
+        ligma = 1337
+        print("leet")
+    } else {
+        ligma = 69
+        print("nice")
+    }
     let message = "deez"
     print(message)
     print("dragon")
@@ -24,5 +28,9 @@ fn so_ugly() -> Int {
 
 fn get_str() -> String {
     let message = "ligma"
-    return message
+    if true {
+        return message
+    } else {
+        return "sugondese"
+    }
 }

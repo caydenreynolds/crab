@@ -16,12 +16,15 @@ fn_signature = { "fn" ~ ident ~ "(" ~ typed_ident_list? ~ ")" ~ ("->" ~ crab_typ
 fn_call = { ident ~ "(" ~ expression_list? ~ ")" }
 
 code_block = { "{" ~ statement* ~ "}" }
+expression = { (primitive | fn_call | ident) }
 
-statement = { (return_stmt | assignment | reassignment | fn_call ) }
+statement = { (return_stmt | assignment | reassignment | fn_call | if_stmt ) }
 assignment = { "let" ~ ident ~ "=" ~ expression }
 reassignment = { ident ~ "=" ~ expression }
 return_stmt = { "return" ~ expression? }
-expression = { (primitive | fn_call | ident) }
+
+if_stmt = { "if" ~ expression ~ code_block ~ else_stmt? }
+else_stmt = { "else" ~ (if_stmt | code_block) }
 
 primitive = { (uint64_primitive | string_primitive | bool_primitive) }
 uint64_primitive = @{ ASCII_DIGIT+ }

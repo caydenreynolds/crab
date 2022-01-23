@@ -10,7 +10,7 @@ pub fn parse_string(input: &str) -> String {
         } else {
             escaped = false;
             match c {
-                '\\' => out +="\\",
+                '\\' => out += "\\",
                 'n' => out += "\n",
                 _ => unimplemented!(),
             };
@@ -18,4 +18,3 @@ pub fn parse_string(input: &str) -> String {
     }
     out
 }
-

@@ -1,6 +1,9 @@
-use crate::parse::CrabType;
-use inkwell::values::{ArrayValue, BasicMetadataValueEnum, BasicValueEnum, CallSiteValue, FloatValue, IntValue, PointerValue, StructValue, VectorValue};
 use crate::compile::{CompileError, Result};
+use crate::parse::CrabType;
+use inkwell::values::{
+    ArrayValue, BasicMetadataValueEnum, BasicValueEnum, CallSiteValue, FloatValue, IntValue,
+    PointerValue, StructValue, VectorValue,
+};
 
 #[derive(Clone)]
 pub struct CrabValueType<'ctx> {
@@ -49,7 +52,7 @@ impl<'ctx> CrabValueType<'ctx> {
         Self::new(LLVMValueEnum::IntValue(val), CrabType::BOOL)
     }
 
-    pub fn new_none() -> Self {
+    pub fn new_void() -> Self {
         Self::new(LLVMValueEnum::None, CrabType::VOID)
     }
 
@@ -90,13 +93,28 @@ impl<'ctx> CrabValueType<'ctx> {
     }
 
     pub fn try_as_basic_metadata_value(&self) -> Result<BasicMetadataValueEnum<'ctx>> {
-        Ok(BasicMetadataValueEnum::from(self.get_as_basic_value().ok_or(CompileError::InvalidArgType(String::from(stringify!(CrabType::VOID))))?))
+        Ok(BasicMetadataValueEnum::from(
+            self.get_as_basic_value()
+                .ok_or(CompileError::InvalidArgType(String::from(stringify!(
+                    CrabType::VOID
+                ))))?,
+        ))
     }
 
     pub fn try_as_ptr_value(&self) -> Result<PointerValue<'ctx>> {
         match self.llvm_value {
             LLVMValueEnum::PointerValue(val) => Ok(val),
             _ => Err(CompileError::VarValueType(String::from("PointerValue"))),
+        }
+    }
+
+    pub fn try_as_bool_value(&self) -> Result<IntValue<'ctx>> {
+        match self.crab_type {
+            CrabType::BOOL => match self.llvm_value {
+                LLVMValueEnum::IntValue(val) => Ok(val),
+                _ => panic!("Reached an unreachable line in CrabValueType::try_as_bool_value()"),
+            },
+            _ => Err(CompileError::VarValueType(String::from("BoolValue"))),
         }
     }
 }

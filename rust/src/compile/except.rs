@@ -36,4 +36,10 @@ pub enum CompileError {
 
     #[error("Failed to get var value type as {0}")]
     VarValueType(String),
+
+    #[error("Failed to pop a value off of stack {0} because it is empty")]
+    EmptyStack(String),
+
+    #[error("Failed to build function {0} because it does not always return a value")]
+    NoReturn(Ident),
 }

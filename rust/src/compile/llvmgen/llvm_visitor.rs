@@ -1,13 +1,16 @@
 use crate::compile::except::{CompileError, Result};
+use crate::compile::llvmgen::crab_value_type::CrabValueType;
 use crate::compile::llvmgen::{Codegen, Functiongen};
 use crate::compile::AstVisitor;
-use crate::parse::{Assignment, AstNode, CodeBlock, CrabAst, CrabType, FnCall, Func, FuncSignature, Ident, Primitive, Statement, TypedIdent, TypedIdentList};
+use crate::parse::{
+    Assignment, AstNode, CodeBlock, CrabAst, CrabType, FnCall, Func, FuncSignature, Ident, IfStmt,
+    Primitive, Statement, TypedIdent, TypedIdentList,
+};
 use inkwell::context::Context;
+use inkwell::module::Linkage;
 use inkwell::support::LLVMString;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use inkwell::module::Linkage;
-use crate::compile::llvmgen::crab_value_type::CrabValueType;
 
 pub struct LlvmVisitor<'ctx> {
     codegen: Codegen<'ctx>,
@@ -15,6 +18,7 @@ pub struct LlvmVisitor<'ctx> {
     prev_basic_value: Option<CrabValueType<'ctx>>,
     return_type: Option<CrabType>,
     functions: HashMap<Ident, FuncSignature>,
+    block_has_return: bool,
 }
 
 impl<'ctx> LlvmVisitor<'ctx> {
@@ -25,6 +29,7 @@ impl<'ctx> LlvmVisitor<'ctx> {
             prev_basic_value: None,
             return_type: None,
             functions: HashMap::new(),
+            block_has_return: false,
         }
     }
 
@@ -54,12 +59,12 @@ impl<'ctx> LlvmVisitor<'ctx> {
     }
 
     /*
-      *******************************************************************************
-      *                                                                             *
-      *                                BUILTINS                                     *
-      *                                                                             *
-      *******************************************************************************
-    */
+     *******************************************************************************
+     *                                                                             *
+     *                                BUILTINS                                     *
+     *                                                                             *
+     *******************************************************************************
+     */
     fn add_builtin_fns(&mut self) -> Result<()> {
         //TODO: If a use writes a function with the same name as an internal builtin (e.g. prinf), it overwrites the real printf and causes llc to barf
         //TODO: Writing a function named __printf__ also causes an overwrite (I think) and this would probably be ok, except we need to make sure it's a local overwrite, not a global one. Namespacing should fix this issue.
@@ -68,7 +73,16 @@ impl<'ctx> LlvmVisitor<'ctx> {
 
     /// define and add the printf function to the module
     fn add_printf(&mut self) -> Result<()> {
-        self.codegen.add_function("printf", CrabType::FLOAT, &[TypedIdent { name: String::from("str"), crab_type: CrabType::STRING }], true, Some(Linkage::External))?;
+        self.codegen.add_function(
+            "printf",
+            CrabType::FLOAT,
+            &[TypedIdent {
+                name: String::from("str"),
+                crab_type: CrabType::STRING,
+            }],
+            true,
+            Some(Linkage::External),
+        )?;
         let signature = FuncSignature {
             name: Ident::from("printf"),
             return_type: CrabType::FLOAT,
@@ -76,8 +90,8 @@ impl<'ctx> LlvmVisitor<'ctx> {
                 typed_idents: vec![TypedIdent {
                     name: Ident::from("str"),
                     crab_type: CrabType::STRING,
-                }]
-            })
+                }],
+            }),
         };
         self.functions.insert(Ident::from("__printf__"), signature);
         Ok(())
@@ -85,11 +99,11 @@ impl<'ctx> LlvmVisitor<'ctx> {
 }
 
 /*
-  *******************************************************************************
-  *                                                                             *
-  *                              COMPILE AST                                    *
-  *                                                                             *
-  *******************************************************************************
+ *******************************************************************************
+ *                                                                             *
+ *                              COMPILE AST                                    *
+ *                                                                             *
+ *******************************************************************************
 */
 
 impl<'ctx> AstVisitor for LlvmVisitor<'ctx> {
@@ -123,25 +137,46 @@ impl<'ctx> AstVisitor for LlvmVisitor<'ctx> {
     fn visit_Func(&mut self, node: &Func) -> Result<()> {
         self.visit(&node.signature)?;
         self.visit(&node.body)?;
+        if !self.block_has_return {
+            if node.signature.return_type == CrabType::VOID {
+                self.funcgen
+                    .as_mut()
+                    .ok_or(CompileError::InvalidNoneOption(String::from(
+                        "post_visit_Func",
+                    )))?
+                    .build_return(&CrabValueType::new_void());
+            } else {
+                return Err(CompileError::NoReturn(node.signature.name.clone()));
+            }
+        }
         Ok(())
     }
 
     fn post_visit_Func(&mut self, _node: &Func) -> Result<()> {
         self.funcgen = None;
         self.return_type = None;
+        self.block_has_return = false;
         Ok(())
     }
 
     fn pre_visit_FuncSignature(&mut self, node: &FuncSignature) -> Result<()> {
-        self.codegen
-            .add_function(node.name.as_str(), node.return_type, node.get_args(), false, None)?;
+        self.codegen.add_function(
+            node.name.as_str(),
+            node.return_type,
+            node.get_args(),
+            false,
+            None,
+        )?;
         self.functions.insert(node.name.clone(), node.clone());
 
         Ok(())
     }
 
     fn visit_FuncSignature(&mut self, node: &FuncSignature) -> Result<()> {
-        self.funcgen = Some(self.codegen.get_function(node.name.as_str(), node.get_args())?);
+        self.funcgen = Some(
+            self.codegen
+                .get_function(node.name.as_str(), node.get_args())?,
+        );
         self.return_type = Some(node.return_type);
         Ok(())
     }
@@ -149,6 +184,15 @@ impl<'ctx> AstVisitor for LlvmVisitor<'ctx> {
     fn visit_CodeBlock(&mut self, node: &CodeBlock) -> Result<()> {
         for stmt in &node.statements {
             self.visit(stmt)?;
+            if self.block_has_return {
+                return self
+                    .funcgen
+                    .as_mut()
+                    .ok_or(CompileError::InvalidNoneOption(String::from(
+                        "visit_CodeBlock",
+                    )))?
+                    .build_unreachable();
+            }
         }
         Ok(())
     }
@@ -178,9 +222,10 @@ impl<'ctx> AstVisitor for LlvmVisitor<'ctx> {
                 .funcgen
                 .as_mut()
                 .unwrap()
-                .build_return(&CrabValueType::new_none()),
+                .build_return(&CrabValueType::new_void()),
         }
         self.prev_basic_value = None;
+        self.block_has_return = true;
         Ok(())
     }
 
@@ -206,6 +251,9 @@ impl<'ctx> AstVisitor for LlvmVisitor<'ctx> {
     }
 
     fn visit_StatementType_FN_CALL(&mut self, node: &FnCall) -> Result<()> {
+        self.visit(node)
+    }
+    fn visit_StatementType_IF_STATEMENT(&mut self, node: &IfStmt) -> Result<()> {
         self.visit(node)
     }
 
@@ -267,16 +315,22 @@ impl<'ctx> AstVisitor for LlvmVisitor<'ctx> {
         let mut args = vec![];
         for arg in &node.args.expressions {
             self.visit(arg)?;
-            args.push(self.prev_basic_value.clone().ok_or(CompileError::InvalidNoneOption(String::from("visist_FnCall")))?);
+            args.push(
+                self.prev_basic_value
+                    .clone()
+                    .ok_or(CompileError::InvalidNoneOption(String::from(
+                        "visist_FnCall",
+                    )))?,
+            );
         }
 
         let fn_header_opt = self.functions.get(&node.name);
         if let Some(fn_header) = fn_header_opt {
-            let call_value = self
-                .funcgen
-                .as_mut()
-                .unwrap()
-                .build_fn_call(&fn_header.name, args.as_slice(), self.codegen.get_module())?;
+            let call_value = self.funcgen.as_mut().unwrap().build_fn_call(
+                &fn_header.name,
+                args.as_slice(),
+                self.codegen.get_module(),
+            )?;
             self.prev_basic_value = Some(CrabValueType::new_call_value(
                 call_value,
                 fn_header.return_type,
@@ -285,5 +339,57 @@ impl<'ctx> AstVisitor for LlvmVisitor<'ctx> {
             return Err(CompileError::CouldNotFindFunction(String::from(&node.name)));
         }
         Ok(())
+    }
+
+    // NOTE: If statements do not get their own variable space. If statements behave more like python, where a variable can be declared inside the if and then used outside of it
+    fn visit_IfStmt(&mut self, node: &IfStmt) -> Result<()> {
+        self.visit(&node.expr)?;
+        let fg = self
+            .funcgen
+            .as_mut()
+            .ok_or(CompileError::InvalidNoneOption(String::from(
+                "visit_IfStmt",
+            )))?;
+        fg.begin_if_then(self.prev_basic_value.as_ref().ok_or(
+            CompileError::InvalidNoneOption(String::from("visit_IfStmt")),
+        )?)?;
+        self.visit(&node.then)?;
+        let then_returns = self.block_has_return;
+        self.block_has_return = false;
+
+        match &node.else_stmt {
+            Some(else_stmt) => {
+                self.visit(else_stmt.as_ref())?;
+                self.block_has_return = then_returns && self.block_has_return;
+            }
+            None => self.block_has_return = false,
+        }
+
+        Ok(())
+    }
+
+    fn post_visit_IfStmt(&mut self, _node: &IfStmt) -> Result<()> {
+        let fg = self
+            .funcgen
+            .as_mut()
+            .ok_or(CompileError::InvalidNoneOption(String::from(
+                "post_visit_IfStmt",
+            )))?;
+        fg.end_if()
+    }
+
+    fn visit_ElseStmt_ELSE(&mut self, node: &CodeBlock) -> Result<()> {
+        let fg = self
+            .funcgen
+            .as_mut()
+            .ok_or(CompileError::InvalidNoneOption(String::from(
+                "visit_ElseStmt_ELSE",
+            )))?;
+        fg.begin_if_else()?;
+        self.visit(node)
+    }
+
+    fn visit_ElseStmt_ELIF(&mut self, node: &IfStmt) -> Result<()> {
+        self.visit(node)
     }
 }

@@ -19,8 +19,19 @@ impl<'ctx> Codegen<'ctx> {
     }
 
     //TODO: The linkage, mason! What does it mean?
-    pub fn add_function(&mut self, name: &str, return_type: CrabType, arg_types: &[TypedIdent], variadic: bool, linkage: Option<Linkage>) -> Result<()> {
-        trace!("Registering new function with name {} and {} args", name, arg_types.len());
+    pub fn add_function(
+        &mut self,
+        name: &str,
+        return_type: CrabType,
+        arg_types: &[TypedIdent],
+        variadic: bool,
+        linkage: Option<Linkage>,
+    ) -> Result<()> {
+        trace!(
+            "Registering new function with name {} and {} args",
+            name,
+            arg_types.len()
+        );
         let fn_type = return_type.as_fn_type(self.context, arg_types, variadic)?;
         let _fn_value = self.module.add_function(name, fn_type, linkage);
         Ok(())
@@ -38,5 +49,7 @@ impl<'ctx> Codegen<'ctx> {
         &self.module
     }
 
-    pub fn get_context(&self) -> &Context { &self.context }
+    pub fn get_context(&self) -> &Context {
+        &self.context
+    }
 }
