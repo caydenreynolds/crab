@@ -93,6 +93,7 @@ pub enum StatementType {
     REASSIGNMENT(Assignment),
     FN_CALL(FnCall),
     IF_STATEMENT(IfStmt),
+    WHILE_STATEMENT(WhileStmt),
 }
 
 #[derive(Debug, Clone)]
@@ -106,12 +107,17 @@ pub struct FnCall {
     pub args: ExpressionList,
 }
 
-// IfStmt has to know about it's own Expression, because it's special
 #[derive(Debug, Clone)]
 pub struct IfStmt {
     pub expr: Expression,
     pub then: CodeBlock,
     pub else_stmt: Option<Box<ElseStmt>>,
+}
+
+#[derive(Debug, Clone)]
+pub struct WhileStmt {
+    pub expr: Expression,
+    pub then: CodeBlock,
 }
 
 #[derive(Debug, Clone)]
@@ -392,6 +398,7 @@ impl AstNode for StatementType {
             )?)),
             Rule::fn_call => Ok(StatementType::FN_CALL(FnCall::try_from(expr_type)?)),
             Rule::if_stmt => Ok(StatementType::IF_STATEMENT(IfStmt::try_from(expr_type)?)),
+            Rule::while_stmt => Ok(StatementType::WHILE_STATEMENT(WhileStmt::try_from(expr_type)?)),
             _ => Err(ParseError::NoMatch(String::from(
                 "StatementType::from_pair",
             ))),
@@ -405,6 +412,7 @@ impl AstNode for StatementType {
             Self::REASSIGNMENT(reass) => visitor.pre_visit_StatementType_REASSIGNMENT(reass)?,
             Self::FN_CALL(fn_call) => visitor.pre_visit_StatementType_FN_CALL(fn_call)?,
             Self::IF_STATEMENT(if_stmt) => visitor.pre_visit_StatementType_IF_STATEMENT(if_stmt)?,
+            Self::WHILE_STATEMENT(while_stmt) => visitor.pre_visit_StatementType_WHILE_STATEMENT(while_stmt)?,
             _ => unimplemented!(),
         }
         Ok(())
@@ -417,6 +425,7 @@ impl AstNode for StatementType {
             Self::REASSIGNMENT(reass) => visitor.visit_StatementType_REASSIGNMENT(reass)?,
             Self::FN_CALL(fn_call) => visitor.visit_StatementType_FN_CALL(fn_call)?,
             Self::IF_STATEMENT(if_stmt) => visitor.visit_StatementType_IF_STATEMENT(if_stmt)?,
+            Self::WHILE_STATEMENT(while_stmt) => visitor.visit_StatementType_WHILE_STATEMENT(while_stmt)?,
             _ => unimplemented!(),
         }
         Ok(())
@@ -428,9 +437,8 @@ impl AstNode for StatementType {
             Self::ASSIGNMENT(ass) => visitor.post_visit_StatementType_ASSIGNMENT(ass)?,
             Self::REASSIGNMENT(reass) => visitor.post_visit_StatementType_REASSIGNMENT(reass)?,
             Self::FN_CALL(fn_call) => visitor.post_visit_StatementType_FN_CALL(fn_call)?,
-            Self::IF_STATEMENT(if_stmt) => {
-                visitor.post_visit_StatementType_IF_STATEMENT(if_stmt)?
-            }
+            Self::IF_STATEMENT(if_stmt) => visitor.post_visit_StatementType_IF_STATEMENT(if_stmt)?,
+            Self::WHILE_STATEMENT(while_stmt) => visitor.post_visit_StatementType_WHILE_STATEMENT(while_stmt)?,
             _ => unimplemented!(),
         }
         Ok(())
@@ -473,6 +481,7 @@ impl StatementType {
                     }
                     Rule::fn_call => Ok(None),
                     Rule::if_stmt => Ok(None),
+                    Rule::while_stmt => Ok(None),
                     _ => unimplemented!(),
                 };
             }
@@ -507,6 +516,25 @@ impl AstNode for IfStmt {
     }
 
     visit_fns!(IfStmt);
+}
+
+try_from_pair!(WhileStmt, Rule::while_stmt);
+impl AstNode for WhileStmt {
+    fn from_pair(pair: Pair<Rule>) -> Result<Self>
+        where
+            Self: Sized,
+    {
+        let mut inner = pair.into_inner();
+        let expr = Expression::try_from(inner.next().ok_or(ParseError::ExpectedInner)?)?;
+        let then = CodeBlock::try_from(inner.next().ok_or(ParseError::ExpectedInner)?)?;
+
+        return Ok(Self {
+            expr,
+            then,
+        });
+    }
+
+    visit_fns!(WhileStmt);
 }
 
 try_from_pair!(ElseStmt, Rule::else_stmt);

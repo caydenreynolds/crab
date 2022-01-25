@@ -4,6 +4,9 @@ fn print(String str) {
 }
 
 fn main() -> Int {
+    while true {
+        print("nice")
+    }
     let yo_momma = so_ugly()
     return yo_momma
 }

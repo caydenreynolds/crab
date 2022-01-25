@@ -18,6 +18,7 @@ pub struct Functiongen<'ctx> {
     else_stack: Vec<BasicBlock<'ctx>>,
     always_stack: Vec<BasicBlock<'ctx>>,
     fn_value: FunctionValue<'ctx>,
+    current_basic_block: BasicBlock<'ctx>,
 }
 
 impl<'ctx> Functiongen<'ctx> {
@@ -42,6 +43,7 @@ impl<'ctx> Functiongen<'ctx> {
                     else_stack: vec![],
                     always_stack: vec![],
                     fn_value,
+                    current_basic_block: basic_block,
                 };
 
                 // Add variables
@@ -221,6 +223,7 @@ impl<'ctx> Functiongen<'ctx> {
 
         self.builder
             .position_before(&then_block.get_first_instruction().unwrap());
+        self.current_basic_block = then_block;
 
         Ok(())
     }
@@ -232,6 +235,7 @@ impl<'ctx> Functiongen<'ctx> {
             .ok_or(CompileError::EmptyStack(String::from("else_stack")))?;
         self.builder
             .position_before(&else_block.get_first_instruction().unwrap());
+        self.current_basic_block = else_block;
         Ok(())
     }
 
@@ -241,6 +245,75 @@ impl<'ctx> Functiongen<'ctx> {
             .pop()
             .ok_or(CompileError::EmptyStack(String::from("always_stack")))?;
         self.builder.position_at_end(always_block);
+        self.current_basic_block = always_block;
+        Ok(())
+    }
+
+    /// While blocks are separated into 3 blocks:
+    ///  * the expression
+    ///  * inside of the curly braces
+    ///  * the code after the while block
+    ///
+    /// This function begins the expression block
+    ///
+    pub fn begin_while_expr(&mut self) -> Result<()> {
+        let expr_block = self
+            .context
+            .append_basic_block(self.fn_value, &Uuid::new_v4().to_string());
+        self.builder.build_unconditional_branch(expr_block);
+        self.builder.position_at_end(expr_block);
+        self.current_basic_block = expr_block;
+        Ok(())
+    }
+
+    /// While blocks are separated into 3 blocks:
+    ///  * the expression
+    ///  * inside of the curly braces
+    ///  * the code after the while block
+    ///
+    /// This function terminates the expression block, using the boolean value provided.
+    /// True to loop again, false to stop looping
+    /// Additionally, this function begins the block that represents the code inside the curly braces
+    /// You may begin building those statements immediately
+    ///
+    pub fn end_while_expr(&mut self, condition: &CrabValueType) -> Result<()> {
+        let then_block = self
+            .context
+            .append_basic_block(self.fn_value, &Uuid::new_v4().to_string());
+        let always_block = self
+            .context
+            .append_basic_block(self.fn_value, &Uuid::new_v4().to_string());
+
+        self.builder.build_conditional_branch(
+            condition.try_as_bool_value()?,
+            then_block,
+            always_block,
+        );
+
+        self.add_terminating_instruction(then_block, self.current_basic_block);
+        self.always_stack.push(always_block);
+
+        self.builder
+            .position_before(&then_block.get_first_instruction().unwrap());
+        self.current_basic_block = then_block;
+
+        Ok(())
+    }
+
+    /// While blocks are separated into 3 blocks:
+    ///  * the expression
+    ///  * inside of the curly braces
+    ///  * the code after the while block
+    ///
+    /// This function ends the while block, allowing you to build the statements that occur after the loop body.
+    ///
+    pub fn end_while(&mut self) -> Result<()> {
+        let always_block = self
+            .always_stack
+            .pop()
+            .ok_or(CompileError::EmptyStack(String::from("always_stack")))?;
+        self.builder.position_at_end(always_block);
+        self.current_basic_block = always_block;
         Ok(())
     }
 
