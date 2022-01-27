@@ -2,7 +2,10 @@ use crate::compile::except::{CompileError, Result};
 use crate::compile::llvmgen::crab_value_type::CrabValueType;
 use crate::compile::llvmgen::{Codegen, Functiongen};
 use crate::compile::AstVisitor;
-use crate::parse::{Assignment, AstNode, CodeBlock, CrabAst, CrabType, FnCall, Func, FuncSignature, Ident, IfStmt, Primitive, Statement, TypedIdent, TypedIdentList, WhileStmt};
+use crate::parse::{
+    Assignment, AstNode, CodeBlock, CrabAst, CrabType, DoWhileStmt, FnCall, Func, FuncSignature,
+    Ident, IfStmt, Primitive, Statement, TypedIdent, TypedIdentList, WhileStmt,
+};
 use inkwell::context::Context;
 use inkwell::module::Linkage;
 use inkwell::support::LLVMString;
@@ -61,16 +64,14 @@ impl<'ctx> LlvmVisitor<'ctx> {
         return self
             .funcgen
             .as_mut()
-            .ok_or(CompileError::InvalidNoneOption(String::from(or)))
-        ;
+            .ok_or(CompileError::InvalidNoneOption(String::from(or)));
     }
 
     fn get_pbv(&mut self, or: &str) -> Result<&mut CrabValueType<'ctx>> {
         return self
             .prev_basic_value
             .as_mut()
-            .ok_or(CompileError::InvalidNoneOption(String::from(or)))
-        ;
+            .ok_or(CompileError::InvalidNoneOption(String::from(or)));
     }
 
     /*
@@ -154,7 +155,8 @@ impl<'ctx> AstVisitor for LlvmVisitor<'ctx> {
         self.visit(&node.body)?;
         if !self.block_has_return {
             if node.signature.return_type == CrabType::VOID {
-                self.get_fg("visit_Func")?.build_return(&CrabValueType::new_void());
+                self.get_fg("visit_Func")?
+                    .build_return(&CrabValueType::new_void());
             } else {
                 return Err(CompileError::NoReturn(node.signature.name.clone()));
             }
@@ -218,9 +220,12 @@ impl<'ctx> AstVisitor for LlvmVisitor<'ctx> {
             Some(_) => {
                 let pbv = self.get_pbv("visit_StatementType_RETURN")?.clone();
                 self.validate_return_type()?;
-                self.get_fg("visit_StatementType_RETURN")?.build_return(&pbv)
+                self.get_fg("visit_StatementType_RETURN")?
+                    .build_return(&pbv)
             }
-            None => self.get_fg("visit_StatementType_RETURN")?.build_return(&CrabValueType::new_void()),
+            None => self
+                .get_fg("visit_StatementType_RETURN")?
+                .build_return(&CrabValueType::new_void()),
         }
         self.prev_basic_value = None;
         self.block_has_return = true;
@@ -228,8 +233,11 @@ impl<'ctx> AstVisitor for LlvmVisitor<'ctx> {
     }
 
     fn visit_StatementType_ASSIGNMENT(&mut self, node: &Assignment) -> Result<()> {
-        let assignment_type = self.get_pbv("visit_StatementType_ASSIGNMENT")?.get_crab_type();
-        self.get_fg("visit_StatementType_ASSIGNMENT")?.build_create_var(&node.var_name, assignment_type)?;
+        let assignment_type = self
+            .get_pbv("visit_StatementType_ASSIGNMENT")?
+            .get_crab_type();
+        self.get_fg("visit_StatementType_ASSIGNMENT")?
+            .build_create_var(&node.var_name, assignment_type)?;
         self.visit(node)
     }
 
@@ -246,14 +254,14 @@ impl<'ctx> AstVisitor for LlvmVisitor<'ctx> {
     fn visit_StatementType_WHILE_STATEMENT(&mut self, node: &WhileStmt) -> Result<()> {
         self.visit(node)
     }
+    fn visit_StatementType_DO_WHILE_STATEMENT(&mut self, node: &DoWhileStmt) -> Result<()> {
+        self.visit(node)
+    }
 
     fn post_visit_Assignment(&mut self, node: &Assignment) -> Result<()> {
         let pbv = self.get_pbv("post_visit_Assignment")?.clone();
         self.get_fg("post_visit_Assignment")?
-            .build_set_var(
-                &node.var_name.clone(),
-                &pbv,
-            )?;
+            .build_set_var(&node.var_name.clone(), &pbv)?;
         self.prev_basic_value = None;
         Ok(())
     }
@@ -269,7 +277,8 @@ impl<'ctx> AstVisitor for LlvmVisitor<'ctx> {
 
     fn visit_Expression_VARIABLE(&mut self, node: &Ident) -> Result<()> {
         self.prev_basic_value = Some(
-            self.get_fg("visit_Expression_VARIABLE")?.build_retrieve_var(node)?,
+            self.get_fg("visit_Expression_VARIABLE")?
+                .build_retrieve_var(node)?,
         );
         Ok(())
     }
@@ -299,11 +308,13 @@ impl<'ctx> AstVisitor for LlvmVisitor<'ctx> {
         let fn_header_opt = self.functions.get(&node.name);
         if let Some(fn_header) = fn_header_opt {
             // We cam't use our fancy get_fg() fn here, because reasons
-            let call_value = self.funcgen.as_mut().ok_or(CompileError::InvalidNoneOption(String::from("visit_FnCall")))?.build_fn_call(
-                &fn_header.name,
-                args.as_slice(),
-                self.codegen.get_module(),
-            )?;
+            let call_value = self
+                .funcgen
+                .as_mut()
+                .ok_or(CompileError::InvalidNoneOption(String::from(
+                    "visit_FnCall",
+                )))?
+                .build_fn_call(&fn_header.name, args.as_slice(), self.codegen.get_module())?;
             self.prev_basic_value = Some(CrabValueType::new_call_value(
                 call_value,
                 fn_header.return_type,
@@ -354,5 +365,13 @@ impl<'ctx> AstVisitor for LlvmVisitor<'ctx> {
         self.get_fg("visit_WhileStmt")?.end_while_expr(&pbv)?;
         self.visit(&node.then)?;
         self.get_fg("visit_WhileStmt")?.end_while()
+    }
+
+    fn visit_DoWhileStmt(&mut self, node: &DoWhileStmt) -> Result<()> {
+        self.get_fg("visit_DoWhileStmt")?.begin_do_while()?;
+        self.visit(&node.then)?;
+        self.visit(&node.expr)?;
+        let pbv = self.get_pbv("visit_WhileStmt")?.clone();
+        self.get_fg("visit_DoWhileStmt")?.end_do_while(&pbv)
     }
 }

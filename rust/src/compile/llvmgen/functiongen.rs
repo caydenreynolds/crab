@@ -9,7 +9,6 @@ use inkwell::values::{CallSiteValue, FunctionValue};
 use inkwell::AddressSpace;
 use log::trace;
 use std::collections::HashMap;
-use uuid::Uuid;
 
 pub struct Functiongen<'ctx> {
     builder: Builder<'ctx>,
@@ -32,7 +31,7 @@ impl<'ctx> Functiongen<'ctx> {
         let fn_value_opt = module.get_function(name);
         match fn_value_opt {
             Some(fn_value) => {
-                let basic_block = context.append_basic_block(fn_value, &Uuid::new_v4().to_string());
+                let basic_block = context.append_basic_block(fn_value, "entry");
                 let builder = context.create_builder();
                 builder.position_at_end(basic_block);
                 let variables = HashMap::new();
@@ -81,7 +80,7 @@ impl<'ctx> Functiongen<'ctx> {
         trace!("Building constant string with value {0}", value.clone());
         let str_ptr = self
             .builder
-            .build_global_string_ptr(&value, &Uuid::new_v4().to_string())
+            .build_global_string_ptr(&value, "global_str")
             .as_pointer_value();
         Ok(CrabValueType::new_string(str_ptr))
     }
@@ -199,15 +198,9 @@ impl<'ctx> Functiongen<'ctx> {
     }
 
     pub fn begin_if_then(&mut self, condition: &CrabValueType) -> Result<()> {
-        let then_block = self
-            .context
-            .append_basic_block(self.fn_value, &Uuid::new_v4().to_string());
-        let else_block = self
-            .context
-            .append_basic_block(self.fn_value, &Uuid::new_v4().to_string());
-        let always_block = self
-            .context
-            .append_basic_block(self.fn_value, &Uuid::new_v4().to_string());
+        let then_block = self.context.append_basic_block(self.fn_value, "if_then");
+        let else_block = self.context.append_basic_block(self.fn_value, "else");
+        let always_block = self.context.append_basic_block(self.fn_value, "always");
 
         self.builder.build_conditional_branch(
             condition.try_as_bool_value()?,
@@ -257,9 +250,7 @@ impl<'ctx> Functiongen<'ctx> {
     /// This function begins the expression block
     ///
     pub fn begin_while_expr(&mut self) -> Result<()> {
-        let expr_block = self
-            .context
-            .append_basic_block(self.fn_value, &Uuid::new_v4().to_string());
+        let expr_block = self.context.append_basic_block(self.fn_value, "while_expr");
         self.builder.build_unconditional_branch(expr_block);
         self.builder.position_at_end(expr_block);
         self.current_basic_block = expr_block;
@@ -277,12 +268,8 @@ impl<'ctx> Functiongen<'ctx> {
     /// You may begin building those statements immediately
     ///
     pub fn end_while_expr(&mut self, condition: &CrabValueType) -> Result<()> {
-        let then_block = self
-            .context
-            .append_basic_block(self.fn_value, &Uuid::new_v4().to_string());
-        let always_block = self
-            .context
-            .append_basic_block(self.fn_value, &Uuid::new_v4().to_string());
+        let then_block = self.context.append_basic_block(self.fn_value, "while_then");
+        let always_block = self.context.append_basic_block(self.fn_value, "always");
 
         self.builder.build_conditional_branch(
             condition.try_as_bool_value()?,
@@ -312,6 +299,42 @@ impl<'ctx> Functiongen<'ctx> {
             .always_stack
             .pop()
             .ok_or(CompileError::EmptyStack(String::from("always_stack")))?;
+        self.builder.position_at_end(always_block);
+        self.current_basic_block = always_block;
+        Ok(())
+    }
+
+    /// Do-while blocks are simpler than while blocks. The expression simply goes at the end of the then block:
+    ///  * inside of the curly braces
+    ///  * the code after the while block
+    ///
+    /// This function begins the then block
+    ///
+    pub fn begin_do_while(&mut self) -> Result<()> {
+        let then_block = self
+            .context
+            .append_basic_block(self.fn_value, "do_while_then");
+        self.builder.build_unconditional_branch(then_block);
+        self.builder.position_at_end(then_block);
+        self.current_basic_block = then_block;
+        Ok(())
+    }
+
+    /// Do-while blocks are simpler than while blocks. The expression simply goes at the end of the then block:
+    ///  * inside of the curly braces
+    ///  * the code after the while block
+    ///
+    /// This function builds the conditional branch instruction
+    ///
+    pub fn end_do_while(&mut self, condition: &CrabValueType) -> Result<()> {
+        let always_block = self.context.append_basic_block(self.fn_value, "always");
+
+        self.builder.build_conditional_branch(
+            condition.try_as_bool_value()?,
+            self.current_basic_block,
+            always_block,
+        );
+
         self.builder.position_at_end(always_block);
         self.current_basic_block = always_block;
         Ok(())

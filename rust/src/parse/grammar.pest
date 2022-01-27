@@ -18,14 +18,18 @@ fn_call = { ident ~ "(" ~ expression_list? ~ ")" }
 code_block = { "{" ~ statement* ~ "}" }
 expression = { (primitive | fn_call | ident) }
 
-statement = { (return_stmt | assignment | reassignment | fn_call | if_stmt | while_stmt ) }
+statement = { (return_stmt | assignment | reassignment | fn_call | if_stmt | while_stmt | do_while_stmt ) }
 assignment = { "let" ~ ident ~ "=" ~ expression }
 reassignment = { ident ~ "=" ~ expression }
 return_stmt = { "return" ~ expression? }
 
 if_stmt = { "if" ~ expression ~ code_block ~ else_stmt? }
 else_stmt = { "else" ~ (if_stmt | code_block) }
+
 while_stmt = { "while" ~ expression ~ code_block }
+do_while_stmt = { "do" ~ code_block ~ "while" ~ expression }
+// TODO: After iterators
+// for_stmt = { "for" ~ ident ~ "in" ~ expression ~ code_block }
 
 primitive = { (uint64_primitive | string_primitive | bool_primitive) }
 uint64_primitive = @{ ASCII_DIGIT+ }
