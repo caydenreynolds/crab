@@ -5,38 +5,38 @@ fn print(String str) {
 
 fn main() -> Int {
     do {
-        print("nice")
+        print("do while")
     } while true
     while true {
-        print("nice2")
+        print("just a while")
     }
     let yo_momma = so_ugly()
     return yo_momma
 }
 
 fn so_ugly() -> Int {
-    let ligma = 420
+    let a_variable = 0
     let b = false
     if b {
-        ligma = 1337
-        print("leet")
+        a_variable = 144
+        print("12 squared")
     } else {
-        ligma = 69
-        print("nice")
+        a_variable = 42
+        print("Life, the universe, and everything")
     }
-    let message = "deez"
+    let message = "foo"
     print(message)
-    print("dragon")
+    print("bar")
     message = get_str()
     print(get_str())
-    return ligma
+    return a_variable
 }
 
 fn get_str() -> String {
-    let message = "ligma"
+    let message = "A string message"
     if true {
         return message
     } else {
-        return "sugondese"
+        return "A different string message"
     }
 }
