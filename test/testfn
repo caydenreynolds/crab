@@ -1,9 +1,13 @@
-fn print(String str) {
+fn print(String str, Bool newline=true) {
     __printf__(str)
-    __printf__("\n")
+    if newline {
+        __printf__("\n")
+    }
 }
 
 fn main() -> Int {
+    print("foo", newline=false)
+    print("bar", newline=true,)
     do {
         print("do while")
     } while true
@@ -32,7 +36,7 @@ fn so_ugly() -> Int {
     return a_variable
 }
 
-fn get_str() -> String {
+fn get_str(,) -> String {
     let message = "A string message"
     if true {
         return message

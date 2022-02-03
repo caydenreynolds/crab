@@ -48,30 +48,24 @@ pub struct Func {
 pub struct FuncSignature {
     pub name: Ident,
     pub return_type: CrabType,
-    pub args: Option<TypedIdentList>,
+    // pub args: Option<TypedIdentList>,
+    pub unnamed_params: Vec<FnParam>,
+    pub named_params: Vec<NamedFnParam>,
 }
 
 pub type Ident = String;
 
 #[derive(Debug, Clone)]
-pub struct TypedIdent {
+pub struct FnParam {
     pub name: Ident,
     pub crab_type: CrabType,
 }
 
 #[derive(Debug, Clone)]
-pub struct IdentList {
-    pub idents: Vec<Ident>,
-}
-
-#[derive(Debug, Clone)]
-pub struct TypedIdentList {
-    pub typed_idents: Vec<TypedIdent>,
-}
-
-#[derive(Debug, Clone)]
-pub struct ExpressionList {
-    pub expressions: Vec<Expression>,
+pub struct NamedFnParam {
+    pub name: Ident,
+    pub crab_type: CrabType,
+    pub expr: Expression,
 }
 
 #[derive(Debug, Clone)]
@@ -105,7 +99,15 @@ pub struct Assignment {
 #[derive(Debug, Clone)]
 pub struct FnCall {
     pub name: Ident,
-    pub args: ExpressionList,
+    //pub args: ExpressionList,
+    pub unnamed_args: Vec<Expression>,
+    pub named_args: Vec<NamedExpression>,
+}
+
+#[derive(Debug, Clone)]
+pub struct NamedExpression {
+    pub name: Ident,
+    pub expr: Expression,
 }
 
 #[derive(Debug, Clone)]
@@ -285,48 +287,51 @@ impl AstNode for FuncSignature {
     fn from_pair(pair: Pair<Rule>) -> Result<Self> {
         let mut inner = pair.into_inner();
         let name = Ident::from(inner.next().ok_or(ParseError::ExpectedInner)?.as_str());
+        let mut return_type_option = None;
+        let mut unnamed_params = vec![];
+        let mut named_params = vec![];
+        let mut seen_named_param = false;
 
-        let (args, return_type) = match inner.clone().count() {
-            0 => (None, CrabType::VOID),
-            1 => {
-                // Determine whether we have args or a return
-                let in_pair = inner.next().ok_or(ParseError::None)?;
-                trace!("{:#?}", in_pair.clone().as_rule());
-                match in_pair.clone().as_rule() {
-                    // We have args
-                    Rule::typed_ident_list => {
-                        (Some(TypedIdentList::try_from(in_pair)?), CrabType::VOID)
-                    }
-                    // We have a return
-                    Rule::crab_type => (None, CrabType::try_from(in_pair)?),
-                    // This should never happen
-                    _ => {
-                        return Err(ParseError::NoMatch(String::from(
-                            "FuncSignature::from_pair_0",
-                        )))
+        for inner_pair in inner {
+            match inner_pair.clone().as_rule() {
+                Rule::crab_type => return_type_option = Some(CrabType::try_from(inner_pair)?),
+                Rule::fn_param => {
+                    unnamed_params.push(FnParam::try_from(inner_pair)?);
+                    if seen_named_param {
+                        return Err(ParseError::PositionalParamAfterNamedParam(
+                            name.clone(),
+                            unnamed_params
+                                .get(unnamed_params.len() - 1)
+                                .unwrap()
+                                .name
+                                .clone(),
+                        ));
                     }
                 }
+                Rule::named_fn_param => {
+                    named_params.push(NamedFnParam::try_from(inner_pair)?);
+                    seen_named_param = true;
+                }
+                _ => {
+                    return Err(ParseError::NoMatch(String::from(
+                        "FuncSignature::from_pair",
+                    )))
+                }
             }
-            2 => (
-                Some(TypedIdentList::try_from(
-                    inner.next().ok_or(ParseError::ExpectedInner)?,
-                )?),
-                match inner.next() {
-                    Some(return_pair) => CrabType::try_from(return_pair)?,
-                    None => CrabType::VOID,
-                },
-            ),
-            _ => {
-                return Err(ParseError::NoMatch(String::from(
-                    "FuncSignature::from_pair_1",
-                )))
-            }
+        }
+        let unnamed_params = unnamed_params;
+        let named_params = named_params;
+
+        let return_type = match return_type_option {
+            None => CrabType::VOID,
+            Some(ct) => ct,
         };
 
-        Ok(FuncSignature {
+        Ok(Self {
             name,
             return_type,
-            args,
+            unnamed_params,
+            named_params,
         })
     }
 
@@ -334,11 +339,18 @@ impl AstNode for FuncSignature {
 }
 
 impl FuncSignature {
-    pub fn get_args(&self) -> &[TypedIdent] {
-        return match &self.args {
-            Some(ident_list) => ident_list.typed_idents.as_slice(),
-            None => &[],
-        };
+    pub fn get_params(&self) -> Vec<FnParam> {
+        let mut params = vec![];
+        for param in &self.unnamed_params {
+            params.push(param.clone())
+        }
+        for named_param in &self.named_params {
+            params.push(FnParam {
+                name: named_param.name.clone(),
+                crab_type: named_param.crab_type,
+            })
+        }
+        params
     }
 }
 
@@ -792,7 +804,7 @@ impl<'ctx> CrabType {
     pub fn as_fn_type(
         &self,
         context: &'ctx Context,
-        args: &[TypedIdent],
+        args: &[FnParam],
         variadic: bool,
     ) -> compile::Result<FunctionType<'ctx>> {
         trace!("CrabType as fn_type");
@@ -827,20 +839,54 @@ impl AstNode for FnCall {
     {
         let mut inner = pair.into_inner();
         let name = Ident::from(inner.next().ok_or(ParseError::ExpectedInner)?.as_str());
-        let args = match inner.next() {
-            None => ExpressionList {
-                expressions: vec![],
-            },
-            Some(n) => ExpressionList::try_from(n)?,
-        };
-        Ok(Self { name, args })
+        let mut named_args = vec![];
+        let mut unnamed_args = vec![];
+        let mut seen_named_arg = false;
+
+        for inner_pair in inner {
+            match inner_pair.clone().as_rule() {
+                Rule::expression => {
+                    if seen_named_arg {
+                        return Err(ParseError::PositionalArgAfterNamedParam(name.clone()));
+                    }
+                    unnamed_args.push(Expression::try_from(inner_pair)?);
+                }
+                Rule::named_expression => {
+                    named_args.push(NamedExpression::try_from(inner_pair)?);
+                    seen_named_arg = true;
+                }
+                _ => return Err(ParseError::NoMatch(String::from("FnCall::from_pair"))),
+            }
+        }
+
+        Ok(Self {
+            name,
+            named_args,
+            unnamed_args,
+        })
     }
 
     visit_fns!(FnCall);
 }
 
-try_from_pair!(TypedIdent, Rule::typed_ident);
-impl AstNode for TypedIdent {
+try_from_pair!(NamedExpression, Rule::named_expression);
+impl AstNode for NamedExpression {
+    fn from_pair(pair: Pair<Rule>) -> Result<Self>
+    where
+        Self: Sized,
+    {
+        let mut inner = pair.into_inner();
+        let name = Ident::from(inner.next().ok_or(ParseError::ExpectedInner)?.as_str());
+        let expr = Expression::try_from(inner.next().ok_or(ParseError::ExpectedInner)?)?;
+
+        Ok(Self { name, expr })
+    }
+
+    visit_fns!(NamedExpression);
+}
+
+try_from_pair!(FnParam, Rule::fn_param);
+impl AstNode for FnParam {
     fn from_pair(pair: Pair<Rule>) -> Result<Self>
     where
         Self: Sized,
@@ -852,61 +898,28 @@ impl AstNode for TypedIdent {
         Ok(Self { name, crab_type })
     }
 
-    visit_fns!(TypedIdent);
+    visit_fns!(FnParam);
 }
 
-try_from_pair!(IdentList, Rule::ident_list);
-impl AstNode for IdentList {
+try_from_pair!(NamedFnParam, Rule::named_fn_param);
+impl AstNode for NamedFnParam {
     fn from_pair(pair: Pair<Rule>) -> Result<Self>
     where
         Self: Sized,
     {
-        let mut idents = vec![];
+        let mut inner = pair.into_inner();
+        let crab_type = CrabType::try_from(inner.next().ok_or(ParseError::ExpectedInner)?)?;
+        let name = Ident::from(inner.next().ok_or(ParseError::ExpectedInner)?.as_str());
+        let expr = Expression::try_from(inner.next().ok_or(ParseError::ExpectedInner)?)?;
 
-        for ident in pair.into_inner() {
-            idents.push(Ident::from(ident.as_str()));
-        }
-
-        Ok(Self { idents })
+        Ok(Self {
+            name,
+            crab_type,
+            expr,
+        })
     }
 
-    visit_fns!(IdentList);
-}
-
-try_from_pair!(TypedIdentList, Rule::typed_ident_list);
-impl AstNode for TypedIdentList {
-    fn from_pair(pair: Pair<Rule>) -> Result<Self>
-    where
-        Self: Sized,
-    {
-        let mut typed_idents = vec![];
-
-        for ty_id in pair.into_inner() {
-            typed_idents.push(TypedIdent::try_from(ty_id)?);
-        }
-
-        Ok(Self { typed_idents })
-    }
-
-    visit_fns!(TypedIdentList);
-}
-
-try_from_pair!(ExpressionList, Rule::expression_list);
-impl AstNode for ExpressionList {
-    fn from_pair(pair: Pair<Rule>) -> Result<Self>
-    where
-        Self: Sized,
-    {
-        let mut expressions = vec![];
-
-        for expr in pair.into_inner() {
-            expressions.push(Expression::try_from(expr)?);
-        }
-
-        Ok(Self { expressions })
-    }
-
-    visit_fns!(ExpressionList);
+    visit_fns!(NamedFnParam);
 }
 
 /// Assignment requries a custom TryFrom implementation because it can be built from two different rules

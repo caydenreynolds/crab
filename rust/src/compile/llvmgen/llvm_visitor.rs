@@ -3,8 +3,8 @@ use crate::compile::llvmgen::crab_value_type::CrabValueType;
 use crate::compile::llvmgen::{Codegen, Functiongen};
 use crate::compile::AstVisitor;
 use crate::parse::{
-    Assignment, AstNode, CodeBlock, CrabAst, CrabType, DoWhileStmt, FnCall, Func, FuncSignature,
-    Ident, IfStmt, Primitive, Statement, TypedIdent, TypedIdentList, WhileStmt,
+    Assignment, AstNode, CodeBlock, CrabAst, CrabType, DoWhileStmt, FnCall, FnParam, Func,
+    FuncSignature, Ident, IfStmt, Primitive, Statement, WhileStmt,
 };
 use inkwell::context::Context;
 use inkwell::module::Linkage;
@@ -92,7 +92,7 @@ impl<'ctx> LlvmVisitor<'ctx> {
         self.codegen.add_function(
             "printf",
             CrabType::FLOAT,
-            &[TypedIdent {
+            &[FnParam {
                 name: String::from("str"),
                 crab_type: CrabType::STRING,
             }],
@@ -102,12 +102,11 @@ impl<'ctx> LlvmVisitor<'ctx> {
         let signature = FuncSignature {
             name: Ident::from("printf"),
             return_type: CrabType::FLOAT,
-            args: Some(TypedIdentList {
-                typed_idents: vec![TypedIdent {
-                    name: Ident::from("str"),
-                    crab_type: CrabType::STRING,
-                }],
-            }),
+            unnamed_params: vec![FnParam {
+                name: Ident::from("str"),
+                crab_type: CrabType::STRING,
+            }],
+            named_params: vec![],
         };
         self.functions.insert(Ident::from("__printf__"), signature);
         Ok(())
@@ -175,7 +174,7 @@ impl<'ctx> AstVisitor for LlvmVisitor<'ctx> {
         self.codegen.add_function(
             node.name.as_str(),
             node.return_type,
-            node.get_args(),
+            &node.get_params(),
             false,
             None,
         )?;
@@ -187,7 +186,7 @@ impl<'ctx> AstVisitor for LlvmVisitor<'ctx> {
     fn visit_FuncSignature(&mut self, node: &FuncSignature) -> Result<()> {
         self.funcgen = Some(
             self.codegen
-                .get_function(node.name.as_str(), node.get_args())?,
+                .get_function(node.name.as_str(), &node.get_params())?,
         );
         self.return_type = Some(node.return_type);
         Ok(())
@@ -299,29 +298,74 @@ impl<'ctx> AstVisitor for LlvmVisitor<'ctx> {
     }
 
     fn visit_FnCall(&mut self, node: &FnCall) -> Result<()> {
+        let fn_header = self
+            .functions
+            .get(&node.name)
+            .ok_or(CompileError::CouldNotFindFunction(String::from(&node.name)))?
+            .clone();
+
+        // Check to make sure we have exactly the arguments we expect
+        if node.unnamed_args.len() != fn_header.unnamed_params.len() {
+            return Err(CompileError::PositionalArgumentCount(
+                fn_header.name.clone(),
+                fn_header.unnamed_params.len(),
+                node.unnamed_args.len(),
+            ));
+        }
+        for named_expr in &node.named_args {
+            if !fn_header
+                .named_params
+                .iter()
+                .any(|param| param.name == named_expr.name)
+            {
+                return Err(CompileError::InvalidNamedArgument(
+                    fn_header.name.clone(),
+                    named_expr.name.clone(),
+                ));
+            }
+        }
+
         let mut args = vec![];
-        for arg in &node.args.expressions {
+
+        // Handle all of the positional arguments
+        for arg in &node.unnamed_args {
             self.visit(arg)?;
             args.push(self.get_pbv("visit_FnCall")?.clone());
         }
 
-        let fn_header_opt = self.functions.get(&node.name);
-        if let Some(fn_header) = fn_header_opt {
-            // We cam't use our fancy get_fg() fn here, because reasons
-            let call_value = self
-                .funcgen
-                .as_mut()
-                .ok_or(CompileError::InvalidNoneOption(String::from(
-                    "visit_FnCall",
-                )))?
-                .build_fn_call(&fn_header.name, args.as_slice(), self.codegen.get_module())?;
-            self.prev_basic_value = Some(CrabValueType::new_call_value(
-                call_value,
-                fn_header.return_type,
-            ));
-        } else {
-            return Err(CompileError::CouldNotFindFunction(String::from(&node.name)));
+        // Handle all of the optional arguments
+        for named_param in fn_header.named_params {
+            let mut arg_found = false;
+            for named_arg in &node.named_args {
+                if named_param.name == named_arg.name {
+                    arg_found = true;
+                    self.visit(&named_arg.expr)?;
+                    args.push(self.get_pbv("visit_FnCall")?.clone());
+                }
+            }
+
+            if !arg_found {
+                self.visit(&named_param.expr)?;
+                args.push(self.get_pbv("visit_FnCall")?.clone());
+            }
         }
+
+        // We can't use our fancy get_fg() fn here, because reasons
+        let call_value = self
+            .funcgen
+            .as_mut()
+            .ok_or(CompileError::InvalidNoneOption(String::from(
+                "visit_FnCall",
+            )))?
+            .build_fn_call(
+                &fn_header.name.clone(),
+                args.as_slice(),
+                self.codegen.get_module(),
+            )?;
+        self.prev_basic_value = Some(CrabValueType::new_call_value(
+            call_value,
+            fn_header.return_type,
+        ));
         Ok(())
     }
 
@@ -358,6 +402,7 @@ impl<'ctx> AstVisitor for LlvmVisitor<'ctx> {
         self.visit(node)
     }
 
+    //TODO: Consider making a while statement work just like a do-while statement, expect with a conditional branch at the start rather than an unconditional branch
     fn visit_WhileStmt(&mut self, node: &WhileStmt) -> Result<()> {
         self.get_fg("visit_WhileStmt")?.begin_while_expr()?;
         self.visit(&node.expr)?;

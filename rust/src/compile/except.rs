@@ -14,6 +14,12 @@ pub enum CompileError {
     #[error("Could not find function with name {0}")]
     CouldNotFindFunction(Ident),
 
+    #[error("Function {0} requires {1} positional arguments, but only {2} were supplied")]
+    PositionalArgumentCount(Ident, usize, usize),
+
+    #[error("Function {0} does not have a named argument with name {1}")]
+    InvalidNamedArgument(Ident, Ident),
+
     #[error(
         "Cannot assign variable with name {0}, because a variable with that name already exists"
     )]

@@ -1,6 +1,6 @@
 use crate::compile::llvmgen::Functiongen;
 use crate::compile::Result;
-use crate::parse::{CrabType, TypedIdent};
+use crate::parse::{CrabType, FnParam};
 use inkwell::context::Context;
 use inkwell::module::{Linkage, Module};
 use inkwell::support::LLVMString;
@@ -23,21 +23,21 @@ impl<'ctx> Codegen<'ctx> {
         &mut self,
         name: &str,
         return_type: CrabType,
-        arg_types: &[TypedIdent],
+        params: &[FnParam],
         variadic: bool,
         linkage: Option<Linkage>,
     ) -> Result<()> {
         trace!(
             "Registering new function with name {} and {} args",
             name,
-            arg_types.len()
+            params.len()
         );
-        let fn_type = return_type.as_fn_type(self.context, arg_types, variadic)?;
+        let fn_type = return_type.as_fn_type(self.context, params, variadic)?;
         let _fn_value = self.module.add_function(name, fn_type, linkage);
         Ok(())
     }
 
-    pub fn get_function(&mut self, name: &str, args: &[TypedIdent]) -> Result<Functiongen<'ctx>> {
+    pub fn get_function(&mut self, name: &str, args: &[FnParam]) -> Result<Functiongen<'ctx>> {
         Functiongen::new(name, &self.context, &self.module, args)
     }
 

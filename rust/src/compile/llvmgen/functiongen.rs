@@ -1,6 +1,6 @@
 use crate::compile::llvmgen::crab_value_type::CrabValueType;
 use crate::compile::{CompileError, Result};
-use crate::parse::{CrabType, Ident, TypedIdent};
+use crate::parse::{CrabType, FnParam, Ident};
 use inkwell::basic_block::BasicBlock;
 use inkwell::builder::Builder;
 use inkwell::context::Context;
@@ -25,7 +25,7 @@ impl<'ctx> Functiongen<'ctx> {
         name: &str,
         context: &'ctx Context,
         module: &Module<'ctx>,
-        args: &[TypedIdent],
+        args: &[FnParam],
     ) -> Result<Functiongen<'ctx>> {
         trace!("Creating new functiongen for a function with name {}", name);
         let fn_value_opt = module.get_function(name);

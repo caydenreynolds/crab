@@ -1,4 +1,4 @@
-use crate::parse::Rule;
+use crate::parse::{Ident, Rule};
 use std::num::ParseIntError;
 use thiserror::Error;
 
@@ -34,6 +34,12 @@ pub enum ParseError {
 
     #[error("{0} is not a valid CrabType")]
     InvalidCrabType(String),
+
+    #[error("Function {0} has positional param {1} after a named param")]
+    PositionalParamAfterNamedParam(Ident, Ident),
+
+    #[error("Call of function {0} has positional param after a named param")]
+    PositionalArgAfterNamedParam(Ident),
 
     #[error(transparent)]
     Io(#[from] std::io::Error),
