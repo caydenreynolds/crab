@@ -402,14 +402,17 @@ impl<'ctx> AstVisitor for LlvmVisitor<'ctx> {
         self.visit(node)
     }
 
-    //TODO: Consider making a while statement work just like a do-while statement, expect with a conditional branch at the start rather than an unconditional branch
     fn visit_WhileStmt(&mut self, node: &WhileStmt) -> Result<()> {
-        self.get_fg("visit_WhileStmt")?.begin_while_expr()?;
         self.visit(&node.expr)?;
         let pbv = self.get_pbv("visit_WhileStmt")?.clone();
-        self.get_fg("visit_WhileStmt")?.end_while_expr(&pbv)?;
+        self.get_fg("visit_WhileStmt")?.begin_while(&pbv)?;
+
+        // let pbv = self.get_pbv("visit_WhileStmt")?.clone();
+        // self.get_fg("visit_WhileStmt")?.end_while_expr(&pbv)?;
         self.visit(&node.then)?;
-        self.get_fg("visit_WhileStmt")?.end_while()
+        self.visit(&node.expr)?;
+        let pbv = self.get_pbv("visit_WhileStmt")?.clone();
+        self.get_fg("visit_WhileStmt")?.end_while(&pbv)
     }
 
     fn visit_DoWhileStmt(&mut self, node: &DoWhileStmt) -> Result<()> {
@@ -417,6 +420,6 @@ impl<'ctx> AstVisitor for LlvmVisitor<'ctx> {
         self.visit(&node.then)?;
         self.visit(&node.expr)?;
         let pbv = self.get_pbv("visit_WhileStmt")?.clone();
-        self.get_fg("visit_DoWhileStmt")?.end_do_while(&pbv)
+        self.get_fg("visit_DoWhileStmt")?.end_while(&pbv)
     }
 }

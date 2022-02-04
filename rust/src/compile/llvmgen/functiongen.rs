@@ -242,92 +242,37 @@ impl<'ctx> Functiongen<'ctx> {
         Ok(())
     }
 
-    /// While blocks are separated into 3 blocks:
-    ///  * the expression
-    ///  * inside of the curly braces
-    ///  * the code after the while block
-    ///
-    /// This function begins the expression block
-    ///
-    pub fn begin_while_expr(&mut self) -> Result<()> {
-        let expr_block = self.context.append_basic_block(self.fn_value, "while_expr");
-        self.builder.build_unconditional_branch(expr_block);
-        self.builder.position_at_end(expr_block);
-        self.current_basic_block = expr_block;
-        Ok(())
-    }
-
-    /// While blocks are separated into 3 blocks:
-    ///  * the expression
-    ///  * inside of the curly braces
-    ///  * the code after the while block
-    ///
-    /// This function terminates the expression block, using the boolean value provided.
-    /// True to loop again, false to stop looping
-    /// Additionally, this function begins the block that represents the code inside the curly braces
-    /// You may begin building those statements immediately
-    ///
-    pub fn end_while_expr(&mut self, condition: &CrabValueType) -> Result<()> {
-        let then_block = self.context.append_basic_block(self.fn_value, "while_then");
-        let always_block = self.context.append_basic_block(self.fn_value, "always");
-
-        self.builder.build_conditional_branch(
-            condition.try_as_bool_value()?,
-            then_block,
-            always_block,
-        );
-
-        self.add_terminating_instruction(then_block, self.current_basic_block);
-        self.always_stack.push(always_block);
-
-        self.builder
-            .position_before(&then_block.get_first_instruction().unwrap());
-        self.current_basic_block = then_block;
-
-        Ok(())
-    }
-
-    /// While blocks are separated into 3 blocks:
-    ///  * the expression
-    ///  * inside of the curly braces
-    ///  * the code after the while block
-    ///
-    /// This function ends the while block, allowing you to build the statements that occur after the loop body.
-    ///
-    pub fn end_while(&mut self) -> Result<()> {
+    pub fn begin_while(&mut self, condition: &CrabValueType) -> Result<()> {
+        let then_block = self
+            .context
+            .append_basic_block(self.fn_value, "while");
         let always_block = self
-            .always_stack
-            .pop()
-            .ok_or(CompileError::EmptyStack(String::from("always_stack")))?;
-        self.builder.position_at_end(always_block);
-        self.current_basic_block = always_block;
+            .context
+            .append_basic_block(self.fn_value, "always");
+        self.always_stack.push(always_block);
+        self.builder.build_conditional_branch(condition.try_as_bool_value()?, then_block, always_block);
+        self.builder.position_at_end(then_block);
+        self.current_basic_block = then_block;
         Ok(())
     }
 
-    /// Do-while blocks are simpler than while blocks. The expression simply goes at the end of the then block:
-    ///  * inside of the curly braces
-    ///  * the code after the while block
-    ///
-    /// This function begins the then block
-    ///
     pub fn begin_do_while(&mut self) -> Result<()> {
         let then_block = self
             .context
-            .append_basic_block(self.fn_value, "do_while_then");
+            .append_basic_block(self.fn_value, "do_while");
+        let always_block = self
+            .context
+            .append_basic_block(self.fn_value, "always");
+        self.always_stack.push(always_block);
         self.builder.build_unconditional_branch(then_block);
         self.builder.position_at_end(then_block);
         self.current_basic_block = then_block;
         Ok(())
     }
 
-    /// Do-while blocks are simpler than while blocks. The expression simply goes at the end of the then block:
-    ///  * inside of the curly braces
-    ///  * the code after the while block
-    ///
-    /// This function builds the conditional branch instruction
-    ///
-    pub fn end_do_while(&mut self, condition: &CrabValueType) -> Result<()> {
-        let always_block = self.context.append_basic_block(self.fn_value, "always");
+    /// Used to terminate a while or do while block
+    pub fn end_while(&mut self, condition: &CrabValueType) -> Result<()> {
+        let always_block = self.always_stack.pop().ok_or(CompileError::EmptyStack(String::from("always_stack")))?;
 
         self.builder.build_conditional_branch(
             condition.try_as_bool_value()?,
