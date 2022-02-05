@@ -1,7 +1,7 @@
 use crate::compile::Result;
 use crate::parse::{
-    Assignment, AstNode, CodeBlock, CrabAst, CrabType, DoWhileStmt, FnCall, FnParam, Func,
-    FuncSignature, Ident, IfStmt, NamedExpression, NamedFnParam, Primitive, Statement, WhileStmt,
+    Assignment, AstNode, CodeBlock, CrabAst, CrabType, DoWhileStmt, FnCall, FnParam, Func, StructInit,
+    FuncSignature, Ident, IfStmt, NamedExpression, NamedFnParam, Primitive, Statement, WhileStmt, StructField, Struct, StructFieldInit
 };
 
 macro_rules! second_dispatch_fns {
@@ -67,16 +67,16 @@ pub trait AstVisitor {
         FnCall,
         Assignment,
         Statement,
-        //TypedIdent,
-        //IdentList,
-        //TypedIdentList,
-        //ExpressionList,
         IfStmt,
         WhileStmt,
         DoWhileStmt,
         FnParam,
         NamedFnParam,
-        NamedExpression
+        NamedExpression,
+        StructField,
+        Struct,
+        StructFieldInit,
+        StructInit
     }
 
     // The third argument for StatementType::RETURN is a throwaway and not actually used
@@ -87,6 +87,7 @@ pub trait AstVisitor {
         (Expression, PRIM, Primitive),
         (Expression, FN_CALL, FnCall),
         (Expression, VARIABLE, Ident),
+        (Expression, STRUCT_INIT, StructInit),
         (StatementType, RETURN, bool),
         (StatementType, ASSIGNMENT, Assignment),
         (StatementType, REASSIGNMENT, Assignment),

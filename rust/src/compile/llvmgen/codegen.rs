@@ -6,6 +6,7 @@ use inkwell::module::{Linkage, Module};
 use inkwell::support::LLVMString;
 use log::trace;
 use std::path::PathBuf;
+use inkwell::types::{BasicTypeEnum, StructType};
 
 pub struct Codegen<'ctx> {
     context: &'ctx Context,
@@ -39,6 +40,10 @@ impl<'ctx> Codegen<'ctx> {
 
     pub fn get_function(&mut self, name: &str, args: &[FnParam]) -> Result<Functiongen<'ctx>> {
         Functiongen::new(name, &self.context, &self.module, args)
+    }
+    
+    pub fn build_struct_definition(&self, fields: &[BasicTypeEnum]) -> StructType<'ctx> {
+        self.context.struct_type(fields, true)
     }
 
     pub fn print_to_file(&self, path: PathBuf) -> std::result::Result<(), LLVMString> {

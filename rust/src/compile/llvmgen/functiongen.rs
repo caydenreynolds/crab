@@ -5,10 +5,11 @@ use inkwell::basic_block::BasicBlock;
 use inkwell::builder::Builder;
 use inkwell::context::Context;
 use inkwell::module::Module;
-use inkwell::values::{CallSiteValue, FunctionValue};
+use inkwell::values::{BasicValueEnum, CallSiteValue, FunctionValue};
 use inkwell::AddressSpace;
 use log::trace;
 use std::collections::HashMap;
+use inkwell::types::StructType;
 
 pub struct Functiongen<'ctx> {
     builder: Builder<'ctx>,
@@ -195,6 +196,10 @@ impl<'ctx> Functiongen<'ctx> {
     pub fn build_unreachable(&mut self) -> Result<()> {
         self.builder.build_unreachable();
         Ok(())
+    }
+
+    pub fn  build_struct_init(&self, st: &StructType, values: &[BasicValueEnum], name: Ident) -> CrabValueType {
+        CrabValueType::new_struct(st.const_named_struct(values), name)
     }
 
     pub fn begin_if_then(&mut self, condition: &CrabValueType) -> Result<()> {

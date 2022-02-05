@@ -2,15 +2,14 @@ use crate::compile::except::{CompileError, Result};
 use crate::compile::llvmgen::crab_value_type::CrabValueType;
 use crate::compile::llvmgen::{Codegen, Functiongen};
 use crate::compile::AstVisitor;
-use crate::parse::{
-    Assignment, AstNode, CodeBlock, CrabAst, CrabType, DoWhileStmt, FnCall, FnParam, Func,
-    FuncSignature, Ident, IfStmt, Primitive, Statement, WhileStmt,
-};
+use crate::parse::{Assignment, AstNode, CodeBlock, CrabAst, CrabType, DoWhileStmt, FnCall, FnParam, Func, FuncSignature, Ident, IfStmt, Primitive, Statement, Struct, StructFieldInit, StructInit, WhileStmt};
 use inkwell::context::Context;
 use inkwell::module::Linkage;
 use inkwell::support::LLVMString;
 use std::collections::HashMap;
 use std::path::PathBuf;
+use inkwell::types::StructType;
+use log::trace;
 
 pub struct LlvmVisitor<'ctx> {
     codegen: Codegen<'ctx>,
@@ -18,6 +17,7 @@ pub struct LlvmVisitor<'ctx> {
     prev_basic_value: Option<CrabValueType<'ctx>>,
     return_type: Option<CrabType>,
     functions: HashMap<Ident, FuncSignature>,
+    structs: HashMap<Ident, (Struct, StructType<'ctx>)>,
     block_has_return: bool,
 }
 
@@ -29,6 +29,7 @@ impl<'ctx> LlvmVisitor<'ctx> {
             prev_basic_value: None,
             return_type: None,
             functions: HashMap::new(),
+            structs: HashMap::new(),
             block_has_return: false,
         }
     }
@@ -135,12 +136,28 @@ impl<'ctx> AstVisitor for LlvmVisitor<'ctx> {
 
     fn visit_CrabAst(&mut self, node: &CrabAst) -> Result<()> {
         self.add_builtin_fns()?;
+        for crab_struct in &node.structs {
+            self.visit(crab_struct)?;
+        }
         for func in &node.functions {
             self.pre_visit(func)?;
         }
         for func in &node.functions {
             self.visit(func)?;
         }
+        Ok(())
+    }
+
+    fn visit_Struct(&mut self, node: &Struct) -> Result<()> {
+        trace!("Building a struct with name {:#?}", node.name);
+        let mut fields = vec![];
+        for field in &node.fields {
+            fields.push(field.crab_type.try_as_basic_type(self.codegen.get_context())?.clone());
+        }
+
+        let st = self.codegen.build_struct_definition(&fields);
+        self.structs.insert(node.name.clone(), (node.clone(), st));
+
         Ok(())
     }
 
@@ -282,6 +299,36 @@ impl<'ctx> AstVisitor for LlvmVisitor<'ctx> {
         Ok(())
     }
 
+    fn visit_Expression_STRUCT_INIT(&mut self, node: &StructInit) -> Result<()> {
+        let (ct, struct_type) = self.structs.get(&node.name).ok_or(CompileError::NoType(node.name.clone()))?.clone();
+
+        if node.fields.len() != ct.fields.len() {
+            return Err(CompileError::StructInitFieldCount(node.name.clone(), ct.fields.len(), node.fields.len()));
+        }
+
+        let mut field_vals = HashMap::new();
+        for field in node.fields {
+            self.visit(&field);
+            field_vals.insert(field.name.clone(), self.get_pbv("visit_Expression_STRUCT_INIT")?);
+        }
+
+        let mut init_field_list = vec![];
+        for field in ct.fields {
+            let val = field_vals.get(&field.name).ok_or(CompileError::StructInitFieldName(ct.name.clone(), field.name.clone()))?;
+            init_field_list.push(val.get_as_basic_value().ok_or(CompileError::InvalidNoneOption(String::from("visit_Expression_STRUCT_INIT")))?);
+        }
+
+        self.prev_basic_value = Some(
+            self.get_fg("visit_Expression_STRUCT_INIT")?
+                .build_struct_init(&struct_type, &init_field_list, node.name.clone())
+        );
+        Ok(())
+    }
+
+    fn visit_StructFieldInit(&mut self, node: &StructFieldInit) -> Result<()> {
+        self.visit(&node.value)
+    }
+
     fn visit_Primitive_UINT64(&mut self, node: &u64) -> Result<()> {
         self.prev_basic_value = Some(self.funcgen.as_ref().unwrap().build_const_u64(*node));
         Ok(())
@@ -407,8 +454,6 @@ impl<'ctx> AstVisitor for LlvmVisitor<'ctx> {
         let pbv = self.get_pbv("visit_WhileStmt")?.clone();
         self.get_fg("visit_WhileStmt")?.begin_while(&pbv)?;
 
-        // let pbv = self.get_pbv("visit_WhileStmt")?.clone();
-        // self.get_fg("visit_WhileStmt")?.end_while_expr(&pbv)?;
         self.visit(&node.then)?;
         self.visit(&node.expr)?;
         let pbv = self.get_pbv("visit_WhileStmt")?.clone();

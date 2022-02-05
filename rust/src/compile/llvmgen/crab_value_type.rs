@@ -1,5 +1,5 @@
 use crate::compile::{CompileError, Result};
-use crate::parse::CrabType;
+use crate::parse::{CrabType, Ident};
 use inkwell::values::{
     ArrayValue, BasicMetadataValueEnum, BasicValueEnum, CallSiteValue, FloatValue, IntValue,
     PointerValue, StructValue, VectorValue,
@@ -50,6 +50,10 @@ impl<'ctx> CrabValueType<'ctx> {
 
     pub fn new_bool(val: IntValue<'ctx>) -> Self {
         Self::new(LLVMValueEnum::IntValue(val), CrabType::BOOL)
+    }
+
+    pub fn new_struct(val: StructValue<'ctx>, name: Ident) -> Self {
+        Self::new(LLVMValueEnum::StructValue(val), CrabType::STRUCT(name))
     }
 
     pub fn new_void() -> Self {

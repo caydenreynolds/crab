@@ -5,6 +5,11 @@ fn print(String str, Bool newline=true) {
     }
 }
 
+struct GymGoer {
+    String name,
+    Int fitness,
+}
+
 fn main() -> Int {
     print("foo", newline=false)
     print("bar", newline=true,)
