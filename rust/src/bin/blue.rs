@@ -1,6 +1,5 @@
 use anyhow::{anyhow, Result};
-use crab::compile::llvmgen::LlvmVisitor;
-use crab::compile::AstVisitor;
+use crab::compile::llvmgen::{Codegen};
 use crab::parse::parse;
 use inkwell::context::Context;
 use log::{debug, error, info, LevelFilter};
@@ -21,9 +20,13 @@ struct Args {
     /// Verbose mode (-v, -vv, -vvv, etc.)
     #[structopt(short, long, parse(from_occurrences))]
     verbose: u8,
+
+    /// Skip verifying the emitted ir
+    #[structopt(short, long)]
+    no_verify: bool,
 }
 
-fn handle_crabfile(crabfile: PathBuf, package: &str) -> Result<()> {
+fn handle_crabfile(crabfile: PathBuf, package: &str, verify: bool) -> Result<()> {
     // parse crabfile
     info!(
         "Handling crabfile {:?} in package {:?}",
@@ -36,13 +39,16 @@ fn handle_crabfile(crabfile: PathBuf, package: &str) -> Result<()> {
 
     // build llvm ir
     let context = Context::create();
-    let mut visitor = LlvmVisitor::new(&context);
-    visitor.visit(&parse_result)?;
+    let module = context.create_module("main");
+    let mut codegen = Codegen::new(&context, &module);
+    codegen.compile(parse_result)?;
 
     // Use unwrap because of weird thread-safety compiler checks
-    visitor.print_to_file(PathBuf::from("out.ll")).unwrap();
+    if verify {
+        module.verify().unwrap();
+    }
+    codegen.print_to_file(PathBuf::from("out.ll")).unwrap();
     info!("Successfully wrote llvm ir to 'out.ll'");
-
     Ok(())
 }
 
@@ -71,7 +77,7 @@ fn _main() -> Result<()> {
         ));
     }
 
-    handle_crabfile(PathBuf::from(args.path), "UwU")?;
+    handle_crabfile(PathBuf::from(args.path), "UwU", !args.no_verify)?;
 
     // for package in packages {
     // let blue_path = PathBuf::from(package.clone()).join("blue.sqlite");
