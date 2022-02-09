@@ -1,4 +1,4 @@
-use crate::parse::{CrabType, Ident};
+use crate::parse::ast::{CrabType, Ident};
 use thiserror::Error;
 
 pub(crate) type Result<T> = std::result::Result<T, CompileError>;
@@ -43,9 +43,24 @@ pub enum CompileError {
     #[error("Failed to get var value type as {0}")]
     VarValueType(String),
 
+    #[error("Struct {0} has multiple definitions")]
+    StructRedefinition(Ident),
+
+    #[error("Function {0} is declared multiple times")]
+    FunctionRedefinition(Ident),
+
+    #[error("Struct with name {0} does not exist")]
+    StructDoesNotExist(Ident),
+
     #[error("Failed to pop a value off of stack {0} because it is empty")]
     EmptyStack(String),
 
     #[error("Failed to build function {0} because it does not always return a value")]
     NoReturn(Ident),
+
+    #[error("Initialization of struct {0} expected {1} fields, instead got {2}")]
+    StructInitFieldCount(Ident, usize, usize),
+
+    #[error("Initialization of struct {0} expects field {1}, which has not been supplied")]
+    StructInitFieldName(Ident, Ident),
 }

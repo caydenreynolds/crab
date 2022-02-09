@@ -4,10 +4,11 @@ pub use codegen::*;
 mod functiongen;
 pub use functiongen::*;
 
-pub mod crab_value_type;
-mod llvm_visitor;
+mod crab_value_type;
+pub use crab_value_type::*;
 
-mod var_value;
-pub use var_value::*;
+mod struct_manager;
+pub use struct_manager::*;
 
-pub use llvm_visitor::*;
+mod fn_manager;
+pub use fn_manager::*;

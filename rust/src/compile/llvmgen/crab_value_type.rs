@@ -1,9 +1,9 @@
 use crate::compile::{CompileError, Result};
-use crate::parse::CrabType;
 use inkwell::values::{
     ArrayValue, BasicMetadataValueEnum, BasicValueEnum, CallSiteValue, FloatValue, IntValue,
     PointerValue, StructValue, VectorValue,
 };
+use crate::parse::ast::{CrabType, Ident};
 
 #[derive(Clone)]
 pub struct CrabValueType<'ctx> {
@@ -52,6 +52,10 @@ impl<'ctx> CrabValueType<'ctx> {
         Self::new(LLVMValueEnum::IntValue(val), CrabType::BOOL)
     }
 
+    pub fn new_struct(val: StructValue<'ctx>, name: Ident) -> Self {
+        Self::new(LLVMValueEnum::StructValue(val), CrabType::STRUCT(name))
+    }
+
     pub fn new_void() -> Self {
         Self::new(LLVMValueEnum::None, CrabType::VOID)
     }
@@ -69,7 +73,7 @@ impl<'ctx> CrabValueType<'ctx> {
     }
 
     pub fn get_crab_type(&self) -> CrabType {
-        self.crab_type
+        self.crab_type.clone()
     }
 
     pub fn get_llvm_type(&self) -> &LLVMValueEnum<'ctx> {

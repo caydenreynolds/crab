@@ -5,9 +5,18 @@ fn print(String str, Bool newline=true) {
     }
 }
 
+struct GymGoer {
+    String name,
+    Int fitness,
+}
+
 fn main() -> Int {
     print("foo", newline=false)
     print("bar", newline=true,)
+    let a_struct_var = GymGoer {
+        name = "Phillip",
+        fitness = 12345,
+    }
     do {
         print("do while")
     } while true

@@ -1,4 +1,5 @@
-use crate::parse::{Ident, Rule};
+use crate::parse::Rule;
+use crate::parse::ast::Ident;
 use std::num::ParseIntError;
 use thiserror::Error;
 
