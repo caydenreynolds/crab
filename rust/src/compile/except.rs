@@ -58,9 +58,6 @@ pub enum CompileError {
     #[error("Failed to build function {0} because it does not always return a value")]
     NoReturn(Ident),
 
-    #[error("The type {0} does not exist")]
-    NoType(Ident),
-
     #[error("Initialization of struct {0} expected {1} fields, instead got {2}")]
     StructInitFieldCount(Ident, usize, usize),
 

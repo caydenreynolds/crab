@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Result};
-use crab::compile::llvmgen::{Codegen};
+use crab::compile::llvmgen::Codegen;
 use crab::parse::parse;
 use inkwell::context::Context;
 use log::{debug, error, info, LevelFilter};

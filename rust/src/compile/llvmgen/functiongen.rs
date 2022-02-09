@@ -1,6 +1,6 @@
 use crate::compile::llvmgen::crab_value_type::CrabValueType;
 use crate::compile::{Result, CompileError};
-use crate::parse::ast::{Assignment, CodeBlock, CrabType, DoWhileStmt, ElseStmt, Expression, FnCall, FnParam, Ident, IfStmt, Primitive, Statement, WhileStmt};
+use crate::parse::ast::{Assignment, CodeBlock, CrabType, DoWhileStmt, ElseStmt, Expression, FnCall, FnParam, Ident, IfStmt, Primitive, Statement, StructInit, WhileStmt};
 use inkwell::basic_block::BasicBlock;
 use inkwell::builder::Builder;
 use inkwell::context::Context;
@@ -157,10 +157,33 @@ impl<'a, 'ctx> Functiongen<'a, 'ctx> {
     fn build_expression(&mut self, expr: &Expression) -> Result<CrabValueType<'ctx>> {
         return match expr {
             Expression::FN_CALL(fc) => self.build_fn_call(fc),
-            Expression::STRUCT_INIT(si) => unimplemented!(),
+            Expression::STRUCT_INIT(si) => self.build_struct_init(si),
             Expression::PRIM(prim) => self.build_primitive(prim),
             Expression::VARIABLE(var) => self.build_retrieve_var(var),
         }
+    }
+
+    fn build_struct_init(&mut self, si: &StructInit) -> Result<CrabValueType<'ctx>> {
+        let crab_struct = self.structs.get(&si.name)?.clone();
+        let st = self.module.get_struct_type(&crab_struct.name).ok_or(CompileError::StructDoesNotExist(si.name.clone()))?;
+
+        if crab_struct.fields.len() != si.fields.len() {
+            return Err(CompileError::StructInitFieldCount(si.name.clone(), crab_struct.fields.len(), si.fields.len()));
+        }
+
+        let mut field_vals = HashMap::new();
+        for field in &si.fields {
+            let val = self.build_expression(&field.value)?;
+            field_vals.insert(field.name.clone(), val);
+        }
+
+        let mut init_field_list = vec![];
+        for field in &crab_struct.fields {
+            let val = field_vals.get(&field.name).ok_or(CompileError::StructInitFieldName(si.name.clone(), field.name.clone()))?;
+            init_field_list.push(val.get_as_basic_value().ok_or(CompileError::InvalidNoneOption(String::from("build_struct_init")))?);
+        }
+
+        Ok(CrabValueType::new_struct(st.const_named_struct(&init_field_list), si.name.clone()))
     }
 
     fn build_primitive(&mut self, prim: &Primitive) -> Result<CrabValueType<'ctx>> {
@@ -282,6 +305,10 @@ impl<'a, 'ctx> Functiongen<'a, 'ctx> {
                 CrabType::BOOL => self
                     .builder
                     .build_alloca(self.context.custom_width_int_type(1), name),
+                CrabType::STRUCT(struct_name) => {
+                    let st = self.module.get_struct_type(struct_name).ok_or(CompileError::StructDoesNotExist(struct_name.clone()))?;
+                    self.builder.build_alloca(st, name)
+                }
                 _ => unimplemented!(),
             },
             Some(_) => return Err(CompileError::VarAlreadyExists(name.clone())),
@@ -347,10 +374,6 @@ impl<'a, 'ctx> Functiongen<'a, 'ctx> {
         self.builder.build_unreachable();
         Ok(())
     }
-
-//     pub fn  build_struct_init(&self, st: &'ctx StructType, values: &'ctx [BasicValueEnum], name: Ident) -> CrabValueType<'ctx> {
-//         CrabValueType::new_struct(st.const_named_struct(values), name)
-//     }
 
     fn begin_if_then(&mut self, condition: &CrabValueType) -> Result<()> {
         let then_block = self.context.append_basic_block(self.fn_value, "if_then");

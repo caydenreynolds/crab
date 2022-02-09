@@ -24,7 +24,7 @@ fn_param = { crab_type ~ ident }
 fn_params = _{ (named_fn_param | fn_param) ~ ("," ~ (named_fn_param | fn_param))* }
 
 code_block = { "{" ~ statement* ~ "}" }
-expression = { primitive | fn_call | ident | struct_init }
+expression = { primitive | fn_call | struct_init | ident }
 
 statement = { (return_stmt | assignment | reassignment | fn_call | if_stmt | while_stmt | do_while_stmt ) }
 assignment = { "let" ~ ident ~ "=" ~ expression }
