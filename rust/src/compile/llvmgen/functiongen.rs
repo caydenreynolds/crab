@@ -1,15 +1,19 @@
 use crate::compile::llvmgen::crab_value_type::CrabValueType;
-use crate::compile::{Result, CompileError};
-use crate::parse::ast::{Assignment, CodeBlock, CrabType, DoWhileStmt, ElseStmt, Expression, FnCall, FnParam, Ident, IfStmt, Primitive, Statement, StructInit, WhileStmt};
+use crate::compile::llvmgen::{FnManager, StructManager};
+use crate::compile::{CompileError, Result};
+use crate::parse::ast::{
+    Assignment, CodeBlock, CrabType, DoWhileStmt, ElseStmt, Expression, ExpressionChain,
+    ExpressionChainType, FnCall, FnParam, Ident, IfStmt, Primitive, Statement, StructInit,
+    WhileStmt,
+};
 use inkwell::basic_block::BasicBlock;
 use inkwell::builder::Builder;
 use inkwell::context::Context;
 use inkwell::module::Module;
-use inkwell::values::{FunctionValue};
+use inkwell::values::FunctionValue;
 use inkwell::AddressSpace;
 use log::trace;
 use std::collections::HashMap;
-use crate::compile::llvmgen::{FnManager, StructManager};
 
 pub struct Functiongen<'a, 'ctx> {
     builder: Builder<'ctx>,
@@ -93,7 +97,9 @@ impl<'a, 'ctx> Functiongen<'a, 'ctx> {
             Statement::IF_STATEMENT(is) => self.build_if_stmt(&is)?,
             Statement::WHILE_STATEMENT(ws) => self.build_while_stmt(&ws)?,
             Statement::DO_WHILE_STATEMENT(dws) => self.build_do_while_stmt(&dws)?,
-            Statement::FN_CALL(fc) => {self.build_fn_call(&fc)?;},
+            Statement::EXPRESSION_CHAIN(ec) => {
+                self.build_expression_chain(ec, None)?;
+            }
             Statement::ASSIGNMENT(ass) => self.build_assignment(ass)?,
             Statement::REASSIGNMENT(reass) => self.build_reassignment(reass)?,
             Statement::RETURN(ret) => self.build_return(ret)?,
@@ -156,19 +162,58 @@ impl<'a, 'ctx> Functiongen<'a, 'ctx> {
 
     fn build_expression(&mut self, expr: &Expression) -> Result<CrabValueType<'ctx>> {
         return match expr {
-            Expression::FN_CALL(fc) => self.build_fn_call(fc),
             Expression::STRUCT_INIT(si) => self.build_struct_init(si),
             Expression::PRIM(prim) => self.build_primitive(prim),
-            Expression::VARIABLE(var) => self.build_retrieve_var(var),
+            Expression::CHAIN(ec) => self.build_expression_chain(ec, None),
+        };
+    }
+
+    fn build_expression_chain(
+        &mut self,
+        ec: &ExpressionChain,
+        previous: Option<CrabValueType<'ctx>>,
+    ) -> Result<CrabValueType<'ctx>> {
+        let result = match previous {
+            None => match &ec.this {
+                ExpressionChainType::VARIABLE(id) => self.build_retrieve_var(id)?,
+                ExpressionChainType::FN_CALL(fc) => self.build_fn_call(fc, None)?,
+            },
+            Some(prev) => match &ec.this {
+                ExpressionChainType::VARIABLE(id) => {
+                    let name = prev.try_get_struct_name()?;
+                    let cs = self.structs.get(&name)?;
+                    let field_index = cs.get_field_index(id)?;
+                    let val = self
+                        .builder
+                        .build_extract_value(prev.try_as_struct_value()?, field_index as u32, &name)
+                        .ok_or(CompileError::Internal(String::from(
+                            "Failed to extract struct value",
+                        )))?;
+                    CrabValueType::from_basic_value_enum(val, cs.get_field_crab_type(id)?)
+                }
+                ExpressionChainType::FN_CALL(fc) => self.build_fn_call(fc, Some(prev))?,
+            },
+        };
+
+        match &ec.next {
+            None => Ok(result),
+            Some(next) => self.build_expression_chain(next, Some(result)),
         }
     }
 
     fn build_struct_init(&mut self, si: &StructInit) -> Result<CrabValueType<'ctx>> {
         let crab_struct = self.structs.get(&si.name)?.clone();
-        let st = self.module.get_struct_type(&crab_struct.name).ok_or(CompileError::StructDoesNotExist(si.name.clone()))?;
+        let st = self
+            .module
+            .get_struct_type(&crab_struct.name)
+            .ok_or(CompileError::StructDoesNotExist(si.name.clone()))?;
 
         if crab_struct.fields.len() != si.fields.len() {
-            return Err(CompileError::StructInitFieldCount(si.name.clone(), crab_struct.fields.len(), si.fields.len()));
+            return Err(CompileError::StructInitFieldCount(
+                si.name.clone(),
+                crab_struct.fields.len(),
+                si.fields.len(),
+            ));
         }
 
         let mut field_vals = HashMap::new();
@@ -179,11 +224,21 @@ impl<'a, 'ctx> Functiongen<'a, 'ctx> {
 
         let mut init_field_list = vec![];
         for field in &crab_struct.fields {
-            let val = field_vals.get(&field.name).ok_or(CompileError::StructInitFieldName(si.name.clone(), field.name.clone()))?;
-            init_field_list.push(val.get_as_basic_value().ok_or(CompileError::InvalidNoneOption(String::from("build_struct_init")))?);
+            let val = field_vals
+                .get(&field.name)
+                .ok_or(CompileError::StructInitFieldName(
+                    si.name.clone(),
+                    field.name.clone(),
+                ))?;
+            init_field_list.push(val.get_as_basic_value().ok_or(
+                CompileError::InvalidNoneOption(String::from("build_struct_init")),
+            )?);
         }
 
-        Ok(CrabValueType::new_struct(st.const_named_struct(&init_field_list), si.name.clone()))
+        Ok(CrabValueType::new_struct(
+            st.const_named_struct(&init_field_list),
+            si.name.clone(),
+        ))
     }
 
     fn build_primitive(&mut self, prim: &Primitive) -> Result<CrabValueType<'ctx>> {
@@ -191,15 +246,24 @@ impl<'a, 'ctx> Functiongen<'a, 'ctx> {
             Primitive::STRING(str) => self.build_const_string(str),
             Primitive::BOOL(bl) => Ok(self.build_const_bool(*bl)),
             Primitive::UINT(uint) => Ok(self.build_const_u64(*uint)),
-        }
+        };
     }
 
-    fn build_fn_call(&mut self, call: &FnCall) -> Result<CrabValueType<'ctx>> {
-        trace!("Building a call to function {}", call.name);
+    fn build_fn_call(
+        &mut self,
+        call: &FnCall,
+        caller_opt: Option<CrabValueType<'ctx>>,
+    ) -> Result<CrabValueType<'ctx>> {
+        trace!("Building a call to function {:#?}", call.name);
         let fn_header = self.fns.get(&call.name)?.clone();
 
+        let supplied_pos_arg_count = match caller_opt {
+            None => call.unnamed_args.len(),
+            Some(_) => call.unnamed_args.len() + 1,
+        };
+
         // Check to make sure we have exactly the arguments we expect
-        if call.unnamed_args.len() != fn_header.unnamed_params.len() {
+        if supplied_pos_arg_count != fn_header.unnamed_params.len() {
             return Err(CompileError::PositionalArgumentCount(
                 fn_header.name.clone(),
                 fn_header.unnamed_params.len(),
@@ -221,6 +285,11 @@ impl<'a, 'ctx> Functiongen<'a, 'ctx> {
 
         let mut args = vec![];
 
+        // Add 'self' if this is a method call
+        if let Some(caller) = caller_opt {
+            args.push(caller.try_as_basic_metadata_value()?);
+        }
+
         // Handle all of the positional arguments
         for arg in &call.unnamed_args {
             args.push(self.build_expression(arg)?.try_as_basic_metadata_value()?);
@@ -232,20 +301,32 @@ impl<'a, 'ctx> Functiongen<'a, 'ctx> {
             for named_arg in &call.named_args {
                 if named_param.name == named_arg.name {
                     arg_found = true;
-                    args.push(self.build_expression(&named_arg.expr)?.try_as_basic_metadata_value()?);
+                    args.push(
+                        self.build_expression(&named_arg.expr)?
+                            .try_as_basic_metadata_value()?,
+                    );
                 }
             }
 
             if !arg_found {
-                args.push(self.build_expression(&named_param.expr)?.try_as_basic_metadata_value()?);
+                args.push(
+                    self.build_expression(&named_param.expr)?
+                        .try_as_basic_metadata_value()?,
+                );
             }
         }
 
         // Build the IR
-        let fn_value = self.module.get_function(&fn_header.name).ok_or(CompileError::CouldNotFindFunction(call.name.clone()))?;
+        let fn_value = self
+            .module
+            .get_function(&fn_header.name)
+            .ok_or(CompileError::CouldNotFindFunction(call.name.clone()))?;
         let csv = self.builder.build_call(fn_value, &args, "call");
 
-        Ok(CrabValueType::new_call_value(csv, fn_header.return_type.clone()))
+        Ok(CrabValueType::new_call_value(
+            csv,
+            fn_header.return_type.clone(),
+        ))
     }
 
     pub fn build_return(&mut self, expr: &Option<Expression>) -> Result<()> {
@@ -296,9 +377,7 @@ impl<'a, 'ctx> Functiongen<'a, 'ctx> {
         let val_ptr_result = self.variables.get(name);
         let val_ptr = match val_ptr_result {
             None => match expr_type {
-                CrabType::UINT => self
-                    .builder
-                    .build_alloca(self.context.i64_type(), name),
+                CrabType::UINT => self.builder.build_alloca(self.context.i64_type(), name),
                 CrabType::STRING => self
                     .builder
                     .build_alloca(self.context.i8_type().ptr_type(AddressSpace::Generic), name),
@@ -306,15 +385,20 @@ impl<'a, 'ctx> Functiongen<'a, 'ctx> {
                     .builder
                     .build_alloca(self.context.custom_width_int_type(1), name),
                 CrabType::STRUCT(struct_name) => {
-                    let st = self.module.get_struct_type(struct_name).ok_or(CompileError::StructDoesNotExist(struct_name.clone()))?;
+                    let st = self
+                        .module
+                        .get_struct_type(struct_name)
+                        .ok_or(CompileError::StructDoesNotExist(struct_name.clone()))?;
                     self.builder.build_alloca(st, name)
                 }
                 _ => unimplemented!(),
             },
             Some(_) => return Err(CompileError::VarAlreadyExists(name.clone())),
         };
-        self.variables
-            .insert(name.clone(), CrabValueType::new_ptr(val_ptr, expr_type.clone()));
+        self.variables.insert(
+            name.clone(),
+            CrabValueType::new_ptr(val_ptr, expr_type.clone()),
+        );
         Ok(())
     }
 
@@ -364,6 +448,12 @@ impl<'a, 'ctx> Functiongen<'a, 'ctx> {
                         .build_load(var_val.try_as_ptr_value()?, name)
                         .into_int_value(),
                 )),
+                CrabType::STRUCT(id) => Ok(CrabValueType::new_struct(
+                    self.builder
+                        .build_load(var_val.try_as_ptr_value()?, name)
+                        .into_struct_value(),
+                    id,
+                )),
                 _ => unimplemented!(),
             },
             None => Err(CompileError::VarDoesNotExist(name.clone())),
@@ -389,8 +479,7 @@ impl<'a, 'ctx> Functiongen<'a, 'ctx> {
         self.else_stack.push(else_block);
         self.always_stack.push(always_block);
 
-        self.builder
-            .position_at_end(then_block);
+        self.builder.position_at_end(then_block);
         self.current_basic_block = then_block;
 
         Ok(())
@@ -399,7 +488,10 @@ impl<'a, 'ctx> Functiongen<'a, 'ctx> {
     fn begin_if_else(&mut self) -> Result<()> {
         // Only build a branch to end instruction if this block does not return
         if !self.codeblock_returns {
-            let always_block = self.always_stack.pop().ok_or(CompileError::EmptyStack(String::from("Always stack")))?;
+            let always_block = self
+                .always_stack
+                .pop()
+                .ok_or(CompileError::EmptyStack(String::from("Always stack")))?;
             self.add_terminating_instruction(self.current_basic_block, always_block);
             self.always_stack.push(always_block);
         }
@@ -408,14 +500,12 @@ impl<'a, 'ctx> Functiongen<'a, 'ctx> {
             .else_stack
             .pop()
             .ok_or(CompileError::EmptyStack(String::from("else_stack")))?;
-        self.builder
-            .position_at_end(else_block);
+        self.builder.position_at_end(else_block);
         self.current_basic_block = else_block;
         Ok(())
     }
 
     fn end_if(&mut self) -> Result<()> {
-
         let always_block = self
             .always_stack
             .pop()
@@ -431,26 +521,22 @@ impl<'a, 'ctx> Functiongen<'a, 'ctx> {
     }
 
     fn begin_while(&mut self, condition: &CrabValueType) -> Result<()> {
-        let then_block = self
-            .context
-            .append_basic_block(self.fn_value, "while");
-        let always_block = self
-            .context
-            .append_basic_block(self.fn_value, "always");
+        let then_block = self.context.append_basic_block(self.fn_value, "while");
+        let always_block = self.context.append_basic_block(self.fn_value, "always");
         self.always_stack.push(always_block);
-        self.builder.build_conditional_branch(condition.try_as_bool_value()?, then_block, always_block);
+        self.builder.build_conditional_branch(
+            condition.try_as_bool_value()?,
+            then_block,
+            always_block,
+        );
         self.builder.position_at_end(then_block);
         self.current_basic_block = then_block;
         Ok(())
     }
 
     fn begin_do_while(&mut self) -> Result<()> {
-        let then_block = self
-            .context
-            .append_basic_block(self.fn_value, "do_while");
-        let always_block = self
-            .context
-            .append_basic_block(self.fn_value, "always");
+        let then_block = self.context.append_basic_block(self.fn_value, "do_while");
+        let always_block = self.context.append_basic_block(self.fn_value, "always");
         self.always_stack.push(always_block);
         self.builder.build_unconditional_branch(then_block);
         self.builder.position_at_end(then_block);
@@ -460,7 +546,10 @@ impl<'a, 'ctx> Functiongen<'a, 'ctx> {
 
     /// Used to terminate a while or do while block
     fn end_while(&mut self, condition: &CrabValueType) -> Result<()> {
-        let always_block = self.always_stack.pop().ok_or(CompileError::EmptyStack(String::from("always_stack")))?;
+        let always_block = self
+            .always_stack
+            .pop()
+            .ok_or(CompileError::EmptyStack(String::from("always_stack")))?;
 
         self.builder.build_conditional_branch(
             condition.try_as_bool_value()?,

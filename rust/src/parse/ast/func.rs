@@ -1,8 +1,8 @@
-use std::convert::TryFrom;
-use pest::iterators::Pair;
-use crate::parse::{Rule, Result, ParseError};
 use crate::parse::ast::{AstNode, CodeBlock, CrabType, Expression, Ident, Statement};
+use crate::parse::{ParseError, Result, Rule};
 use crate::try_from_pair;
+use pest::iterators::Pair;
+use std::convert::TryFrom;
 
 #[derive(Debug, Clone)]
 pub struct Func {
@@ -27,7 +27,18 @@ impl AstNode for Func {
         Ok(Func { signature, body })
     }
 }
-
+impl Func {
+    ///
+    /// Convert this function to a method
+    /// This works by adding an parameter of type struct_name to the beginning of this func's arguments
+    ///
+    pub fn method(self, struct_name: Ident) -> Self {
+        Self {
+            body: self.body,
+            signature: self.signature.method(struct_name),
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct FuncSignature {
@@ -104,8 +115,25 @@ impl FuncSignature {
         }
         params
     }
-}
 
+    ///
+    /// Convert this function signature to a method
+    /// This works by adding an parameter of type struct_name to the beginning of this func's arguments
+    ///
+    fn method(self, struct_name: Ident) -> Self {
+        let mut unnamed_params = vec![FnParam {
+            name: Ident::from("self"),
+            crab_type: CrabType::STRUCT(struct_name),
+        }];
+        unnamed_params.extend(self.unnamed_params);
+        Self {
+            name: self.name,
+            return_type: self.return_type,
+            named_params: self.named_params,
+            unnamed_params: unnamed_params,
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct FnParam {
@@ -116,8 +144,8 @@ pub struct FnParam {
 try_from_pair!(FnParam, Rule::fn_param);
 impl AstNode for FnParam {
     fn from_pair(pair: Pair<Rule>) -> Result<Self>
-        where
-            Self: Sized,
+    where
+        Self: Sized,
     {
         let mut inner = pair.into_inner();
         let crab_type = CrabType::try_from(inner.next().ok_or(ParseError::ExpectedInner)?)?;
@@ -126,7 +154,6 @@ impl AstNode for FnParam {
         Ok(Self { name, crab_type })
     }
 }
-
 
 #[derive(Debug, Clone)]
 pub struct NamedFnParam {
@@ -138,8 +165,8 @@ pub struct NamedFnParam {
 try_from_pair!(NamedFnParam, Rule::named_fn_param);
 impl AstNode for NamedFnParam {
     fn from_pair(pair: Pair<Rule>) -> Result<Self>
-        where
-            Self: Sized,
+    where
+        Self: Sized,
     {
         let mut inner = pair.into_inner();
         let crab_type = CrabType::try_from(inner.next().ok_or(ParseError::ExpectedInner)?)?;
@@ -154,7 +181,6 @@ impl AstNode for NamedFnParam {
     }
 }
 
-
 #[derive(Debug, Clone)]
 pub struct FnCall {
     pub name: Ident,
@@ -165,13 +191,13 @@ pub struct FnCall {
 try_from_pair!(FnCall, Rule::fn_call);
 impl AstNode for FnCall {
     fn from_pair(pair: Pair<Rule>) -> Result<Self>
-        where
-            Self: Sized,
+    where
+        Self: Sized,
     {
         let mut inner = pair.into_inner();
         let name = Ident::from(inner.next().ok_or(ParseError::ExpectedInner)?.as_str());
         let mut named_args = vec![];
-        let mut unnamed_args = vec![]; 
+        let mut unnamed_args = vec![];
         let mut seen_named_arg = false;
 
         for inner_pair in inner {
@@ -198,7 +224,6 @@ impl AstNode for FnCall {
     }
 }
 
-
 #[derive(Debug, Clone)]
 pub struct NamedExpression {
     pub name: Ident,
@@ -208,8 +233,8 @@ pub struct NamedExpression {
 try_from_pair!(NamedExpression, Rule::named_expression);
 impl AstNode for NamedExpression {
     fn from_pair(pair: Pair<Rule>) -> Result<Self>
-        where
-            Self: Sized,
+    where
+        Self: Sized,
     {
         let mut inner = pair.into_inner();
         let name = Ident::from(inner.next().ok_or(ParseError::ExpectedInner)?.as_str());

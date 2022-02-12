@@ -1,17 +1,17 @@
 use crate::compile::{CompileError, Result};
+use crate::parse::ast::{CrabType, Ident};
 use inkwell::values::{
     ArrayValue, BasicMetadataValueEnum, BasicValueEnum, CallSiteValue, FloatValue, IntValue,
     PointerValue, StructValue, VectorValue,
 };
-use crate::parse::ast::{CrabType, Ident};
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct CrabValueType<'ctx> {
     llvm_value: LLVMValueEnum<'ctx>,
     crab_type: CrabType,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub enum LLVMValueEnum<'ctx> {
     IntValue(IntValue<'ctx>),
     ArrayValue(ArrayValue<'ctx>),
@@ -109,6 +109,20 @@ impl<'ctx> CrabValueType<'ctx> {
         match self.llvm_value {
             LLVMValueEnum::PointerValue(val) => Ok(val),
             _ => Err(CompileError::VarValueType(String::from("PointerValue"))),
+        }
+    }
+
+    pub fn try_as_struct_value(&self) -> Result<StructValue<'ctx>> {
+        match self.llvm_value {
+            LLVMValueEnum::StructValue(val) => Ok(val),
+            _ => Err(CompileError::VarValueType(String::from("StructValue"))),
+        }
+    }
+
+    pub fn try_get_struct_name(&self) -> Result<Ident> {
+        match &self.crab_type {
+            CrabType::STRUCT(id) => Ok(id.clone()),
+            _ => Err(CompileError::VarValueType(String::from("StructValue"))),
         }
     }
 

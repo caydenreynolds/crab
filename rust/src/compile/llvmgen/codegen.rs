@@ -3,9 +3,9 @@ use crate::compile::{CompileError, Result};
 use crate::parse::ast::{CrabAst, CrabType, FnParam, Func, FuncSignature, Ident, Struct};
 use inkwell::context::Context;
 use inkwell::module::{Linkage, Module};
+use inkwell::support::LLVMString;
 use log::trace;
 use std::path::PathBuf;
-use inkwell::support::LLVMString;
 
 pub struct Codegen<'a, 'ctx> {
     context: &'ctx Context,
@@ -18,7 +18,12 @@ impl<'a, 'ctx> Codegen<'a, 'ctx> {
     pub fn new(context: &'ctx Context, module: &'a Module<'ctx>) -> Self {
         let structs = StructManager::new();
         let fns = FnManager::new();
-        let mut new = Self { context, module, structs, fns };
+        let mut new = Self {
+            context,
+            module,
+            structs,
+            fns,
+        };
         // Just unwrap this, because it should be impossible to fail
         // Yes I know this is bad practice, but it's been a long day and this is all temporary code anyway
         new.add_builtin_fns().unwrap();
@@ -81,7 +86,9 @@ impl<'a, 'ctx> Codegen<'a, 'ctx> {
             func.name,
             params.len()
         );
-        let fn_type = func.return_type.try_as_fn_type(self.context, self.module, &params, variadic)?;
+        let fn_type =
+            func.return_type
+                .try_as_fn_type(self.context, self.module, &params, variadic)?;
         let _fn_value = self.module.add_function(&func.name, fn_type, linkage);
         self.fns.insert(func.name.clone(), func)?;
         Ok(())
@@ -90,13 +97,20 @@ impl<'a, 'ctx> Codegen<'a, 'ctx> {
     fn build_func(&mut self, func: &Func) -> Result<()> {
         let name = &func.signature.name;
         let params = func.signature.get_params();
-        let mut fg = Functiongen::new(name, self.context, self.module, self.fns.clone(), self.structs.clone(), &params)?;
+        let mut fg = Functiongen::new(
+            name,
+            self.context,
+            self.module,
+            self.fns.clone(),
+            self.structs.clone(),
+            &params,
+        )?;
         fg.build_codeblock(&func.body)?;
         return if fg.returns() {
             Ok(())
         } else {
             Err(CompileError::NoReturn(func.signature.name.clone()))
-        }
+        };
     }
 
     fn register_struct(&mut self, strct: Struct) -> Result<()> {
@@ -107,8 +121,14 @@ impl<'a, 'ctx> Codegen<'a, 'ctx> {
     }
 
     fn build_struct_definition(&mut self, strct: &Struct) -> Result<()> {
-        let st = self.module.get_struct_type(&strct.name).ok_or(CompileError::StructDoesNotExist(strct.name.clone()))?;
-        st.set_body(&strct.get_fields_as_basic_type(self.context, self.module)?, true);
+        let st = self
+            .module
+            .get_struct_type(&strct.name)
+            .ok_or(CompileError::StructDoesNotExist(strct.name.clone()))?;
+        st.set_body(
+            &strct.get_fields_as_basic_type(self.context, self.module)?,
+            false,
+        );
         Ok(())
     }
 }

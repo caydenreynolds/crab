@@ -1,8 +1,8 @@
-use std::convert::TryFrom;
-use pest::iterators::Pair;
 use crate::parse::ast::{AstNode, CodeBlock, Expression};
-use crate::parse::{Rule, Result, ParseError};
+use crate::parse::{ParseError, Result, Rule};
 use crate::try_from_pair;
+use pest::iterators::Pair;
+use std::convert::TryFrom;
 
 #[derive(Debug, Clone)]
 pub struct IfStmt {
@@ -14,8 +14,8 @@ pub struct IfStmt {
 try_from_pair!(IfStmt, Rule::if_stmt);
 impl AstNode for IfStmt {
     fn from_pair(pair: Pair<Rule>) -> Result<Self>
-        where
-            Self: Sized,
+    where
+        Self: Sized,
     {
         let mut inner = pair.into_inner();
         let expr = Expression::try_from(inner.next().ok_or(ParseError::ExpectedInner)?)?;
@@ -33,7 +33,6 @@ impl AstNode for IfStmt {
     }
 }
 
-
 #[derive(Debug, Clone)]
 pub enum ElseStmt {
     ELSE(CodeBlock),
@@ -43,8 +42,8 @@ pub enum ElseStmt {
 try_from_pair!(ElseStmt, Rule::else_stmt);
 impl AstNode for ElseStmt {
     fn from_pair(pair: Pair<Rule>) -> Result<Self>
-        where
-            Self: Sized,
+    where
+        Self: Sized,
     {
         let mut inner = pair.into_inner();
         let next = inner.next().ok_or(ParseError::ExpectedInner)?;

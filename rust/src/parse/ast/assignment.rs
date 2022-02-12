@@ -1,7 +1,7 @@
-use std::convert::TryFrom;
-use pest::iterators::Pair;
 use crate::parse::ast::{AstNode, Expression, Ident};
-use crate::parse::{Rule, ParseError, Result};
+use crate::parse::{ParseError, Result, Rule};
+use pest::iterators::Pair;
+use std::convert::TryFrom;
 
 #[derive(Debug, Clone)]
 pub struct Assignment {
@@ -9,7 +9,7 @@ pub struct Assignment {
     pub expr: Expression,
 }
 
-/// Assignment requries a custom TryFrom implementation because it can be built from two different rules
+/// Assignment requires a custom TryFrom implementation because it can be built from two different rules
 impl TryFrom<Pair<'_, Rule>> for Assignment {
     type Error = ParseError;
     fn try_from(pair: Pair<Rule>) -> std::result::Result<Assignment, Self::Error> {

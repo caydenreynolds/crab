@@ -1,18 +1,19 @@
 WHITESPACE = _{ " " | NEWLINE }
 COMMENT = _{ ("#" | "//") ~ (!NEWLINE ~ ANY)* ~ NEWLINE }
 
-reserved_word = { ( "true" | "false" ) }
+reserved_word = { "true" | "false" | "if" | "else" | "while" | "do" | "struct" | "impl" | "fn" }
 ident = @{ !(reserved_word) ~ ((ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")*) }
 
-program = { SOI ~ (function | crab_struct)+ ~ EOI }
+program = { SOI ~ (function | crab_struct | impl_block)+ ~ EOI }
 
 crab_struct = { "struct" ~ ident ~ "{" ~ struct_fields? ~ "}" }
 struct_fields = _{ struct_field ~ ("," ~ struct_field)* ~ ","?}
-// Struct field is the same as fn_param for now, but that won't always be the case
 struct_field = { crab_type ~ ident }
 struct_init = { ident ~ "{" ~ struct_fields_init? ~ "}" }
 struct_fields_init = _{ struct_field_init ~ ("," ~ struct_field_init)* ~ ","? }
 struct_field_init = { ident ~ "=" ~ expression }
+
+impl_block = { "impl" ~ ident ~ ("of " ~ ident)? ~ "{" ~ (function*) ~ "}" }
 
 function = { fn_signature ~ code_block }
 fn_signature = { "fn" ~ ident ~ "(" ~ fn_params? ~ ","?  ~ ")" ~ ("->" ~ crab_type)? }
@@ -24,9 +25,11 @@ fn_param = { crab_type ~ ident }
 fn_params = _{ (named_fn_param | fn_param) ~ ("," ~ (named_fn_param | fn_param))* }
 
 code_block = { "{" ~ statement* ~ "}" }
-expression = { primitive | fn_call | struct_init | ident }
+expression = { primitive | struct_init | expression_chain }
+expression_chain = { (fn_call | ident) ~ ("." ~ (fn_call | ident))* }
 
-statement = { (return_stmt | assignment | reassignment | fn_call | if_stmt | while_stmt | do_while_stmt ) }
+// TODO: Using an expression chain here is too permissive -- Simply accessing a struct's field as a statement makes no sense
+statement = { (return_stmt | assignment | reassignment | expression_chain | if_stmt | while_stmt | do_while_stmt ) }
 assignment = { "let" ~ ident ~ "=" ~ expression }
 reassignment = { ident ~ "=" ~ expression }
 return_stmt = { "return" ~ expression? }

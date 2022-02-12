@@ -1,8 +1,8 @@
-use std::convert::TryFrom;
-use pest::iterators::Pair;
 use crate::parse::ast::{AstNode, Statement};
-use crate::parse::{Rule, Result, ParseError};
+use crate::parse::{ParseError, Result, Rule};
 use crate::try_from_pair;
+use pest::iterators::Pair;
+use std::convert::TryFrom;
 
 #[derive(Debug, Clone)]
 pub struct CodeBlock {

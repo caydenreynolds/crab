@@ -1,8 +1,10 @@
-use std::convert::TryFrom;
-use pest::iterators::Pair;
-use crate::parse::ast::{Assignment, AstNode, DoWhileStmt, Expression, FnCall, IfStmt, WhileStmt};
-use crate::parse::{Rule, Result, ParseError};
+use crate::parse::ast::{
+    Assignment, AstNode, DoWhileStmt, Expression, ExpressionChain, IfStmt, WhileStmt,
+};
+use crate::parse::{ParseError, Result, Rule};
 use crate::try_from_pair;
+use pest::iterators::Pair;
+use std::convert::TryFrom;
 
 #[derive(Debug, Clone)]
 #[allow(non_camel_case_types)]
@@ -10,7 +12,7 @@ pub enum Statement {
     RETURN(Option<Expression>),
     ASSIGNMENT(Assignment),
     REASSIGNMENT(Assignment),
-    FN_CALL(FnCall),
+    EXPRESSION_CHAIN(ExpressionChain),
     IF_STATEMENT(IfStmt),
     WHILE_STATEMENT(WhileStmt),
     DO_WHILE_STATEMENT(DoWhileStmt),
@@ -30,7 +32,9 @@ impl AstNode for Statement {
             Rule::return_stmt => {
                 let mut expr_inner = expr_type.into_inner();
                 return if expr_inner.clone().count() == 1 {
-                    Ok(Statement::RETURN(Some(Expression::try_from(expr_inner.next().unwrap())?)))
+                    Ok(Statement::RETURN(Some(Expression::try_from(
+                        expr_inner.next().unwrap(),
+                    )?)))
                 } else if expr_inner.count() == 0 {
                     Ok(Statement::RETURN(None))
                 } else {
@@ -38,14 +42,12 @@ impl AstNode for Statement {
                 };
             }
             Rule::assignment => Ok(Statement::ASSIGNMENT(Assignment::try_from(expr_type)?)),
-            Rule::reassignment => Ok(Statement::REASSIGNMENT(Assignment::try_from(
+            Rule::reassignment => Ok(Statement::REASSIGNMENT(Assignment::try_from(expr_type)?)),
+            Rule::expression_chain => Ok(Statement::EXPRESSION_CHAIN(ExpressionChain::try_from(
                 expr_type,
             )?)),
-            Rule::fn_call => Ok(Statement::FN_CALL(FnCall::try_from(expr_type)?)),
             Rule::if_stmt => Ok(Statement::IF_STATEMENT(IfStmt::try_from(expr_type)?)),
-            Rule::while_stmt => Ok(Statement::WHILE_STATEMENT(WhileStmt::try_from(
-                expr_type,
-            )?)),
+            Rule::while_stmt => Ok(Statement::WHILE_STATEMENT(WhileStmt::try_from(expr_type)?)),
             Rule::do_while_stmt => Ok(Statement::DO_WHILE_STATEMENT(DoWhileStmt::try_from(
                 expr_type,
             )?)),

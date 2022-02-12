@@ -14,7 +14,7 @@ pub enum CompileError {
     #[error("Could not find function with name {0}")]
     CouldNotFindFunction(Ident),
 
-    #[error("Function {0} requires {1} positional arguments, but only {2} were supplied")]
+    #[error("Function {0} requires {1} positional arguments, but {2} were supplied")]
     PositionalArgumentCount(Ident, usize, usize),
 
     #[error("Function {0} does not have a named argument with name {1}")]
@@ -63,4 +63,7 @@ pub enum CompileError {
 
     #[error("Initialization of struct {0} expects field {1}, which has not been supplied")]
     StructInitFieldName(Ident, Ident),
+
+    #[error("Struct {0} does not contain a field with name {1}")]
+    StructFieldName(Ident, Ident),
 }

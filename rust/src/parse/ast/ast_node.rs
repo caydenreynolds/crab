@@ -1,11 +1,11 @@
+use crate::parse::{Result, Rule};
 use pest::iterators::Pair;
-use crate::parse::{Rule, Result};
 
 pub trait AstNode {
     // Build an instance of self from the given pair, assuming that the pair's rule type is correct
     fn from_pair(pair: Pair<Rule>) -> Result<Self>
-        where
-            Self: Sized;
+    where
+        Self: Sized;
 }
 
 /*

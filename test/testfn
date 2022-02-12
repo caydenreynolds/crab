@@ -10,19 +10,27 @@ struct GymGoer {
     Int fitness,
 }
 
+impl GymGoer {
+    fn go_to_the_gym() {
+        print(self.name, newline=false)
+        print(" went to the gym")
+    }
+}
+
 fn main() -> Int {
     print("foo", newline=false)
     print("bar", newline=true,)
-    let a_struct_var = GymGoer {
+    let my_gym_goer = GymGoer {
         name = "Phillip",
         fitness = 12345,
     }
-    do {
-        print("do while")
-    } while true
-    while true {
-        print("just a while")
-    }
+    my_gym_goer.go_to_the_gym()
+    //do {
+    //    print("do while")
+    //} while true
+    //while true {
+    //    print("just a while")
+    //}
     let yo_momma = so_ugly()
     return yo_momma
 }

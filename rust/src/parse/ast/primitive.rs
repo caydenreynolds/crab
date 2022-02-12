@@ -1,7 +1,7 @@
-use pest::iterators::Pair;
-use crate::parse::{Rule, parse_string, Result, ParseError};
 use crate::parse::ast::AstNode;
+use crate::parse::{parse_string, ParseError, Result, Rule};
 use crate::try_from_pair;
+use pest::iterators::Pair;
 use std::convert::TryFrom;
 
 #[derive(Debug, Clone)]
@@ -15,8 +15,8 @@ try_from_pair!(Primitive, Rule::primitive);
 #[allow(unreachable_patterns)]
 impl AstNode for Primitive {
     fn from_pair(pair: Pair<Rule>) -> Result<Self>
-        where
-            Self: Sized,
+    where
+        Self: Sized,
     {
         let mut inner = pair.into_inner();
         let prim_type = inner.next().ok_or(ParseError::ExpectedInner)?;
