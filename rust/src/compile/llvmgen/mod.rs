@@ -15,3 +15,6 @@ pub use fn_manager::*;
 
 mod var_manager;
 pub use var_manager::*;
+
+mod builtins;
+pub use builtins::*;

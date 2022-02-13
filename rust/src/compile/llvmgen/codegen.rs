@@ -1,6 +1,6 @@
-use crate::compile::llvmgen::{FnManager, Functiongen, StructManager};
+use crate::compile::llvmgen::{add_builtins, add_main_func, FnManager, Functiongen, StructManager};
 use crate::compile::{CompileError, Result};
-use crate::parse::ast::{CrabAst, CrabType, FnParam, Func, FuncSignature, Ident, Struct};
+use crate::parse::ast::{CrabAst, Func, FuncSignature, Struct};
 use inkwell::context::Context;
 use inkwell::module::{Linkage, Module};
 use inkwell::support::LLVMString;
@@ -25,8 +25,7 @@ impl<'a, 'ctx> Codegen<'a, 'ctx> {
             fns,
         };
         // Just unwrap this, because it should be impossible to fail
-        // Yes I know this is bad practice, but it's been a long day and this is all temporary code anyway
-        new.add_builtin_fns().unwrap();
+        add_builtins(&mut new).unwrap();
         new
     }
 
@@ -43,6 +42,7 @@ impl<'a, 'ctx> Codegen<'a, 'ctx> {
         for func in &ast.functions {
             self.build_func(func)?;
         }
+        add_main_func(self)?; // Really shouldn't fail either
         Ok(())
     }
 
@@ -50,31 +50,8 @@ impl<'a, 'ctx> Codegen<'a, 'ctx> {
         self.module.print_to_file(path)
     }
 
-    fn add_builtin_fns(&mut self) -> Result<()> {
-        //TODO: If a use writes a function with the same name as an internal builtin (e.g. prinf), it overwrites the real printf and causes llc to barf
-        //TODO: Writing a function named __printf__ also causes an overwrite (I think) and this would probably be ok, except we need to make sure it's a local overwrite, not a global one. Namespacing should fix this issue.
-        //TODO: Name mangling would fix this
-        self.add_printf()
-    }
-
-    /// define and add the printf function to the module
-    fn add_printf(&mut self) -> Result<()> {
-        let signature = FuncSignature {
-            name: Ident::from("printf"),
-            return_type: CrabType::FLOAT,
-            unnamed_params: vec![FnParam {
-                name: Ident::from("str"),
-                crab_type: CrabType::STRING,
-            }],
-            named_params: vec![],
-        };
-        self.register_function(signature.clone(), true, Some(Linkage::External))?;
-        self.fns.insert(Ident::from("__printf__"), signature)?;
-        Ok(())
-    }
-
     // //TODO: The linkage, mason! What does it mean?
-    fn register_function(
+    pub fn register_function(
         &mut self,
         func: FuncSignature,
         variadic: bool,
@@ -92,6 +69,14 @@ impl<'a, 'ctx> Codegen<'a, 'ctx> {
         let _fn_value = self.module.add_function(&func.name, fn_type, linkage);
         self.fns.insert(func.name.clone(), func)?;
         Ok(())
+    }
+
+    pub fn get_context(&self) -> &Context {
+        self.context
+    }
+
+    pub fn get_module(&self) -> &Module<'ctx> {
+        self.module
     }
 
     fn build_func(&mut self, func: &Func) -> Result<()> {

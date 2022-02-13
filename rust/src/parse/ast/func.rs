@@ -1,4 +1,4 @@
-use crate::parse::ast::{AstNode, CodeBlock, CrabType, Expression, Ident, Statement};
+use crate::parse::ast::{AstNode, CodeBlock, CrabType, Expression, Ident, int_struct_name, internal_main_func_name, main_func_name, Statement};
 use crate::parse::{ParseError, Result, Rule};
 use crate::try_from_pair;
 use pest::iterators::Pair;
@@ -93,12 +93,19 @@ impl AstNode for FuncSignature {
             Some(ct) => ct,
         };
 
-        Ok(Self {
+        let mut new_fn = Self {
             name,
             return_type,
             unnamed_params,
             named_params,
-        })
+        };
+
+        let is_main = new_fn.verify_main_fn()?;
+        if is_main {
+            new_fn.name = internal_main_func_name();
+        }
+
+        Ok(new_fn)
     }
 }
 impl FuncSignature {
@@ -131,6 +138,18 @@ impl FuncSignature {
             return_type: self.return_type,
             named_params: self.named_params,
             unnamed_params: unnamed_params,
+        }
+    }
+
+    fn verify_main_fn(&self) -> Result<bool> {
+        if self.name == main_func_name() {
+            if self.return_type != CrabType::STRUCT(int_struct_name()) || !self.unnamed_params.is_empty() || !self.named_params.is_empty() {
+                Err(ParseError::MainSignature)
+            } else {
+                Ok(true)
+            }
+        } else {
+            Ok(false)
         }
     }
 }

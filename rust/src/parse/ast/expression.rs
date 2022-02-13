@@ -1,4 +1,4 @@
-use crate::parse::ast::{AstNode, FnCall, Ident, Primitive, StructInit};
+use crate::parse::ast::{AstNode, FnCall, Ident, int_struct_name, Primitive, primitive_field_name, StructFieldInit, StructInit};
 use crate::parse::{ParseError, Result, Rule};
 use crate::try_from_pair;
 use pest::iterators::Pair;
@@ -26,7 +26,19 @@ impl AstNode for Expression {
         }
 
         return match expr_type.as_rule() {
-            Rule::primitive => Ok(Expression::PRIM(Primitive::try_from(expr_type)?)),
+            Rule::primitive => {
+                let prim = Primitive::try_from(expr_type)?;
+                match prim {
+                    Primitive::UINT(_) => Ok(Expression::STRUCT_INIT(StructInit {
+                        name: int_struct_name(),
+                        fields: vec![StructFieldInit {
+                            name: primitive_field_name(),
+                            value: Expression::PRIM(prim)
+                        }]
+                    })),
+                    _ => Ok(Expression::PRIM(prim))
+                }
+            },
             Rule::struct_init => Ok(Expression::STRUCT_INIT(StructInit::try_from(expr_type)?)),
             Rule::expression_chain => Ok(Expression::CHAIN(ExpressionChain::try_from(expr_type)?)),
             _ => Err(ParseError::NoMatch(String::from("Expression::from_pair"))),

@@ -1,9 +1,30 @@
-fn print(String str, Bool newline=true) {
-    __printf__(str)
-    if newline {
-        __printf__("\n")
+// *****************************************
+// *             STDLIB STUFF              *
+// *****************************************
+
+struct Int {
+    __uint64__ value
+}
+
+impl Int {
+    fn add(Int other) -> Int {
+        return Int {
+            value = __add_int__(self.value, other.value)
+        }
     }
 }
+
+fn print(String str, Bool newline=true) {
+    printf(str)
+    if newline {
+        printf("\n")
+    }
+}
+
+
+// *****************************************
+// *              TEST STUFF               *
+// *****************************************
 
 struct GymGoer {
     String name,
@@ -37,13 +58,13 @@ fn main() -> Int {
 }
 
 fn so_ugly() -> Int {
-    let a_variable = 0
+    let a_variable = 40
     let b = false
     if b {
-        a_variable = 144
+        a_variable = a_variable.add(104)
         print("12 squared")
     } else {
-        a_variable = 42
+        a_variable = a_variable.add(2)
         print("Life, the universe, and everything")
     }
     let message = "foo"

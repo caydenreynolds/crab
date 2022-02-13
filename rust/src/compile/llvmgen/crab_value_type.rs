@@ -1,9 +1,6 @@
 use crate::compile::{CompileError, Result};
 use crate::parse::ast::{CrabType, Ident};
-use inkwell::values::{
-    ArrayValue, BasicMetadataValueEnum, BasicValueEnum, CallSiteValue, FloatValue, IntValue,
-    PointerValue, StructValue, VectorValue,
-};
+use inkwell::values::{ArrayValue, BasicMetadataValueEnum, BasicValueEnum, CallSiteValue, FloatValue, IntValue, PointerValue, VectorValue};
 
 #[derive(Debug, Clone)]
 pub struct CrabValueType<'ctx> {
@@ -15,11 +12,10 @@ pub struct CrabValueType<'ctx> {
 pub enum LLVMValueEnum<'ctx> {
     IntValue(IntValue<'ctx>),
     ArrayValue(ArrayValue<'ctx>),
-    CallSiteValue(CallSiteValue<'ctx>),
     PointerValue(PointerValue<'ctx>),
     VectorValue(VectorValue<'ctx>),
     FloatValue(FloatValue<'ctx>),
-    StructValue(PointerValue<'ctx>),
+//    StructValue(PointerValue<'ctx>),
     None,
 }
 
@@ -40,10 +36,6 @@ impl<'ctx> CrabValueType<'ctx> {
         Self::new(LLVMValueEnum::IntValue(uint), CrabType::UINT)
     }
 
-    pub fn new_call_value(value: CallSiteValue<'ctx>, ct: CrabType) -> Self {
-        Self::new(LLVMValueEnum::CallSiteValue(value), ct)
-    }
-
     pub fn new_ptr(value: PointerValue<'ctx>, ct: CrabType) -> Self {
         Self::new(LLVMValueEnum::PointerValue(value), ct)
     }
@@ -53,11 +45,23 @@ impl<'ctx> CrabValueType<'ctx> {
     }
 
     pub fn new_struct(val: PointerValue<'ctx>, name: Ident) -> Self {
-        Self::new(LLVMValueEnum::StructValue(val), CrabType::STRUCT(name))
+        Self::new(LLVMValueEnum::PointerValue(val), CrabType::STRUCT(name))
     }
 
     pub fn new_void() -> Self {
         Self::new(LLVMValueEnum::None, CrabType::VOID)
+    }
+
+    pub fn from_call_site_value(csv: CallSiteValue<'ctx>, ct: CrabType) -> Self {
+        csv.try_as_basic_value().either(
+            |bve| Self::from_basic_value_enum(bve, ct.clone()),
+            |_| {
+                match ct {
+                    CrabType::VOID => Self::new_void(),
+                    _ => unimplemented!() // Idek what to do if this happens, or what could cause it
+                }
+            }
+        )
     }
 
     pub fn from_basic_value_enum(bve: BasicValueEnum<'ctx>, ct: CrabType) -> Self {
@@ -86,12 +90,12 @@ impl<'ctx> CrabValueType<'ctx> {
             LLVMValueEnum::PointerValue(v) => Some(BasicValueEnum::PointerValue(v)),
             LLVMValueEnum::VectorValue(v) => Some(BasicValueEnum::VectorValue(v)),
             LLVMValueEnum::ArrayValue(v) => Some(BasicValueEnum::ArrayValue(v)),
-            LLVMValueEnum::CallSiteValue(v) => Some(
-                v.try_as_basic_value()
-                    .expect_left("Expected function call to return a basic value"),
-            ),
+            // LLVMValueEnum::CallSiteValue(v) => Some(
+            //     v.try_as_basic_value()
+            //         .expect_left("Expected function call to return a basic value"),
+            // ),
             LLVMValueEnum::FloatValue(v) => Some(BasicValueEnum::FloatValue(v)),
-            LLVMValueEnum::StructValue(v) => Some(BasicValueEnum::PointerValue(v)),
+            //LLVMValueEnum::StructValue(v) => Some(BasicValueEnum::PointerValue(v)),
             LLVMValueEnum::None => None,
         };
     }
@@ -113,8 +117,13 @@ impl<'ctx> CrabValueType<'ctx> {
     }
 
     pub fn try_as_struct_value(&self) -> Result<PointerValue<'ctx>> {
-        match self.llvm_value {
-            LLVMValueEnum::PointerValue(val) => Ok(val),
+        match self.crab_type {
+            CrabType::STRUCT(_) => match self.llvm_value {
+                LLVMValueEnum::PointerValue(val) => Ok(val),
+                _ => Err(CompileError::VarValueType(String::from(
+                    "StructValue-value",
+                ))),
+            }
             _ => Err(CompileError::VarValueType(String::from(
                 "StructValue-value",
             ))),

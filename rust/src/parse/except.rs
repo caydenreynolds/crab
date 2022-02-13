@@ -42,6 +42,9 @@ pub enum ParseError {
     #[error("Call of function {0} has positional param after a named param")]
     PositionalArgAfterNamedParam(Ident),
 
+    #[error("The main function does not have the expected signature. Should be: fn main() -> Int")]
+    MainSignature,
+
     #[error(transparent)]
     Io(#[from] std::io::Error),
 

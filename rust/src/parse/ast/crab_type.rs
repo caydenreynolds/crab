@@ -27,7 +27,7 @@ impl AstNode for CrabType {
         Self: Sized,
     {
         match pair.as_str() {
-            "Int" => Ok(Self::UINT),
+            "__uint64__" => Ok(Self::UINT),
             "String" => Ok(Self::STRING),
             "Float" => Ok(Self::FLOAT),
             "Bool" => Ok(Self::BOOL),

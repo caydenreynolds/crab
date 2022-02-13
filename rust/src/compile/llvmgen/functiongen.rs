@@ -1,11 +1,7 @@
 use crate::compile::llvmgen::crab_value_type::CrabValueType;
 use crate::compile::llvmgen::{FnManager, StructManager, VarManager};
 use crate::compile::{CompileError, Result};
-use crate::parse::ast::{
-    Assignment, CodeBlock, CrabType, DoWhileStmt, ElseStmt, Expression, ExpressionChain,
-    ExpressionChainType, FnCall, FnParam, Ident, IfStmt, Primitive, Statement, StructInit,
-    WhileStmt,
-};
+use crate::parse::ast::{Assignment, CodeBlock, CrabType, DoWhileStmt, ElseStmt, Expression, ExpressionChain, ExpressionChainType, FnCall, FnParam, IfStmt, Primitive, Statement, StructInit, WhileStmt};
 use inkwell::basic_block::BasicBlock;
 use inkwell::builder::Builder;
 use inkwell::context::Context;
@@ -108,14 +104,25 @@ impl<'a, 'ctx> Functiongen<'a, 'ctx> {
     }
 
     fn build_assignment(&mut self, ass: &Assignment) -> Result<()> {
+        trace!("Assigning to a variable with name {:?}", ass.var_name);
         let bv = self.build_expression(&ass.expr)?;
         self.variables.assign(ass.var_name.clone(), bv)?;
         Ok(())
     }
 
     fn build_reassignment(&mut self, ass: &Assignment) -> Result<()> {
+        trace!("Reassigning to a variable with name {:?}", ass.var_name);
         let bv = self.build_expression(&ass.expr)?;
-        self.variables.reassign(ass.var_name.clone(), bv)?;
+        if let CrabType::STRUCT(_) = bv.get_crab_type() {
+            trace!("BV is {:#?}", bv);
+            let src = bv.try_as_struct_value()?;
+            trace!("got src");
+            let dest = self.variables.get(&ass.var_name)?.try_as_struct_value()?;
+            trace!("got dest");
+            self.builder.build_memcpy(dest, 1, src, 1, src.get_type().size_of()).unwrap();
+        } else {
+            self.variables.reassign(ass.var_name.clone(), bv)?;
+        }
         Ok(())
     }
 
@@ -348,7 +355,7 @@ impl<'a, 'ctx> Functiongen<'a, 'ctx> {
             .ok_or(CompileError::CouldNotFindFunction(call.name.clone()))?;
         let csv = self.builder.build_call(fn_value, &args, "call");
 
-        Ok(CrabValueType::new_call_value(
+        Ok(CrabValueType::from_call_site_value(
             csv,
             fn_header.return_type.clone(),
         ))
