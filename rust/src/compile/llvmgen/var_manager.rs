@@ -1,7 +1,7 @@
+use crate::compile::llvmgen::CrabValueType;
 use crate::compile::{CompileError, Result};
 use crate::parse::ast::Ident;
 use std::collections::HashMap;
-use crate::compile::llvmgen::CrabValueType;
 
 #[derive(Clone)]
 pub struct VarManager<'ctx> {
