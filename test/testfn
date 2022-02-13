@@ -17,13 +17,14 @@ impl GymGoer {
     }
 }
 
+fn new_gym_goer() -> GymGoer {
+    return GymGoer {name = "Phillip",fitness = 12345}
+}
+
 fn main() -> Int {
     print("foo", newline=false)
     print("bar", newline=true,)
-    let my_gym_goer = GymGoer {
-        name = "Phillip",
-        fitness = 12345,
-    }
+    let my_gym_goer = new_gym_goer()
     my_gym_goer.go_to_the_gym()
     //do {
     //    print("do while")

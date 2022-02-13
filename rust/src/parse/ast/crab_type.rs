@@ -31,7 +31,7 @@ impl AstNode for CrabType {
             "String" => Ok(Self::STRING),
             "Float" => Ok(Self::FLOAT),
             "Bool" => Ok(Self::BOOL),
-            s => Err(ParseError::InvalidCrabType(String::from(s))),
+            s => Ok(Self::STRUCT(Ident::from(s))),
         }
     }
 }

@@ -51,4 +51,4 @@ string_inner = @{ char* }
 char = @{ !("\"" | "\\") ~ ANY | ("\\" ~ ( "n" )) }
 
 // For now, we're only allowing primitive types
-crab_type = @{ ( "Int" | "String" | "Float" | "Bool" ) }
+crab_type = @{ ( "Int" | "String" | "Float" | "Bool" | ident ) }
