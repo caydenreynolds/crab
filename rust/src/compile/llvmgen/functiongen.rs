@@ -1,5 +1,5 @@
 use crate::compile::llvmgen::crab_value_type::CrabValueType;
-use crate::compile::llvmgen::{FnManager, StructManager};
+use crate::compile::llvmgen::{FnManager, StructManager, VarManager};
 use crate::compile::{CompileError, Result};
 use crate::parse::ast::{
     Assignment, CodeBlock, CrabType, DoWhileStmt, ElseStmt, Expression, ExpressionChain,
@@ -21,7 +21,7 @@ pub struct Functiongen<'a, 'ctx> {
     module: &'a Module<'ctx>,
     fns: FnManager,
     structs: StructManager,
-    variables: HashMap<Ident, CrabValueType<'ctx>>,
+    variables: VarManager<'ctx>,
     else_stack: Vec<BasicBlock<'ctx>>,
     always_stack: Vec<BasicBlock<'ctx>>,
     fn_value: FunctionValue<'ctx>,
@@ -45,7 +45,7 @@ impl<'a, 'ctx> Functiongen<'a, 'ctx> {
                 let basic_block = context.append_basic_block(fn_value, "entry");
                 let builder = context.create_builder();
                 builder.position_at_end(basic_block);
-                let variables = HashMap::new();
+                let variables = VarManager::new();
                 let mut s = Self {
                     builder,
                     context,
@@ -64,8 +64,8 @@ impl<'a, 'ctx> Functiongen<'a, 'ctx> {
                 // Let's just immediately store them, because that's an easy way to make the types work out
                 let mut n = 0;
                 for arg in args {
-                    s.build_create_var(&arg.name, &arg.crab_type)?;
-                    s.build_set_var(&arg.name, &CrabValueType::from_basic_value_enum(fn_value.get_nth_param(n).ok_or(CompileError::Internal(format!("Failed to get function because the param count did not match the expected number of params. i = {0}, fn_name = {1}", n, name)))?, arg.crab_type.clone()))?;
+                    // s.build_create_var(&arg.name, &arg.crab_type)?;
+                    s.variables.assign(arg.name.clone(), CrabValueType::from_basic_value_enum(fn_value.get_nth_param(n).ok_or(CompileError::Internal(format!("Failed to get function because the param count did not match the expected number of params. i = {0}, fn_name = {1}", n, name)))?, arg.crab_type.clone()))?;
                     n += 1;
                 }
 
@@ -109,14 +109,13 @@ impl<'a, 'ctx> Functiongen<'a, 'ctx> {
 
     fn build_assignment(&mut self, ass: &Assignment) -> Result<()> {
         let bv = self.build_expression(&ass.expr)?;
-        self.build_create_var(&ass.var_name, &bv.get_crab_type())?;
-        self.build_set_var(&ass.var_name, &bv)?;
+        self.variables.assign(ass.var_name.clone(), bv)?;
         Ok(())
     }
 
     fn build_reassignment(&mut self, ass: &Assignment) -> Result<()> {
         let bv = self.build_expression(&ass.expr)?;
-        self.build_set_var(&ass.var_name, &bv)?;
+        self.variables.reassign(ass.var_name.clone(), bv)?;
         Ok(())
     }
 
@@ -175,7 +174,7 @@ impl<'a, 'ctx> Functiongen<'a, 'ctx> {
     ) -> Result<CrabValueType<'ctx>> {
         let result = match previous {
             None => match &ec.this {
-                ExpressionChainType::VARIABLE(id) => self.build_retrieve_var(id)?,
+                ExpressionChainType::VARIABLE(id) => self.variables.get(id)?,
                 ExpressionChainType::FN_CALL(fc) => self.build_fn_call(fc, None)?,
             },
             Some(prev) => match &ec.this {
@@ -370,94 +369,6 @@ impl<'a, 'ctx> Functiongen<'a, 'ctx> {
                 .custom_width_int_type(1)
                 .const_int(val_num, false),
         )
-    }
-
-    fn build_create_var(&mut self, name: &Ident, expr_type: &CrabType) -> Result<()> {
-        trace!("Creating a new variable with name {}", name);
-        let val_ptr_result = self.variables.get(name);
-        let val_ptr = match val_ptr_result {
-            None => match expr_type {
-                CrabType::UINT => self.builder.build_alloca(self.context.i64_type(), name),
-                CrabType::STRING => self
-                    .builder
-                    .build_alloca(self.context.i8_type().ptr_type(AddressSpace::Generic), name),
-                CrabType::BOOL => self
-                    .builder
-                    .build_alloca(self.context.custom_width_int_type(1), name),
-                CrabType::STRUCT(struct_name) => {
-                    let st = self
-                        .module
-                        .get_struct_type(struct_name)
-                        .ok_or(CompileError::StructDoesNotExist(struct_name.clone()))?;
-                    self.builder.build_alloca(st, name)
-                }
-                _ => unimplemented!(),
-            },
-            Some(_) => return Err(CompileError::VarAlreadyExists(name.clone())),
-        };
-        self.variables.insert(
-            name.clone(),
-            CrabValueType::new_ptr(val_ptr, expr_type.clone()),
-        );
-        Ok(())
-    }
-
-    fn build_set_var(&mut self, name: &Ident, value: &CrabValueType) -> Result<()> {
-        trace!("Assigning to a variable with name {}", name);
-        let val_ptr_result = self.variables.get(name);
-        return match val_ptr_result {
-            None => Err(CompileError::VarDoesNotExist(name.clone())),
-            Some(var_value) => {
-                if var_value.get_crab_type() == value.get_crab_type() {
-                    self.builder.build_store(
-                        var_value.try_as_ptr_value()?,
-                        value
-                            .get_as_basic_value()
-                            .ok_or(CompileError::InvalidNoneOption(String::from(
-                                "build_set_var",
-                            )))?,
-                    );
-                    Ok(())
-                } else {
-                    Err(CompileError::VarType(
-                        name.clone(),
-                        var_value.get_crab_type(),
-                        value.get_crab_type(),
-                    ))
-                }
-            }
-        };
-    }
-
-    fn build_retrieve_var(&mut self, name: &Ident) -> Result<CrabValueType<'ctx>> {
-        trace!("Retreiving a variable with name {}", name);
-        match self.variables.get(name) {
-            Some(var_val) => match var_val.get_crab_type() {
-                CrabType::UINT => Ok(CrabValueType::new_uint(
-                    self.builder
-                        .build_load(var_val.try_as_ptr_value()?, name)
-                        .into_int_value(),
-                )),
-                CrabType::STRING => Ok(CrabValueType::new_string(
-                    self.builder
-                        .build_load(var_val.try_as_ptr_value()?, name)
-                        .into_pointer_value(),
-                )),
-                CrabType::BOOL => Ok(CrabValueType::new_bool(
-                    self.builder
-                        .build_load(var_val.try_as_ptr_value()?, name)
-                        .into_int_value(),
-                )),
-                CrabType::STRUCT(id) => Ok(CrabValueType::new_struct(
-                    self.builder
-                        .build_load(var_val.try_as_ptr_value()?, name)
-                        .into_struct_value(),
-                    id,
-                )),
-                _ => unimplemented!(),
-            },
-            None => Err(CompileError::VarDoesNotExist(name.clone())),
-        }
     }
 
     pub fn build_unreachable(&mut self) -> Result<()> {
