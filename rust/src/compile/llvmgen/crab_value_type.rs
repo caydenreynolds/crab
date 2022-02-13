@@ -19,7 +19,7 @@ pub enum LLVMValueEnum<'ctx> {
     PointerValue(PointerValue<'ctx>),
     VectorValue(VectorValue<'ctx>),
     FloatValue(FloatValue<'ctx>),
-    StructValue(StructValue<'ctx>),
+    StructValue(PointerValue<'ctx>),
     None,
 }
 
@@ -52,7 +52,7 @@ impl<'ctx> CrabValueType<'ctx> {
         Self::new(LLVMValueEnum::IntValue(val), CrabType::BOOL)
     }
 
-    pub fn new_struct(val: StructValue<'ctx>, name: Ident) -> Self {
+    pub fn new_struct(val: PointerValue<'ctx>, name: Ident) -> Self {
         Self::new(LLVMValueEnum::StructValue(val), CrabType::STRUCT(name))
     }
 
@@ -67,7 +67,7 @@ impl<'ctx> CrabValueType<'ctx> {
             BasicValueEnum::VectorValue(val) => LLVMValueEnum::VectorValue(val),
             BasicValueEnum::IntValue(val) => LLVMValueEnum::IntValue(val),
             BasicValueEnum::FloatValue(val) => LLVMValueEnum::FloatValue(val),
-            BasicValueEnum::StructValue(val) => LLVMValueEnum::StructValue(val),
+            _ => unimplemented!(), //BasicValueEnum::StructValue(val) => LLVMValueEnum::StructValue(val),
         };
         Self::new(llvm_value, ct)
     }
@@ -91,7 +91,7 @@ impl<'ctx> CrabValueType<'ctx> {
                     .expect_left("Expected function call to return a basic value"),
             ),
             LLVMValueEnum::FloatValue(v) => Some(BasicValueEnum::FloatValue(v)),
-            LLVMValueEnum::StructValue(v) => Some(BasicValueEnum::StructValue(v)),
+            LLVMValueEnum::StructValue(v) => Some(BasicValueEnum::PointerValue(v)),
             LLVMValueEnum::None => None,
         };
     }
@@ -112,17 +112,19 @@ impl<'ctx> CrabValueType<'ctx> {
         }
     }
 
-    pub fn try_as_struct_value(&self) -> Result<StructValue<'ctx>> {
+    pub fn try_as_struct_value(&self) -> Result<PointerValue<'ctx>> {
         match self.llvm_value {
-            LLVMValueEnum::StructValue(val) => Ok(val),
-            _ => Err(CompileError::VarValueType(String::from("StructValue"))),
+            LLVMValueEnum::PointerValue(val) => Ok(val),
+            _ => Err(CompileError::VarValueType(String::from(
+                "StructValue-value",
+            ))),
         }
     }
 
     pub fn try_get_struct_name(&self) -> Result<Ident> {
         match &self.crab_type {
             CrabType::STRUCT(id) => Ok(id.clone()),
-            _ => Err(CompileError::VarValueType(String::from("StructValue"))),
+            _ => Err(CompileError::VarValueType(String::from("StructValue-name"))),
         }
     }
 

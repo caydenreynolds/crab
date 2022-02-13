@@ -50,10 +50,11 @@ impl<'a, 'ctx> CrabType {
             Self::FLOAT => Ok(AnyTypeEnum::FloatType(context.f64_type())),
             Self::BOOL => Ok(AnyTypeEnum::IntType(context.custom_width_int_type(1))),
             Self::VOID => Ok(AnyTypeEnum::VoidType(context.void_type())),
-            Self::STRUCT(id) => Ok(AnyTypeEnum::StructType(
+            Self::STRUCT(id) => Ok(AnyTypeEnum::PointerType(
                 module
                     .get_struct_type(id)
-                    .ok_or(CompileError::StructDoesNotExist(id.clone()))?,
+                    .ok_or(CompileError::StructDoesNotExist(id.clone()))?
+                    .ptr_type(AddressSpace::Generic),
             )),
         };
     }
@@ -71,10 +72,11 @@ impl<'a, 'ctx> CrabType {
             )),
             Self::FLOAT => Ok(BasicTypeEnum::FloatType(context.f64_type())),
             Self::BOOL => Ok(BasicTypeEnum::IntType(context.custom_width_int_type(1))),
-            Self::STRUCT(id) => Ok(BasicTypeEnum::StructType(
+            Self::STRUCT(id) => Ok(BasicTypeEnum::PointerType(
                 module
                     .get_struct_type(id)
-                    .ok_or(CompileError::StructDoesNotExist(id.clone()))?,
+                    .ok_or(CompileError::StructDoesNotExist(id.clone()))?
+                    .ptr_type(AddressSpace::Generic),
             )),
             Self::VOID => Err(CompileError::InvalidArgType(String::from(stringify!(
                 CrabType::Void
@@ -121,6 +123,7 @@ impl<'a, 'ctx> CrabType {
             Self::STRUCT(id) => Ok(module
                 .get_struct_type(id)
                 .ok_or(CompileError::StructDoesNotExist(id.clone()))?
+                .ptr_type(AddressSpace::Generic)
                 .fn_type(param_types, variadic)),
             Self::VOID => Ok(context.void_type().fn_type(param_types, variadic)),
         };

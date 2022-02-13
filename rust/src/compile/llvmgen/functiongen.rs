@@ -10,8 +10,8 @@ use inkwell::basic_block::BasicBlock;
 use inkwell::builder::Builder;
 use inkwell::context::Context;
 use inkwell::module::Module;
+use inkwell::types::BasicType;
 use inkwell::values::FunctionValue;
-use inkwell::AddressSpace;
 use log::trace;
 use std::collections::HashMap;
 
@@ -172,6 +172,7 @@ impl<'a, 'ctx> Functiongen<'a, 'ctx> {
         ec: &ExpressionChain,
         previous: Option<CrabValueType<'ctx>>,
     ) -> Result<CrabValueType<'ctx>> {
+        trace!("Building expression chain {:?}", ec);
         let result = match previous {
             None => match &ec.this {
                 ExpressionChainType::VARIABLE(id) => self.variables.get(id)?,
@@ -182,12 +183,18 @@ impl<'a, 'ctx> Functiongen<'a, 'ctx> {
                     let name = prev.try_get_struct_name()?;
                     let cs = self.structs.get(&name)?;
                     let field_index = cs.get_field_index(id)?;
-                    let val = self
+                    let dest_type = cs
+                        .get_field_crab_type(id)?
+                        .try_as_basic_type(self.context, self.module)?;
+                    let source_ptr = self
                         .builder
-                        .build_extract_value(prev.try_as_struct_value()?, field_index as u32, &name)
-                        .ok_or(CompileError::Internal(String::from(
-                            "Failed to extract struct value",
-                        )))?;
+                        .build_struct_gep(prev.try_as_struct_value()?, field_index as u32, "source")
+                        .unwrap();
+                    let dest_ptr = self.builder.build_alloca(dest_type, "dest");
+                    self.builder
+                        .build_memcpy(dest_ptr, 1, source_ptr, 1, dest_type.size_of().unwrap())
+                        .unwrap();
+                    let val = self.builder.build_load(dest_ptr, "dest");
                     CrabValueType::from_basic_value_enum(val, cs.get_field_crab_type(id)?)
                 }
                 ExpressionChainType::FN_CALL(fc) => self.build_fn_call(fc, Some(prev))?,
@@ -234,10 +241,29 @@ impl<'a, 'ctx> Functiongen<'a, 'ctx> {
             )?);
         }
 
-        Ok(CrabValueType::new_struct(
-            st.const_named_struct(&init_field_list),
-            si.name.clone(),
-        ))
+        let new_struct_ptr = self.builder.build_alloca(st, "struct_init");
+
+        for i in 0..init_field_list.len() {
+            let init_field = init_field_list.get(i).unwrap();
+            let source_ptr = self.builder.build_alloca(init_field.get_type(), "source");
+            self.builder.build_store(source_ptr, init_field.clone());
+
+            let element_ptr = self
+                .builder
+                .build_struct_gep(new_struct_ptr, i as u32, "element_ptr")
+                .unwrap();
+            self.builder
+                .build_memcpy(
+                    element_ptr,
+                    1,
+                    source_ptr,
+                    1,
+                    init_field.get_type().size_of().unwrap(),
+                )
+                .unwrap();
+        }
+
+        Ok(CrabValueType::new_struct(new_struct_ptr, si.name.clone()))
     }
 
     fn build_primitive(&mut self, prim: &Primitive) -> Result<CrabValueType<'ctx>> {
