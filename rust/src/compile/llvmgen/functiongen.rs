@@ -6,7 +6,6 @@ use inkwell::basic_block::BasicBlock;
 use inkwell::builder::Builder;
 use inkwell::context::Context;
 use inkwell::module::Module;
-use inkwell::types::BasicType;
 use inkwell::values::FunctionValue;
 use log::trace;
 use std::collections::HashMap;
@@ -114,12 +113,9 @@ impl<'a, 'ctx> Functiongen<'a, 'ctx> {
         trace!("Reassigning to a variable with name {:?}", ass.var_name);
         let bv = self.build_expression(&ass.expr)?;
         if let CrabType::STRUCT(_) = bv.get_crab_type() {
-            trace!("BV is {:#?}", bv);
-            let src = bv.try_as_struct_value()?;
-            trace!("got src");
+            let src = self.builder.build_load(bv.try_as_struct_value()?, "reassignment");
             let dest = self.variables.get(&ass.var_name)?.try_as_struct_value()?;
-            trace!("got dest");
-            self.builder.build_memcpy(dest, 1, src, 1, src.get_type().size_of()).unwrap();
+            self.builder.build_store(dest, src);
         } else {
             self.variables.reassign(ass.var_name.clone(), bv)?;
         }
@@ -190,18 +186,11 @@ impl<'a, 'ctx> Functiongen<'a, 'ctx> {
                     let name = prev.try_get_struct_name()?;
                     let cs = self.structs.get(&name)?;
                     let field_index = cs.get_field_index(id)?;
-                    let dest_type = cs
-                        .get_field_crab_type(id)?
-                        .try_as_basic_type(self.context, self.module)?;
                     let source_ptr = self
                         .builder
                         .build_struct_gep(prev.try_as_struct_value()?, field_index as u32, "source")
                         .unwrap();
-                    let dest_ptr = self.builder.build_alloca(dest_type, "dest");
-                    self.builder
-                        .build_memcpy(dest_ptr, 1, source_ptr, 1, dest_type.size_of().unwrap())
-                        .unwrap();
-                    let val = self.builder.build_load(dest_ptr, "dest");
+                    let val = self.builder.build_load(source_ptr, "dest");
                     CrabValueType::from_basic_value_enum(val, cs.get_field_crab_type(id)?)
                 }
                 ExpressionChainType::FN_CALL(fc) => self.build_fn_call(fc, Some(prev))?,
@@ -252,22 +241,12 @@ impl<'a, 'ctx> Functiongen<'a, 'ctx> {
 
         for i in 0..init_field_list.len() {
             let init_field = init_field_list.get(i).unwrap();
-            let source_ptr = self.builder.build_alloca(init_field.get_type(), "source");
-            self.builder.build_store(source_ptr, init_field.clone());
 
             let element_ptr = self
                 .builder
                 .build_struct_gep(new_struct_ptr, i as u32, "element_ptr")
                 .unwrap();
-            self.builder
-                .build_memcpy(
-                    element_ptr,
-                    1,
-                    source_ptr,
-                    1,
-                    init_field.get_type().size_of().unwrap(),
-                )
-                .unwrap();
+            self.builder.build_store(element_ptr, *init_field);
         }
 
         Ok(CrabValueType::new_struct(new_struct_ptr, si.name.clone()))
