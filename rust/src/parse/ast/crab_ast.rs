@@ -20,7 +20,7 @@ impl AstNode for CrabAst {
 
         for in_pair in inner {
             match in_pair.clone().as_rule() {
-                Rule::function => functions.push(Func::try_from(in_pair)?),
+                Rule::function => functions.push(Func::try_from(in_pair)?.with_mangled_name()),
                 Rule::crab_struct => structs.push(Struct::try_from(in_pair)?),
                 Rule::impl_block => impls.push(StructImpl::try_from(in_pair)?),
                 Rule::EOI => break, // If something shows up after EOI, we have a big problem

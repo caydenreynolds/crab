@@ -2,12 +2,14 @@
 // *             STDLIB STUFF              *
 // *****************************************
 
+// TODO: Rename to vec, create an interface named List
+
 struct Int {
     __uint64__ value
 }
 
 impl Int {
-    fn add(Int other) -> Int {
+    fn operatorAdd(Int other) -> Int {
         return Int {
             value = __add_int__(self.value, other.value)
         }
@@ -15,9 +17,9 @@ impl Int {
 }
 
 fn print(String str, Bool newline=true) {
-    printf(str)
+    __printf__(str)
     if newline {
-        printf("\n")
+        __printf__("\n")
     }
 }
 
@@ -61,10 +63,10 @@ fn so_ugly() -> Int {
     let a_variable = 40
     let b = false
     if b {
-        a_variable = a_variable.add(104)
+        a_variable = a_variable.operatorAdd(104)
         print("12 squared")
     } else {
-        a_variable = a_variable.add(2)
+        a_variable = a_variable.operatorAdd(2)
         print("Life, the universe, and everything")
     }
     let message = "foo"

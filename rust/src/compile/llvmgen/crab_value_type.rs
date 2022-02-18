@@ -1,6 +1,9 @@
 use crate::compile::{CompileError, Result};
 use crate::parse::ast::{CrabType, Ident};
-use inkwell::values::{ArrayValue, BasicMetadataValueEnum, BasicValueEnum, CallSiteValue, FloatValue, IntValue, PointerValue, VectorValue};
+use inkwell::values::{
+    ArrayValue, BasicMetadataValueEnum, BasicValueEnum, CallSiteValue, FloatValue, IntValue,
+    PointerValue, VectorValue,
+};
 
 #[derive(Debug, Clone)]
 pub struct CrabValueType<'ctx> {
@@ -15,7 +18,7 @@ pub enum LLVMValueEnum<'ctx> {
     PointerValue(PointerValue<'ctx>),
     VectorValue(VectorValue<'ctx>),
     FloatValue(FloatValue<'ctx>),
-//    StructValue(PointerValue<'ctx>),
+    //    StructValue(PointerValue<'ctx>),
     None,
 }
 
@@ -58,9 +61,9 @@ impl<'ctx> CrabValueType<'ctx> {
             |_| {
                 match ct {
                     CrabType::VOID => Self::new_void(),
-                    _ => unimplemented!() // Idek what to do if this happens, or what could cause it
+                    _ => unimplemented!(), // Idek what to do if this happens, or what could cause it
                 }
-            }
+            },
         )
     }
 
@@ -123,7 +126,7 @@ impl<'ctx> CrabValueType<'ctx> {
                 _ => Err(CompileError::VarValueType(String::from(
                     "StructValue-value",
                 ))),
-            }
+            },
             _ => Err(CompileError::VarValueType(String::from(
                 "StructValue-value",
             ))),

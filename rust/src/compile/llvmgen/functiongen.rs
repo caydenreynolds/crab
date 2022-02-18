@@ -1,7 +1,11 @@
 use crate::compile::llvmgen::crab_value_type::CrabValueType;
 use crate::compile::llvmgen::{FnManager, StructManager, VarManager};
 use crate::compile::{CompileError, Result};
-use crate::parse::ast::{Assignment, CodeBlock, CrabType, DoWhileStmt, ElseStmt, Expression, ExpressionChain, ExpressionChainType, FnCall, FnParam, IfStmt, Primitive, Statement, StructInit, WhileStmt};
+use crate::parse::ast::{
+    Assignment, CodeBlock, CrabType, DoWhileStmt, ElseStmt, Expression, ExpressionChain,
+    ExpressionChainType, FnCall, FnParam, IfStmt, Primitive, Statement, StructInit, WhileStmt,
+};
+use crate::parse::mangle_function_name;
 use inkwell::basic_block::BasicBlock;
 use inkwell::builder::Builder;
 use inkwell::context::Context;
@@ -55,11 +59,8 @@ impl<'a, 'ctx> Functiongen<'a, 'ctx> {
                     codeblock_returns: false,
                 };
 
-                // Add variables
-                // Let's just immediately store them, because that's an easy way to make the types work out
                 let mut n = 0;
                 for arg in args {
-                    // s.build_create_var(&arg.name, &arg.crab_type)?;
                     s.variables.assign(arg.name.clone(), CrabValueType::from_basic_value_enum(fn_value.get_nth_param(n).ok_or(CompileError::Internal(format!("Failed to get function because the param count did not match the expected number of params. i = {0}, fn_name = {1}", n, name)))?, arg.crab_type.clone()))?;
                     n += 1;
                 }
@@ -113,7 +114,9 @@ impl<'a, 'ctx> Functiongen<'a, 'ctx> {
         trace!("Reassigning to a variable with name {:?}", ass.var_name);
         let bv = self.build_expression(&ass.expr)?;
         if let CrabType::STRUCT(_) = bv.get_crab_type() {
-            let src = self.builder.build_load(bv.try_as_struct_value()?, "reassignment");
+            let src = self
+                .builder
+                .build_load(bv.try_as_struct_value()?, "reassignment");
             let dest = self.variables.get(&ass.var_name)?.try_as_struct_value()?;
             self.builder.build_store(dest, src);
         } else {
@@ -266,7 +269,17 @@ impl<'a, 'ctx> Functiongen<'a, 'ctx> {
         caller_opt: Option<CrabValueType<'ctx>>,
     ) -> Result<CrabValueType<'ctx>> {
         trace!("Building a call to function {:#?}", call.name);
-        let fn_header = self.fns.get(&call.name)?.clone();
+        let mangled_name = mangle_function_name(
+            &call.name,
+            caller_opt
+                .clone()
+                .map(|ct| {
+                    ct.try_get_struct_name()
+                        .expect("Method called on a type that is not a struct")
+                })
+                .as_ref(),
+        );
+        let fn_header = self.fns.get(&mangled_name)?.clone();
 
         let supplied_pos_arg_count = match caller_opt {
             None => call.unnamed_args.len(),
