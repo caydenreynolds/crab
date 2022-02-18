@@ -3,7 +3,7 @@ use crate::parse::{ParseError, Result, Rule};
 use pest::iterators::Pair;
 use std::convert::TryFrom;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Assignment {
     pub var_name: Ident,
     pub expr: Expression,

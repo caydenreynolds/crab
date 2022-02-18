@@ -4,7 +4,13 @@ COMMENT = _{ ("#" | "//") ~ (!NEWLINE ~ ANY)* ~ NEWLINE }
 reserved_word = { "true" | "false" | "if" | "else" | "while" | "do" | "struct" | "impl" | "fn" }
 ident = @{ !(reserved_word) ~ ((ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")*) }
 
-program = { SOI ~ (function | crab_struct | impl_block)+ ~ EOI }
+program = { SOI ~ (function | crab_struct | impl_block | interface | intr_block)+ ~ EOI }
+
+interface = { "interface" ~ ident ~ "{" ~ interface_fns? ~ "}" }
+interface_fns = _{ fn_signature ~ ("," ~ fn_signature)* ~ ","?}
+
+intr_block = { "intr" ~ ident ~ "{" ~ inter_interfaces? ~ "}" }
+inter_interfaces = _{ ident ~ ("," ~ ident)* ~ ","? }
 
 crab_struct = { "struct" ~ ident ~ "{" ~ struct_fields? ~ "}" }
 struct_fields = _{ struct_field ~ ("," ~ struct_field)* ~ ","?}

@@ -6,7 +6,7 @@ use crate::try_from_pair;
 use pest::iterators::Pair;
 use std::convert::TryFrom;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 #[allow(non_camel_case_types)]
 pub enum Statement {
     RETURN(Option<Expression>),

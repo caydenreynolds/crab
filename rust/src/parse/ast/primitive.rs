@@ -4,7 +4,7 @@ use crate::try_from_pair;
 use pest::iterators::Pair;
 use std::convert::TryFrom;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Primitive {
     UINT(u64),
     STRING(String),

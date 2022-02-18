@@ -45,6 +45,12 @@ pub enum ParseError {
     #[error("The main function does not have the expected signature. Should be: fn main() -> Int")]
     MainSignature,
 
+    #[error("The struct {0} does not implement {1}, which is required by interface {2}")]
+    DoesNotImplement(Ident, Ident, Ident),
+
+    #[error("The interface {0} does not exist")]
+    InterfaceNotFound(Ident),
+
     #[error(transparent)]
     Io(#[from] std::io::Error),
 

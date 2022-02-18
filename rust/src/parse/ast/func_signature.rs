@@ -5,7 +5,7 @@ use crate::try_from_pair;
 use pest::iterators::Pair;
 use std::convert::TryFrom;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct FuncSignature {
     pub name: Ident,
     pub return_type: CrabType,

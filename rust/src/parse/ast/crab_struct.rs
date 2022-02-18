@@ -9,7 +9,7 @@ use inkwell::types::BasicTypeEnum;
 use pest::iterators::Pair;
 use std::convert::TryFrom;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Struct {
     pub name: Ident,
     pub fields: Vec<StructField>,

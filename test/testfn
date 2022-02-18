@@ -2,10 +2,16 @@
 // *             STDLIB STUFF              *
 // *****************************************
 
-// TODO: Rename to vec, create an interface named List
+interface Printable {
+    fn toString() -> String
+}
 
 struct Int {
     __uint64__ value
+}
+
+intr Int {
+   Printable,
 }
 
 impl Int {
@@ -13,6 +19,10 @@ impl Int {
         return Int {
             value = __add_int__(self.value, other.value)
         }
+    }
+
+    fn toString() -> String {
+        return "I'm an integer!"
     }
 }
 
@@ -49,6 +59,7 @@ fn main() -> Int {
     print("bar", newline=true,)
     let my_gym_goer = new_gym_goer()
     my_gym_goer.go_to_the_gym()
+    print(my_gym_goer.fitness.toString())
     //do {
     //    print("do while")
     //} while true

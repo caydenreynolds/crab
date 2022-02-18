@@ -1,25 +1,25 @@
-use crate::parse::ast::{AstNode, Expression, Ident};
+use crate::parse::ast::{AstNode, CodeBlock, Expression};
 use crate::parse::{ParseError, Result, Rule};
 use crate::try_from_pair;
 use pest::iterators::Pair;
 use std::convert::TryFrom;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub struct NamedExpression {
-    pub name: Ident,
+pub struct DoWhileStmt {
     pub expr: Expression,
+    pub then: CodeBlock,
 }
 
-try_from_pair!(NamedExpression, Rule::named_expression);
-impl AstNode for NamedExpression {
+try_from_pair!(DoWhileStmt, Rule::do_while_stmt);
+impl AstNode for DoWhileStmt {
     fn from_pair(pair: Pair<Rule>) -> Result<Self>
     where
         Self: Sized,
     {
         let mut inner = pair.into_inner();
-        let name = Ident::from(inner.next().ok_or(ParseError::ExpectedInner)?.as_str());
+        let then = CodeBlock::try_from(inner.next().ok_or(ParseError::ExpectedInner)?)?;
         let expr = Expression::try_from(inner.next().ok_or(ParseError::ExpectedInner)?)?;
 
-        Ok(Self { name, expr })
+        return Ok(Self { expr, then });
     }
 }

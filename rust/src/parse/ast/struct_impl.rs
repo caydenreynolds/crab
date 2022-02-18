@@ -1,10 +1,10 @@
-use crate::parse::ast::{AstNode, Func, Ident};
+use crate::parse::ast::{AstNode, CrabInterface, Func, Ident};
 use crate::parse::{ParseError, Result, Rule};
 use crate::try_from_pair;
 use pest::iterators::Pair;
 use std::convert::TryFrom;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct StructImpl {
     pub struct_name: Ident,
     pub interface_name: Option<Ident>,
@@ -49,5 +49,25 @@ impl AstNode for StructImpl {
             interface_name,
             fns,
         })
+    }
+}
+impl StructImpl {
+    pub fn verify_implements(&self, intr: &CrabInterface) -> Result<()> {
+        for ifunc in &intr.fns {
+            let mut match_found = false;
+            for func in &self.fns {
+                if func.signature == *ifunc {
+                    match_found = true;
+                }
+            }
+            if !match_found {
+                return Err(ParseError::DoesNotImplement(
+                    self.struct_name.clone(),
+                    ifunc.name.clone(),
+                    intr.name.clone(),
+                ));
+            }
+        }
+        Ok(())
     }
 }
