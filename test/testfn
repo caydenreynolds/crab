@@ -2,6 +2,10 @@
 // *             STDLIB STUFF              *
 // *****************************************
 
+struct String {
+    __uint8__[1024] value
+}
+
 interface Printable {
     fn toString() -> String
 }

@@ -18,15 +18,12 @@ impl<'a, 'ctx> Codegen<'a, 'ctx> {
     pub fn new(context: &'ctx Context, module: &'a Module<'ctx>) -> Self {
         let structs = StructManager::new();
         let fns = FnManager::new();
-        let mut new = Self {
+        Self {
             context,
             module,
             structs,
             fns,
-        };
-        // Just unwrap this, because it should be impossible to fail
-        add_builtins(&mut new).unwrap();
-        new
+        }
     }
 
     pub fn compile(&mut self, ast: CrabAst) -> Result<()> {
@@ -36,6 +33,7 @@ impl<'a, 'ctx> Codegen<'a, 'ctx> {
         for crab_struct in &ast.structs {
             self.build_struct_definition(crab_struct)?;
         }
+        add_builtins(self)?;
         for func in &ast.functions {
             self.register_function(func.signature.clone(), false, None)?;
         }
@@ -74,7 +72,6 @@ impl<'a, 'ctx> Codegen<'a, 'ctx> {
     pub fn get_context(&self) -> &Context {
         self.context
     }
-
     pub fn get_module(&self) -> &Module<'ctx> {
         self.module
     }
@@ -99,13 +96,14 @@ impl<'a, 'ctx> Codegen<'a, 'ctx> {
     }
 
     fn register_struct(&mut self, strct: Struct) -> Result<()> {
-        trace!("Building struct definition for struct {}", strct.name);
+        trace!("Registering struct {}", strct.name);
         self.structs.insert(strct.name.clone(), strct.clone())?;
         self.context.opaque_struct_type(&strct.name);
         Ok(())
     }
 
     fn build_struct_definition(&mut self, strct: &Struct) -> Result<()> {
+        trace!("Building struct definition for struct {}", strct.name);
         let st = self
             .module
             .get_struct_type(&strct.name)

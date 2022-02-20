@@ -36,7 +36,7 @@ impl<'ctx> CrabValueType<'ctx> {
     }
 
     pub fn new_uint(uint: IntValue<'ctx>) -> Self {
-        Self::new(LLVMValueEnum::IntValue(uint), CrabType::UINT)
+        Self::new(LLVMValueEnum::IntValue(uint), CrabType::UINT64)
     }
 
     pub fn new_ptr(value: PointerValue<'ctx>, ct: CrabType) -> Self {

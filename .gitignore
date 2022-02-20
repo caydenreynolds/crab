@@ -7,3 +7,8 @@ pyenv/*
 **/*.sqlite
 
 .idea/*
+
+# Build artifacts from testing
+**/*.ll
+**/*.s
+**/*.exe

@@ -22,6 +22,7 @@ struct Args {
     verbose: u8,
 
     /// Skip verifying the emitted ir
+    #[cfg(debug_assertions)]
     #[structopt(short, long)]
     no_verify: bool,
 }
@@ -44,6 +45,7 @@ fn handle_crabfile(crabfile: PathBuf, package: &str, verify: bool) -> Result<()>
     codegen.compile(parse_result)?;
 
     // Use unwrap because of weird thread-safety compiler checks
+    #[cfg(debug_assertions)]
     if verify {
         module.verify().unwrap();
     }

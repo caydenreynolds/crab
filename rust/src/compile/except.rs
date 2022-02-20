@@ -66,4 +66,9 @@ pub enum CompileError {
 
     #[error("Struct {0} does not contain a field with name {1}")]
     StructFieldName(Ident, Ident),
+
+    #[error(
+        "Tried to perform a GEP on a type that is not a struct or with an invalid index, at {0}"
+    )]
+    Gep(String),
 }

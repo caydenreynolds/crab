@@ -192,7 +192,9 @@ impl<'a, 'ctx> Functiongen<'a, 'ctx> {
                     let source_ptr = self
                         .builder
                         .build_struct_gep(prev.try_as_struct_value()?, field_index as u32, "source")
-                        .unwrap();
+                        .or(Err(CompileError::Gep(String::from(
+                            "functiongen::build_expression_chain",
+                        ))))?;
                     let val = self.builder.build_load(source_ptr, "dest");
                     CrabValueType::from_basic_value_enum(val, cs.get_field_crab_type(id)?)
                 }
@@ -248,7 +250,9 @@ impl<'a, 'ctx> Functiongen<'a, 'ctx> {
             let element_ptr = self
                 .builder
                 .build_struct_gep(new_struct_ptr, i as u32, "element_ptr")
-                .unwrap();
+                .or(Err(CompileError::Gep(String::from(
+                    "functiongen::build_struct_init",
+                ))))?;
             self.builder.build_store(element_ptr, *init_field);
         }
 

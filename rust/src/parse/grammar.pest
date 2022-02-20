@@ -57,4 +57,6 @@ string_inner = @{ char* }
 char = @{ !("\"" | "\\") ~ ANY | ("\\" ~ ( "n" )) }
 
 // For now, we're only allowing primitive types
-crab_type = @{ ( "__uint64__" | "String" | "Float" | "Bool" | ident ) }
+crab_type = { type_name ~ ("[" ~ array_len ~ "]")? }
+type_name = @{ "__uint64__" | "__uint8__" | "__string__" | "Float" | "Bool" | ident }
+array_len = @{ ASCII_DIGIT+ }

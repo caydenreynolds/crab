@@ -10,14 +10,18 @@ use log::trace;
 use pest::iterators::Pair;
 use std::convert::TryFrom;
 
+#[allow(non_camel_case_types)]
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum CrabType {
-    UINT,
-    VOID,
+    UINT8,
+    UINT64,
     STRING,
+    VOID,
     FLOAT,
     BOOL,
     STRUCT(Ident),
+    UINT8_ARRAY(u32),
+    STRUCT_ARRAY(Ident, u32),
 }
 
 try_from_pair!(CrabType, Rule::crab_type);
@@ -26,12 +30,36 @@ impl AstNode for CrabType {
     where
         Self: Sized,
     {
-        match pair.as_str() {
-            "__uint64__" => Ok(Self::UINT),
-            "String" => Ok(Self::STRING),
-            "Float" => Ok(Self::FLOAT),
-            "Bool" => Ok(Self::BOOL),
-            s => Ok(Self::STRUCT(Ident::from(s))),
+        let mut inner = pair.into_inner();
+        match inner.clone().count() {
+            1 => {
+                let ct = inner.next().ok_or(ParseError::ExpectedInner)?;
+                match ct.as_str() {
+                    "__uint64__" => Ok(Self::UINT64),
+                    "__uint8__" => Ok(Self::UINT8),
+                    "__string__" => Ok(Self::STRING),
+                    "Float" => Ok(Self::FLOAT),
+                    "Bool" => Ok(Self::BOOL),
+                    s => Ok(Self::STRUCT(Ident::from(s))),
+                }
+            }
+            2 => {
+                let ct = inner.next().ok_or(ParseError::ExpectedInner)?;
+                let array_len_pair = inner.next().ok_or(ParseError::ExpectedInner)?;
+                let array_len = array_len_pair.as_str().parse()?;
+
+                match ct.as_str() {
+                    "__uint8__" => Ok(Self::UINT8_ARRAY(array_len)),
+                    "__uint64__" => Err(ParseError::InvalidCrabType(String::from(
+                        "__uint64__ array",
+                    ))),
+                    "Float" => Err(ParseError::InvalidCrabType(String::from("Float array"))),
+                    "Bool" => Err(ParseError::InvalidCrabType(String::from("Bool array"))),
+                    "Void" => Err(ParseError::InvalidCrabType(String::from("Void array"))),
+                    s => Ok(Self::STRUCT_ARRAY(Ident::from(s), array_len)),
+                }
+            }
+            _ => unreachable!(),
         }
     }
 }
@@ -42,7 +70,8 @@ impl<'a, 'ctx> CrabType {
         module: &'a Module<'ctx>,
     ) -> compile::Result<AnyTypeEnum<'ctx>> {
         return match self {
-            Self::UINT => Ok(AnyTypeEnum::IntType(context.i64_type())),
+            Self::UINT64 => Ok(AnyTypeEnum::IntType(context.i64_type())),
+            Self::UINT8 => Ok(AnyTypeEnum::IntType(context.i8_type())),
             // TODO: Figure out what to do about address spaces
             Self::STRING => Ok(AnyTypeEnum::PointerType(
                 context.i8_type().ptr_type(AddressSpace::Generic),
@@ -56,6 +85,16 @@ impl<'a, 'ctx> CrabType {
                     .ok_or(CompileError::StructDoesNotExist(id.clone()))?
                     .ptr_type(AddressSpace::Generic),
             )),
+            Self::UINT8_ARRAY(len) => {
+                Ok(AnyTypeEnum::ArrayType(context.i8_type().array_type(*len)))
+            }
+            Self::STRUCT_ARRAY(id, len) => Ok(AnyTypeEnum::ArrayType(
+                module
+                    .get_struct_type(id)
+                    .ok_or(CompileError::StructDoesNotExist(id.clone()))?
+                    .ptr_type(AddressSpace::Generic)
+                    .array_type(*len),
+            )),
         };
     }
 
@@ -65,7 +104,8 @@ impl<'a, 'ctx> CrabType {
         module: &'a Module<'ctx>,
     ) -> compile::Result<BasicTypeEnum<'ctx>> {
         return match self {
-            Self::UINT => Ok(BasicTypeEnum::IntType(context.i64_type())),
+            Self::UINT64 => Ok(BasicTypeEnum::IntType(context.i64_type())),
+            Self::UINT8 => Ok(BasicTypeEnum::IntType(context.i8_type())),
             // TODO: Figure out what to do about address spaces
             Self::STRING => Ok(BasicTypeEnum::PointerType(
                 context.i8_type().ptr_type(AddressSpace::Generic),
@@ -81,6 +121,16 @@ impl<'a, 'ctx> CrabType {
             Self::VOID => Err(CompileError::InvalidArgType(String::from(stringify!(
                 CrabType::Void
             )))),
+            Self::UINT8_ARRAY(len) => {
+                Ok(BasicTypeEnum::ArrayType(context.i8_type().array_type(*len)))
+            }
+            Self::STRUCT_ARRAY(id, len) => Ok(BasicTypeEnum::ArrayType(
+                module
+                    .get_struct_type(id)
+                    .ok_or(CompileError::StructDoesNotExist(id.clone()))?
+                    .ptr_type(AddressSpace::Generic)
+                    .array_type(*len),
+            )),
         };
     }
 
@@ -110,7 +160,8 @@ impl<'a, 'ctx> CrabType {
         let param_types = param_vec.as_slice();
 
         return match self {
-            Self::UINT => Ok(context.i64_type().fn_type(param_types, variadic)),
+            Self::UINT64 => Ok(context.i64_type().fn_type(param_types, variadic)),
+            Self::UINT8 => Ok(context.i8_type().fn_type(param_types, variadic)),
             // TODO: Figure out what to do about address spaces
             Self::STRING => Ok(context
                 .i8_type()
@@ -126,6 +177,16 @@ impl<'a, 'ctx> CrabType {
                 .ptr_type(AddressSpace::Generic)
                 .fn_type(param_types, variadic)),
             Self::VOID => Ok(context.void_type().fn_type(param_types, variadic)),
+            Self::UINT8_ARRAY(len) => Ok(context
+                .i8_type()
+                .array_type(*len)
+                .fn_type(param_types, variadic)),
+            Self::STRUCT_ARRAY(id, len) => Ok(module
+                .get_struct_type(id)
+                .ok_or(CompileError::StructDoesNotExist(id.clone()))?
+                .ptr_type(AddressSpace::Generic)
+                .array_type(*len)
+                .fn_type(param_types, variadic)),
         };
     }
 }
