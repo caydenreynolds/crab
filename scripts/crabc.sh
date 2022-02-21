@@ -1,8 +1,8 @@
 #!/bin/sh
 
-set -e
-
 mkdir target/
+
+set -e
 
 ../rust/target/debug/blue.exe "$@"
 # FIXME: blue just outputs whatever, wherever, so we gotta move it ourselves
