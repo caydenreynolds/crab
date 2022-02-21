@@ -35,8 +35,7 @@ fn handle_crabfile(crabfile: PathBuf, package: &str, verify: bool) -> Result<()>
         package
     );
     let parse_result = parse(&crabfile)?;
-    debug!("\nCrabfile handled. Results:\n");
-    debug!("{:#?}", parse_result);
+    debug!("\nCrabfile parsed");
 
     // build llvm ir
     let context = Context::create();
@@ -44,9 +43,9 @@ fn handle_crabfile(crabfile: PathBuf, package: &str, verify: bool) -> Result<()>
     let mut codegen = Codegen::new(&context, &module);
     codegen.compile(parse_result)?;
 
-    // Use unwrap because of weird thread-safety compiler checks
     #[cfg(debug_assertions)]
     if verify {
+        // Use unwrap because of weird thread-safety compiler checks
         module.verify().unwrap();
     }
     codegen.print_to_file(PathBuf::from("out.ll")).unwrap();
@@ -79,7 +78,12 @@ fn _main() -> Result<()> {
         ));
     }
 
-    handle_crabfile(PathBuf::from(args.path), "UwU", !args.no_verify)?;
+    if cfg!(debug_assertions) {
+        #[cfg(debug_assertions)]
+        handle_crabfile(PathBuf::from(args.path), "UwU", !args.no_verify)?;
+    } else {
+        handle_crabfile(PathBuf::from(args.path), "UwU", false)?;
+    }
 
     // for package in packages {
     // let blue_path = PathBuf::from(package.clone()).join("blue.sqlite");

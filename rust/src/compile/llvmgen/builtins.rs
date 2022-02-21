@@ -7,13 +7,19 @@ use crate::parse::{
 use inkwell::builder::Builder;
 use inkwell::module::Linkage;
 use inkwell::values::{BasicMetadataValueEnum, FunctionValue};
-use inkwell::IntPredicate;
+use inkwell::AddressSpace;
 
 fn printf_c_name() -> Ident {
     Ident::from("printf")
 }
 fn printf_crab_name() -> Ident {
     Ident::from("__printf__")
+}
+fn format_i_c_name() -> Ident {
+    Ident::from("__c_format_i__")
+}
+fn format_i_name() -> Ident {
+    Ident::from("__format_i__")
 }
 fn add_int_name() -> Ident {
     Ident::from("__add_int__")
@@ -22,6 +28,8 @@ fn add_int_name() -> Ident {
 pub fn add_builtins(codegen: &mut Codegen) -> Result<()> {
     printf_c(codegen)?;
     printf_crab(codegen)?;
+    format_i_c(codegen)?;
+    format_i(codegen)?;
     add_int(codegen)?;
     new_str(codegen)?;
 
@@ -93,43 +101,13 @@ fn new_str(codegen: &mut Codegen) -> Result<()> {
     builder.build_memcpy(buf, 1, src, 1, len).unwrap();
     builder.build_return(Some(&strct));
 
-    // let src = fn_value.get_nth_param(0).unwrap().into_pointer_value();
-
-    // // Loop until we find the null terminator
-    // let i_0 = codegen.get_context().i32_type().const_int(4294967295, false); // Use maximum value for a 32 bit integer so it immediately overflows to zero
-    // let i = builder.build_alloca(codegen.get_context().i32_type(), "i");
-    // builder.build_store(i, i_0);
-    // let loop_block = codegen.get_context().append_basic_block(fn_value, "loop");
-    // let after_loop_block = codegen.get_context().append_basic_block(fn_value, "after_loop");
-    // builder.build_unconditional_branch(loop_block);
-    // builder.position_at_end(loop_block);
-    // let loaded_i = builder.build_load(i, "loaded_i").into_int_value();
-    // let added_i = builder.build_int_add(loaded_i, codegen.get_context().i32_type().const_int(1, false), "added_i");
-    // builder.build_store(i, added_i);
-    // unsafe {
-    //     let char_ptr = builder.build_gep(src, &[added_i], "char_ptr");
-    //     let char = builder.build_load(char_ptr, "char").into_int_value();
-    //     let char_0 = codegen.get_context().i8_type().const_int(0, false);
-    //     let char_cmp = builder.build_int_compare(IntPredicate::EQ, char, char_0, "char_cmp");
-    //     builder.build_conditional_branch(char_cmp,after_loop_block, loop_block);
-    // }
-    //
-    // // Perform the copy
-    // builder.position_at_end(after_loop_block);
-    // let buf_type = BasicTypeEnum::ArrayType(codegen.get_context().i8_type().array_type(string_buf_len()));
-    // let dest = builder.build_alloca(buf_type, "name");
-    // let i_val = builder.build_load(i, "i_val").into_int_value();
-    // builder.build_memcpy(dest, 1, src, 1, i_val).unwrap();
-    // let loaded = builder.build_load(dest, "loaded");
-    // builder.build_return(Some(&loaded));
-
     Ok(())
 }
 
 fn printf_c(codegen: &mut Codegen) -> Result<()> {
     let signature = FuncSignature {
         name: printf_c_name(),
-        return_type: CrabType::FLOAT,
+        return_type: CrabType::UINT64,
         unnamed_params: vec![FnParam {
             name: Ident::from("str"),
             crab_type: CrabType::STRING,
@@ -171,6 +149,75 @@ fn printf_crab(codegen: &mut Codegen) -> Result<()> {
     ];
     builder.build_call(printf_c_fn_value, &args, "call");
     builder.build_return(None);
+    Ok(())
+}
+
+fn format_i_c(codegen: &mut Codegen) -> Result<()> {
+    let signature = FuncSignature {
+        name: format_i_c_name(),
+        return_type: CrabType::UINT64,
+        unnamed_params: vec![
+            FnParam {
+                name: Ident::from("dest"),
+                crab_type: CrabType::STRING,
+            },
+            FnParam {
+                name: Ident::from("data"),
+                crab_type: CrabType::UINT64,
+            },
+        ],
+        named_params: vec![],
+    };
+    codegen.register_function(signature, true, Some(Linkage::External))?;
+    Ok(())
+}
+
+fn format_i(codegen: &mut Codegen) -> Result<()> {
+    let signature = FuncSignature {
+        name: format_i_name(),
+        return_type: CrabType::STRUCT(string_type_name()),
+        unnamed_params: vec![FnParam {
+            name: Ident::from("name"),
+            crab_type: CrabType::UINT64,
+        }],
+        named_params: vec![],
+    }
+    .with_mangled_name();
+
+    let format_i_c_value = codegen
+        .get_module()
+        .get_function(&format_i_c_name())
+        .unwrap();
+    codegen.register_function(signature.clone(), true, None)?;
+    let (fn_value, builder) = begin_func(codegen, &signature)?;
+
+    let str = builder.build_alloca(
+        codegen
+            .get_module()
+            .get_struct_type(&string_type_name())
+            .unwrap(),
+        "str",
+    );
+    let buf = builder
+        .build_struct_gep(str, 0, "buf")
+        .or(Err(CompileError::Gep(String::from("builtins::format_i"))))?;
+    let buf_ptr = builder.build_bitcast(
+        buf,
+        codegen
+            .get_context()
+            .i8_type()
+            .ptr_type(AddressSpace::Generic),
+        "buf_ptr",
+    );
+    let int = fn_value.get_nth_param(0).unwrap().into_int_value();
+    let args = [
+        BasicMetadataValueEnum::from(buf_ptr),
+        BasicMetadataValueEnum::from(int),
+    ];
+
+    builder.build_call(format_i_c_value, &args, "call");
+    builder.build_return(Some(&str));
+
     Ok(())
 }
 

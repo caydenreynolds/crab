@@ -6,6 +6,16 @@ struct String {
     __uint8__[1024] value
 }
 
+intr String {
+    Printable,
+}
+
+impl String {
+    fn toString() -> String {
+        return String { value = self.value }
+    }
+}
+
 interface Printable {
     fn toString() -> String
 }
@@ -26,7 +36,7 @@ impl Int {
     }
 
     fn toString() -> String {
-        return "I'm an integer!"
+        return __format_i__(self.value)
     }
 }
 

@@ -1,5 +1,22 @@
 #!/bin/sh
 
-../rust/target/debug/blue.exe $@
-llc --stats out.ll -O0 -o out.s
-clang -v out.s -o out.exe
+set -e
+
+mkdir target/
+
+../rust/target/debug/blue.exe "$@"
+# FIXME: blue just outputs whatever, wherever, so we gotta move it ourselves
+mv out.ll target/out.ll
+
+llc \
+  --stats \
+  -O0 \
+  -o target/out.s \
+  target/out.ll
+
+clang \
+  -v \
+  -L ../c/target/ \
+  -l crabcbuiltins \
+  -o target/out.exe \
+  target/out.s

@@ -1,4 +1,3 @@
-rust/target
 rust/Cargo.lock
 
 pyenv/*
@@ -8,7 +7,7 @@ pyenv/*
 
 .idea/*
 
-# Build artifacts from testing
-**/*.ll
-**/*.s
-**/*.exe
+# Various build directories
+rust/target
+c/target
+scripts/target
