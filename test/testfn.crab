@@ -1,0 +1,52 @@
+struct GymGoer {
+    String name,
+    Int fitness,
+}
+
+impl GymGoer {
+    fn go_to_the_gym() {
+        print(self.name, newline=false)
+        print(" went to the gym")
+    }
+}
+
+fn new_gym_goer() -> GymGoer {
+    return GymGoer {name = "Phillip",fitness = 12345}
+}
+
+fn main() -> Int {
+    print("foo", newline=false)
+    print("bar", newline=true,)
+    let my_gym_goer = new_gym_goer()
+    my_gym_goer.go_to_the_gym()
+    print(my_gym_goer.fitness.toString())
+    let yo_momma = so_ugly()
+    return yo_momma
+}
+
+fn so_ugly() -> Int {
+    let a_variable = 40
+    let b = false
+    if b {
+        a_variable = a_variable.operatorAdd(104)
+        print("12 squared")
+    } else {
+        a_variable = a_variable.operatorAdd(2)
+        print("Life, the universe, and everything")
+    }
+    let message = "foo"
+    print(message)
+    print("bar")
+    message = get_str()
+    print(get_str())
+    return a_variable
+}
+
+fn get_str(,) -> String {
+    let message = "A string message"
+    if true {
+        return message
+    } else {
+        return "A different string message"
+    }
+}

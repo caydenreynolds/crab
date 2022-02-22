@@ -1,0 +1,19 @@
+struct Int {
+    __uint64__ value
+}
+
+intr Int {
+   Printable,
+}
+
+impl Int {
+    fn operatorAdd(Int other) -> Int {
+        return Int {
+            value = __add_int__(self.value, other.value)
+        }
+    }
+
+    fn toString() -> String {
+        return __format_i__(self.value)
+    }
+}
