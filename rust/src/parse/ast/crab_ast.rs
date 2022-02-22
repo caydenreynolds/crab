@@ -5,11 +5,14 @@ use pest::iterators::Pair;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Default)]
 pub struct CrabAst {
     pub functions: Vec<Func>,
     pub structs: Vec<Struct>,
     pub interfaces: HashMap<Ident, CrabInterface>,
+
+    impls: Vec<StructImpl>,
+    intrs: Vec<StructIntr>,
 }
 
 try_from_pair!(CrabAst, Rule::program);
@@ -20,7 +23,7 @@ impl AstNode for CrabAst {
         let mut structs = vec![];
         let mut impls = vec![];
         let mut interfaces = HashMap::new();
-        let mut struct_intrs = vec![];
+        let mut intrs = vec![];
 
         for in_pair in inner {
             match in_pair.clone().as_rule() {
@@ -31,17 +34,15 @@ impl AstNode for CrabAst {
                     let interface = CrabInterface::try_from(in_pair)?;
                     interfaces.insert(interface.name.clone(), interface);
                 }
-                Rule::intr_block => struct_intrs.push(StructIntr::try_from(in_pair)?),
+                Rule::intr_block => intrs.push(StructIntr::try_from(in_pair)?),
                 Rule::EOI => break, // Nothing should ever show up after EOI
                 _ => return Err(ParseError::NoMatch(String::from("CrabAst::from_pair"))),
             }
         }
 
-        Self::verify_intrs(struct_intrs, &impls, &interfaces)?;
-
-        for struct_impl in impls {
-            for func in struct_impl.fns {
-                functions.push(func.method(struct_impl.struct_name.clone()));
+        for struct_impl in &impls {
+            for func in &struct_impl.fns {
+                functions.push(func.clone().method(struct_impl.struct_name.clone()));
             }
         }
 
@@ -49,23 +50,34 @@ impl AstNode for CrabAst {
             functions,
             structs,
             interfaces,
+            intrs,
+            impls,
         })
     }
 }
 impl CrabAst {
-    fn verify_intrs(
-        intrs: Vec<StructIntr>,
-        impls: &Vec<StructImpl>,
-        interfaces: &HashMap<Ident, CrabInterface>,
-    ) -> Result<()> {
-        for intr in intrs {
-            for si in impls {
+    pub fn join(self, other: Self) -> Self {
+        Self {
+            impls: self.impls.into_iter().chain(other.impls.into_iter()).collect(),
+            functions: self.functions.into_iter().chain(other.functions.into_iter()).collect(),
+            structs: self.structs.into_iter().chain(other.structs.into_iter()).collect(),
+            interfaces: self.interfaces.into_iter().chain(other.interfaces.into_iter()).collect(),
+            intrs: self.intrs.into_iter().chain(other.intrs.into_iter()).collect(),
+        }
+    }
+    pub fn verify(&self) -> Result<()> {
+        self.verify_intrs()
+    }
+
+    fn verify_intrs(&self) -> Result<()> {
+        for intr in &self.intrs {
+            for si in &self.impls {
                 if si.struct_name == intr.struct_name {
-                    for inter in intr.inters {
+                    for inter in &intr.inters {
                         si.verify_implements(
-                            interfaces
-                                .get(&inter)
-                                .ok_or(ParseError::InterfaceNotFound(inter))?,
+                            self.interfaces
+                                .get(inter)
+                                .ok_or(ParseError::InterfaceNotFound(inter.clone()))?,
                         )?;
                     }
                     break;

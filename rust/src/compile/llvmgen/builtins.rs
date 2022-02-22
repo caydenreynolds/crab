@@ -136,16 +136,15 @@ fn printf_crab(codegen: &mut Codegen) -> Result<()> {
 
     let (fn_value, builder) = begin_func(codegen, &signature)?;
 
-    let fmt_str = builder.build_global_string_ptr("%s", "fmtstr");
     let arg = fn_value.get_nth_param(0).unwrap().into_pointer_value();
     let buf = builder
         .build_struct_gep(arg, 0, "gep")
         .or(Err(CompileError::Gep(String::from(
             "builtins::printf_crab",
         ))))?;
+    let buf_ptr = builder.build_bitcast(buf, codegen.get_context().i8_type().ptr_type(AddressSpace::Generic), "buf_ptr");
     let args = [
-        BasicMetadataValueEnum::from(fmt_str.as_pointer_value()),
-        BasicMetadataValueEnum::from(buf),
+        BasicMetadataValueEnum::from(buf_ptr),
     ];
     builder.build_call(printf_c_fn_value, &args, "call");
     builder.build_return(None);

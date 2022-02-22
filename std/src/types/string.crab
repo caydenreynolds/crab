@@ -1,3 +1,13 @@
-pub interface String {
+struct String {
+    __uint8__[1024] value
+}
 
+intr String {
+    Printable,
+}
+
+impl String {
+    fn toString() -> String {
+        return String { value = self.value }
+    }
 }

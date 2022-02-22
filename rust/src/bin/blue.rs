@@ -2,19 +2,20 @@ use anyhow::{anyhow, Result};
 use crab::compile::llvmgen::Codegen;
 use crab::parse::parse;
 use inkwell::context::Context;
-use log::{debug, error, info, LevelFilter};
+use log::{debug, error, info, LevelFilter, warn};
 use simple_logger::SimpleLogger;
 use std::path::PathBuf;
 use std::process::exit;
+use glob::glob;
 use structopt::StructOpt;
 
 /// A basic example
 #[derive(StructOpt, Debug)]
 #[structopt(name = "blue")]
 struct Args {
-    /// Input file
+    /// Input files
     #[structopt(parse(from_os_str))]
-    path: PathBuf,
+    paths: Vec<PathBuf>,
 
     // The number of occurrences of the `v/verbose` flag
     /// Verbose mode (-v, -vv, -vvv, etc.)
@@ -27,17 +28,36 @@ struct Args {
     no_verify: bool,
 }
 
-fn handle_crabfile(crabfile: PathBuf, package: &str, verify: bool) -> Result<()> {
+fn get_crabfiles(paths: Vec<PathBuf>) -> Vec<PathBuf> {
+    let mut crabfiles = vec![];
+    for path in paths {
+        if path.is_file() {
+            crabfiles.push(path);
+        } else if path.is_dir() {
+            let source_file = path.join(PathBuf::from("src/**/*.crab")).into_os_string().into_string().unwrap();
+            debug!("Searching for files in {:#?}", source_file);
+            for crabfile_result in glob(&source_file).expect("Failed to read glob pattern")
+            {
+                match crabfile_result {
+                    Ok(crabfile) => crabfiles.push(crabfile),
+                    Err(err) => warn!("Skipping crabfile due to error: {}", err),
+                }
+            }
+        } else {
+            unreachable!()
+        }
+    }
+    crabfiles
+}
+
+fn handle_crabfile(crabfiles: &[PathBuf], verify: bool) -> Result<()> {
     // parse crabfile
-    info!(
-        "Handling crabfile {:?} in package {:?}",
-        crabfile.display(),
-        package
-    );
-    let parse_result = parse(&crabfile)?;
-    debug!("\nCrabfile parsed");
+    info!("Parsing crabfiles");
+    let parse_result = parse(crabfiles)?;
+    debug!("Crabfiles parsed");
 
     // build llvm ir
+    debug!("Generating IR");
     let context = Context::create();
     let module = context.create_module("main");
     let mut codegen = Codegen::new(&context, &module);
@@ -45,9 +65,11 @@ fn handle_crabfile(crabfile: PathBuf, package: &str, verify: bool) -> Result<()>
 
     #[cfg(debug_assertions)]
     if verify {
+        debug!("Verifying generated IR");
         // Use unwrap because of weird thread-safety compiler checks
         module.verify().unwrap();
     }
+    debug!("Printing to file");
     codegen.print_to_file(PathBuf::from("out.ll")).unwrap();
     info!("Successfully wrote llvm ir to 'out.ll'");
     Ok(())
@@ -78,29 +100,15 @@ fn _main() -> Result<()> {
         ));
     }
 
-    if cfg!(debug_assertions) {
-        #[cfg(debug_assertions)]
-        handle_crabfile(PathBuf::from(args.path), "UwU", !args.no_verify)?;
-    } else {
-        handle_crabfile(PathBuf::from(args.path), "UwU", false)?;
-    }
+    info!("Compiling {:#?}", args.paths);
 
-    // for package in packages {
-    // let blue_path = PathBuf::from(package.clone()).join("blue.sqlite");
-    // if blue_path.exists() {
-    //     std::fs::remove_file(blue_path)?;
-    // }
-    // for crabfile_result in
-    //     glob(&format!("{}/src/**/*.crab", package)).expect("Failed to read glob pattern")
-    // {
-    //     match crabfile_result {
-    //         // Canonicalize result forces use of backslashes consistently on windows
-    //         Ok(path) => handle_crabfile(path, package)?,
-    //         Err(err) => warn!("Skipping crabfile due to error: {}", err),
-    //     }
-    // }
-    // handle_crabfile(PathBuf::from(package), "UwU")?;
-    // }
+    let paths = get_crabfiles(args.paths);
+
+    if cfg!(debug_assertions) {
+        handle_crabfile(&paths, !args.no_verify)?;
+    } else {
+        handle_crabfile(&paths, false)?;
+    }
 
     info!("Finished!");
 

@@ -18,3 +18,4 @@ pest_derive = "2.1.*"
 serde = {version = "1.0.*", features = ["derive", "rc"]}
 thiserror = "1.0.*"
 inkwell = { git = "https://github.com/TheDan64/inkwell", branch = "master", features = ["llvm13-0"] }
+glob = "0.2.*"

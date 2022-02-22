@@ -1,3 +1,6 @@
-pub fn print(str: String) {
-    (V)'--'(V) print (str);
+fn print(String str, Bool newline=true) {
+    __printf__(str)
+    if newline {
+        __printf__("\n")
+    }
 }

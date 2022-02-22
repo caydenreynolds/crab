@@ -4,7 +4,7 @@ mkdir target/
 
 set -e
 
-../rust/target/debug/blue.exe "$@"
+../rust/target/debug/blue.exe "$@" ../std/
 # FIXME: blue just outputs whatever, wherever, so we gotta move it ourselves
 mv out.ll target/out.ll
 
