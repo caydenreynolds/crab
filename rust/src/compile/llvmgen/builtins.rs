@@ -1,42 +1,27 @@
-use crate::compile::llvmgen::{Codegen, CrabValueType};
+use crate::compile::llvmgen::{Codegen, CrabValueType, FnManager};
 use crate::compile::{CompileError, Result};
 use crate::parse::ast::{CrabType, FnParam, FuncSignature, Ident};
-use crate::parse::{
-    int_struct_name, main_func_name, mangle_function_name, new_string_name, string_type_name,
+use crate::util::{
+    add_int_name, format_i_c_name, format_i_name, int_struct_name, main_func_name,
+    mangle_function_name, new_string_name, printf_c_name, printf_crab_name, string_type_name,
 };
 use inkwell::builder::Builder;
 use inkwell::module::Linkage;
 use inkwell::values::{BasicMetadataValueEnum, FunctionValue};
 use inkwell::AddressSpace;
 
-fn printf_c_name() -> Ident {
-    Ident::from("printf")
-}
-fn printf_crab_name() -> Ident {
-    Ident::from("__printf__")
-}
-fn format_i_c_name() -> Ident {
-    Ident::from("__c_format_i__")
-}
-fn format_i_name() -> Ident {
-    Ident::from("__format_i__")
-}
-fn add_int_name() -> Ident {
-    Ident::from("__add_int__")
-}
-
-pub fn add_builtins(codegen: &mut Codegen) -> Result<()> {
-    printf_c(codegen)?;
-    printf_crab(codegen)?;
-    format_i_c(codegen)?;
-    format_i(codegen)?;
-    add_int(codegen)?;
-    new_str(codegen)?;
+pub fn add_builtins(codegen: &mut Codegen, fns: &mut FnManager) -> Result<()> {
+    printf_c(codegen, fns)?;
+    printf_crab(codegen, fns)?;
+    format_i_c(codegen, fns)?;
+    format_i(codegen, fns)?;
+    add_int(codegen, fns)?;
+    new_str(codegen, fns)?;
 
     Ok(())
 }
 
-pub fn add_main_func(codegen: &mut Codegen) -> Result<()> {
+pub fn add_main_func(codegen: &mut Codegen, fns: &mut FnManager) -> Result<()> {
     let fn_name = main_func_name();
     let signature = FuncSignature {
         name: fn_name.clone(),
@@ -44,13 +29,12 @@ pub fn add_main_func(codegen: &mut Codegen) -> Result<()> {
         unnamed_params: vec![],
         named_params: vec![],
     };
+    fns.register_builtin(signature.clone(), false, None)?;
 
     let main_fn_value = codegen
         .get_module()
         .get_function(&mangle_function_name(&main_func_name(), None))
         .unwrap();
-
-    codegen.register_function(signature.clone(), true, None)?;
 
     let (_, builder) = begin_func(codegen, &signature)?;
     let csv = builder.build_call(main_fn_value, &[], "call");
@@ -65,7 +49,7 @@ pub fn add_main_func(codegen: &mut Codegen) -> Result<()> {
     Ok(())
 }
 
-fn new_str(codegen: &mut Codegen) -> Result<()> {
+fn new_str(codegen: &mut Codegen, fns: &mut FnManager) -> Result<()> {
     let signature = FuncSignature {
         name: new_string_name(),
         return_type: CrabType::STRUCT(string_type_name()),
@@ -82,8 +66,8 @@ fn new_str(codegen: &mut Codegen) -> Result<()> {
         named_params: vec![],
     }
     .with_mangled_name();
+    fns.register_builtin(signature.clone(), true, Some(Linkage::External))?;
 
-    codegen.register_function(signature.clone(), true, Some(Linkage::External))?;
     let (fn_value, builder) = begin_func(codegen, &signature)?;
 
     let strct = builder.build_alloca(
@@ -104,7 +88,7 @@ fn new_str(codegen: &mut Codegen) -> Result<()> {
     Ok(())
 }
 
-fn printf_c(codegen: &mut Codegen) -> Result<()> {
+fn printf_c(_codegen: &mut Codegen, fns: &mut FnManager) -> Result<()> {
     let signature = FuncSignature {
         name: printf_c_name(),
         return_type: CrabType::UINT64,
@@ -114,11 +98,11 @@ fn printf_c(codegen: &mut Codegen) -> Result<()> {
         }],
         named_params: vec![],
     };
-    codegen.register_function(signature, true, Some(Linkage::External))?;
+    fns.register_builtin(signature.clone(), true, Some(Linkage::External))?;
     Ok(())
 }
 
-fn printf_crab(codegen: &mut Codegen) -> Result<()> {
+fn printf_crab(codegen: &mut Codegen, fns: &mut FnManager) -> Result<()> {
     let signature = FuncSignature {
         name: printf_crab_name(),
         return_type: CrabType::VOID,
@@ -129,10 +113,9 @@ fn printf_crab(codegen: &mut Codegen) -> Result<()> {
         named_params: vec![],
     }
     .with_mangled_name();
+    fns.register_builtin(signature.clone(), false, None)?;
 
     let printf_c_fn_value = codegen.get_module().get_function(&printf_c_name()).unwrap();
-
-    codegen.register_function(signature.clone(), true, None)?;
 
     let (fn_value, builder) = begin_func(codegen, &signature)?;
 
@@ -142,16 +125,21 @@ fn printf_crab(codegen: &mut Codegen) -> Result<()> {
         .or(Err(CompileError::Gep(String::from(
             "builtins::printf_crab",
         ))))?;
-    let buf_ptr = builder.build_bitcast(buf, codegen.get_context().i8_type().ptr_type(AddressSpace::Generic), "buf_ptr");
-    let args = [
-        BasicMetadataValueEnum::from(buf_ptr),
-    ];
+    let buf_ptr = builder.build_bitcast(
+        buf,
+        codegen
+            .get_context()
+            .i8_type()
+            .ptr_type(AddressSpace::Generic),
+        "buf_ptr",
+    );
+    let args = [BasicMetadataValueEnum::from(buf_ptr)];
     builder.build_call(printf_c_fn_value, &args, "call");
     builder.build_return(None);
     Ok(())
 }
 
-fn format_i_c(codegen: &mut Codegen) -> Result<()> {
+fn format_i_c(_codegen: &mut Codegen, fns: &mut FnManager) -> Result<()> {
     let signature = FuncSignature {
         name: format_i_c_name(),
         return_type: CrabType::UINT64,
@@ -167,11 +155,11 @@ fn format_i_c(codegen: &mut Codegen) -> Result<()> {
         ],
         named_params: vec![],
     };
-    codegen.register_function(signature, true, Some(Linkage::External))?;
+    fns.register_builtin(signature.clone(), false, None)?;
     Ok(())
 }
 
-fn format_i(codegen: &mut Codegen) -> Result<()> {
+fn format_i(codegen: &mut Codegen, fns: &mut FnManager) -> Result<()> {
     let signature = FuncSignature {
         name: format_i_name(),
         return_type: CrabType::STRUCT(string_type_name()),
@@ -182,12 +170,12 @@ fn format_i(codegen: &mut Codegen) -> Result<()> {
         named_params: vec![],
     }
     .with_mangled_name();
+    fns.register_builtin(signature.clone(), false, None)?;
 
     let format_i_c_value = codegen
         .get_module()
         .get_function(&format_i_c_name())
         .unwrap();
-    codegen.register_function(signature.clone(), true, None)?;
     let (fn_value, builder) = begin_func(codegen, &signature)?;
 
     let str = builder.build_alloca(
@@ -220,7 +208,7 @@ fn format_i(codegen: &mut Codegen) -> Result<()> {
     Ok(())
 }
 
-fn add_int(codegen: &mut Codegen) -> Result<()> {
+fn add_int(codegen: &mut Codegen, fns: &mut FnManager) -> Result<()> {
     let fn_name = add_int_name();
     let signature = FuncSignature {
         name: fn_name.clone(),
@@ -238,8 +226,7 @@ fn add_int(codegen: &mut Codegen) -> Result<()> {
         named_params: vec![],
     }
     .with_mangled_name();
-
-    codegen.register_function(signature.clone(), true, None)?;
+    fns.register_builtin(signature.clone(), false, None)?;
 
     let (fn_value, builder) = begin_func(codegen, &signature)?;
 

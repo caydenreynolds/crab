@@ -19,7 +19,7 @@ fn main() -> Int {
     print("bar", newline=true,)
     let my_gym_goer = new_gym_goer()
     my_gym_goer.go_to_the_gym()
-    print(my_gym_goer.fitness.toString())
+    print(my_gym_goer.fitness)
     let yo_momma = so_ugly()
     return yo_momma
 }

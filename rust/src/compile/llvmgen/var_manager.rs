@@ -3,16 +3,14 @@ use crate::compile::{CompileError, Result};
 use crate::parse::ast::Ident;
 use std::collections::HashMap;
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct VarManager<'ctx> {
     vars: HashMap<Ident, CrabValueType<'ctx>>,
 }
 
 impl<'ctx> VarManager<'ctx> {
     pub fn new() -> VarManager<'ctx> {
-        Self {
-            vars: HashMap::new(),
-        }
+        Self::default()
     }
 
     pub fn assign(&mut self, name: Ident, value: CrabValueType<'ctx>) -> Result<()> {

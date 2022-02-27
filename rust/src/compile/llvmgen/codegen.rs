@@ -1,8 +1,8 @@
-use crate::compile::llvmgen::{add_builtins, add_main_func, FnManager, Functiongen, StructManager};
-use crate::compile::{CompileError, Result};
-use crate::parse::ast::{CrabAst, Func, FuncSignature, Struct};
+use crate::compile::llvmgen::{add_builtins, add_main_func, FnManager, Functiongen};
+use crate::compile::{CompileError, Result, TypeManager};
+use crate::parse::ast::{CrabAst, CrabInterface, Func, Struct};
 use inkwell::context::Context;
-use inkwell::module::{Linkage, Module};
+use inkwell::module::Module;
 use inkwell::support::LLVMString;
 use log::trace;
 use std::path::PathBuf;
@@ -10,19 +10,16 @@ use std::path::PathBuf;
 pub struct Codegen<'a, 'ctx> {
     context: &'ctx Context,
     module: &'a Module<'ctx>,
-    structs: StructManager,
-    fns: FnManager,
+    types: TypeManager,
 }
 
 impl<'a, 'ctx> Codegen<'a, 'ctx> {
     pub fn new(context: &'ctx Context, module: &'a Module<'ctx>) -> Self {
-        let structs = StructManager::new();
-        let fns = FnManager::new();
+        let structs = TypeManager::new();
         Self {
             context,
             module,
-            structs,
-            fns,
+            types: structs,
         }
     }
 
@@ -33,14 +30,27 @@ impl<'a, 'ctx> Codegen<'a, 'ctx> {
         for crab_struct in &ast.structs {
             self.build_struct_definition(crab_struct)?;
         }
-        add_builtins(self)?;
-        for func in &ast.functions {
-            self.register_function(func.signature.clone(), false, None)?;
+
+        for interface in &ast.interfaces {
+            self.register_interface(interface.1.clone())?;
         }
-        for func in &ast.functions {
-            self.build_func(func)?;
+        for intr in &ast.intrs {
+            self.types.register_intr(intr.clone())?;
         }
-        add_main_func(self)?; // Really shouldn't fail either
+
+        let mut fns = FnManager::new(self.types.clone(), self.context, self.module);
+        add_builtins(self, &mut fns)?;
+
+        for func in &ast.functions {
+            fns.add_source(func.clone());
+        }
+        fns.add_main_to_queue()?;
+        while let Some(func) = fns.pop_build_queue() {
+            // self.register_function(func.signature.clone(), false, None)?;
+            self.build_func(func, &mut fns)?;
+        }
+
+        add_main_func(self, &mut fns)?; // Really shouldn't fail either
         Ok(())
     }
 
@@ -48,26 +58,25 @@ impl<'a, 'ctx> Codegen<'a, 'ctx> {
         self.module.print_to_file(path)
     }
 
-    // //TODO: The linkage, mason! What does it mean?
-    pub fn register_function(
-        &mut self,
-        func: FuncSignature,
-        variadic: bool,
-        linkage: Option<Linkage>,
-    ) -> Result<()> {
-        let params = func.get_params();
-        trace!(
-            "Registering new function with name {} and {} args",
-            func.name,
-            params.len()
-        );
-        let fn_type =
-            func.return_type
-                .try_as_fn_type(self.context, self.module, &params, variadic)?;
-        let _fn_value = self.module.add_function(&func.name, fn_type, linkage);
-        self.fns.insert(func.name.clone(), func)?;
-        Ok(())
-    }
+    // // //TODO: The linkage, mason! What does it mean?
+    // pub fn register_function(
+    //     &mut self,
+    //     func: FuncSignature,
+    //     variadic: bool,
+    //     linkage: Option<Linkage>,
+    // ) -> Result<()> {
+    //     let params = func.get_params();
+    //     trace!(
+    //         "Registering new function with name {} and {} args",
+    //         func.name,
+    //         params.len()
+    //     );
+    //     let fn_type =
+    //         func.return_type
+    //             .try_as_fn_type(self.context, self.module, &params, variadic)?;
+    //     let _fn_value = self.module.add_function(&func.name, fn_type, linkage);
+    //     Ok(())
+    // }
 
     pub fn get_context(&self) -> &Context {
         self.context
@@ -76,15 +85,15 @@ impl<'a, 'ctx> Codegen<'a, 'ctx> {
         self.module
     }
 
-    fn build_func(&mut self, func: &Func) -> Result<()> {
-        let name = &func.signature.name;
+    fn build_func(&mut self, func: Func, fns: &mut FnManager<'a, 'ctx>) -> Result<()> {
+        let name = func.signature.name.clone();
         let params = func.signature.get_params();
         let mut fg = Functiongen::new(
-            name,
+            &name,
             self.context,
             self.module,
-            self.fns.clone(),
-            self.structs.clone(),
+            fns,
+            self.types.clone(),
             &params,
         )?;
         fg.build_codeblock(&func.body)?;
@@ -95,9 +104,15 @@ impl<'a, 'ctx> Codegen<'a, 'ctx> {
         };
     }
 
+    fn register_interface(&mut self, intfc: CrabInterface) -> Result<()> {
+        trace!("Registering interface {}", intfc.name);
+        self.types.register_interface(intfc)?;
+        Ok(())
+    }
+
     fn register_struct(&mut self, strct: Struct) -> Result<()> {
         trace!("Registering struct {}", strct.name);
-        self.structs.insert(strct.name.clone(), strct.clone())?;
+        self.types.register_struct(strct.clone())?;
         self.context.opaque_struct_type(&strct.name);
         Ok(())
     }

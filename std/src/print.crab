@@ -1,5 +1,12 @@
-fn print(String str, Bool newline=true) {
-    __printf__(str)
+///
+/// Call this function to print a String to stdout
+///
+/// Params:
+/// * `str` - The string to print
+/// * `newline` - If true, print a newline after the string is printed
+///
+fn print(Printable str, Bool newline=true) {
+    __printf__(str.toString())
     if newline {
         __printf__("\n")
     }

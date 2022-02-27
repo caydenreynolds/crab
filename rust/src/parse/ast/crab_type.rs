@@ -9,6 +9,7 @@ use inkwell::AddressSpace;
 use log::trace;
 use pest::iterators::Pair;
 use std::convert::TryFrom;
+use std::fmt::{Display, Formatter};
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -19,7 +20,7 @@ pub enum CrabType {
     VOID,
     FLOAT,
     BOOL,
-    STRUCT(Ident),
+    STRUCT(Ident), // TODO: Struct currently encompasses both structs and interfaces
     UINT8_ARRAY(u32),
     STRUCT_ARRAY(Ident, u32),
 }
@@ -63,6 +64,7 @@ impl AstNode for CrabType {
         }
     }
 }
+
 impl<'a, 'ctx> CrabType {
     pub fn try_as_llvm_type(
         &self,
@@ -188,5 +190,30 @@ impl<'a, 'ctx> CrabType {
                 .array_type(*len)
                 .fn_type(param_types, variadic)),
         };
+    }
+
+    pub fn try_get_struct_name(&self) -> crate::compile::Result<Ident> {
+        match self {
+            Self::STRUCT(id) => Ok(id.clone()),
+            _ => Err(CompileError::NotAStruct),
+        }
+    }
+}
+
+impl Display for CrabType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CrabType::UINT8 => write!(f, "UINT8"),
+            CrabType::UINT64 => write!(f, "UINT64"),
+            CrabType::STRING => write!(f, "STRING"),
+            CrabType::VOID => write!(f, "VOID"),
+            CrabType::FLOAT => write!(f, "FLOAT"),
+            CrabType::BOOL => write!(f, "BOOL"),
+            CrabType::STRUCT(n) => write!(f, "{}", n),
+            CrabType::UINT8_ARRAY(l) => write!(f, "UINT8_{}", l),
+            CrabType::STRUCT_ARRAY(n, l) => write!(f, "{}_{}", n, l),
+        }?;
+
+        Ok(())
     }
 }

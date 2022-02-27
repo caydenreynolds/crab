@@ -1,10 +1,9 @@
 use crate::parse::ast::{
     AstNode, ExpressionChain, ExpressionChainType, FnCall, Primitive, StructFieldInit, StructInit,
 };
-use crate::parse::{
-    int_struct_name, new_string_name, primitive_field_name, ParseError, Result, Rule,
-};
+use crate::parse::{ParseError, Result, Rule};
 use crate::try_from_pair;
+use crate::util::{int_struct_name, new_string_name, primitive_field_name};
 use pest::iterators::Pair;
 use std::convert::TryFrom;
 

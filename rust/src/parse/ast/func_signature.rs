@@ -1,7 +1,7 @@
 use crate::parse::ast::{AstNode, CrabType, FnParam, Ident, NamedFnParam};
-use crate::parse::{int_struct_name, main_func_name, mangle_function_name};
 use crate::parse::{ParseError, Result, Rule};
 use crate::try_from_pair;
+use crate::util::{int_struct_name, main_func_name, mangle_function_name};
 use pest::iterators::Pair;
 use std::convert::TryFrom;
 

@@ -1,12 +1,12 @@
 use anyhow::{anyhow, Result};
 use crab::compile::llvmgen::Codegen;
 use crab::parse::parse;
+use glob::glob;
 use inkwell::context::Context;
-use log::{debug, error, info, LevelFilter, warn};
+use log::{debug, error, info, warn, LevelFilter};
 use simple_logger::SimpleLogger;
 use std::path::PathBuf;
 use std::process::exit;
-use glob::glob;
 use structopt::StructOpt;
 
 /// A basic example
@@ -34,10 +34,13 @@ fn get_crabfiles(paths: Vec<PathBuf>) -> Vec<PathBuf> {
         if path.is_file() {
             crabfiles.push(path);
         } else if path.is_dir() {
-            let source_file = path.join(PathBuf::from("src/**/*.crab")).into_os_string().into_string().unwrap();
+            let source_file = path
+                .join(PathBuf::from("src/**/*.crab"))
+                .into_os_string()
+                .into_string()
+                .unwrap();
             debug!("Searching for files in {:#?}", source_file);
-            for crabfile_result in glob(&source_file).expect("Failed to read glob pattern")
-            {
+            for crabfile_result in glob(&source_file).expect("Failed to read glob pattern") {
                 match crabfile_result {
                     Ok(crabfile) => crabfiles.push(crabfile),
                     Err(err) => warn!("Skipping crabfile due to error: {}", err),
@@ -105,6 +108,7 @@ fn _main() -> Result<()> {
     let paths = get_crabfiles(args.paths);
 
     if cfg!(debug_assertions) {
+        #[cfg(debug_assertions)]
         handle_crabfile(&paths, !args.no_verify)?;
     } else {
         handle_crabfile(&paths, false)?;

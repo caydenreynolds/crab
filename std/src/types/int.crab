@@ -1,3 +1,7 @@
+///
+/// This struct represents a 64 bit unsigned integer
+/// Note that the Int type will later be promoted to an interface
+///
 struct Int {
     __uint64__ value
 }

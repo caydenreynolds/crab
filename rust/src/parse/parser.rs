@@ -1,10 +1,10 @@
 use crate::parse::ast::CrabAst;
 use crate::parse::{ParseError, Result};
+use log::debug;
 use pest::Parser;
 use std::convert::TryFrom;
 use std::fs;
 use std::path::{Path, PathBuf};
-use log::debug;
 
 #[derive(pest_derive::Parser)]
 #[grammar = "parse/grammar.pest"]

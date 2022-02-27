@@ -1,3 +1,12 @@
+///
+/// Interface for things that can be formatted for printing
+///
 interface Printable {
+    ///
+    /// Returns this object formatted into a String
+    ///
+    /// Returns:
+    /// This object formatted into a String
+    ///
     fn toString() -> String
 }

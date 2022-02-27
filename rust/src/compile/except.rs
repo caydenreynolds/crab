@@ -17,8 +17,17 @@ pub enum CompileError {
     #[error("Function {0} requires {1} positional arguments, but {2} were supplied")]
     PositionalArgumentCount(Ident, usize, usize),
 
-    #[error("Function {0} does not have a named argument with name {1}")]
-    InvalidNamedArgument(Ident, Ident),
+    #[error("Function {0} argument {1} expects type {2}, instead got {3}")]
+    ArgumentType(Ident, Ident, CrabType, CrabType),
+
+    #[error("Could not get a value as a struct type")]
+    NotAStruct,
+
+    #[error("Could not get a value as an interface type")]
+    NotAnInterface,
+
+    #[error("Function {0} received an invalid named argument")]
+    InvalidNamedArgument(Ident),
 
     #[error(
         "Cannot assign variable with name {0}, because a variable with that name already exists"
@@ -49,8 +58,17 @@ pub enum CompileError {
     #[error("Function {0} is declared multiple times")]
     FunctionRedefinition(Ident),
 
+    #[error("Interface {0} is declared multiple times")]
+    InterfaceRedefinition(Ident),
+
     #[error("Struct with name {0} does not exist")]
     StructDoesNotExist(Ident),
+
+    #[error("Interface with name {0} does not exist")]
+    InterfaceDoesNotExist(Ident),
+
+    #[error("Type with name {0} does not exist")]
+    TypeDoesNotExist(Ident),
 
     #[error("Failed to pop a value off of stack {0} because it is empty")]
     EmptyStack(String),
@@ -71,4 +89,7 @@ pub enum CompileError {
         "Tried to perform a GEP on a type that is not a struct or with an invalid index, at {0}"
     )]
     Gep(String),
+
+    #[error("No main function found")]
+    NoMain,
 }

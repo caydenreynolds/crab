@@ -1,11 +1,10 @@
 use crate::compile::llvmgen::crab_value_type::CrabValueType;
-use crate::compile::llvmgen::{FnManager, StructManager, VarManager};
-use crate::compile::{CompileError, Result};
+use crate::compile::llvmgen::{FnManager, VarManager};
+use crate::compile::{CompileError, ManagedType, Result, TypeManager};
 use crate::parse::ast::{
     Assignment, CodeBlock, CrabType, DoWhileStmt, ElseStmt, Expression, ExpressionChain,
     ExpressionChainType, FnCall, FnParam, IfStmt, Primitive, Statement, StructInit, WhileStmt,
 };
-use crate::parse::mangle_function_name;
 use inkwell::basic_block::BasicBlock;
 use inkwell::builder::Builder;
 use inkwell::context::Context;
@@ -14,12 +13,12 @@ use inkwell::values::FunctionValue;
 use log::trace;
 use std::collections::HashMap;
 
-pub struct Functiongen<'a, 'ctx> {
+pub struct Functiongen<'a, 'b, 'ctx> {
     builder: Builder<'ctx>,
     context: &'ctx Context,
     module: &'a Module<'ctx>,
-    fns: FnManager,
-    structs: StructManager,
+    fns: &'b mut FnManager<'a, 'ctx>,
+    structs: TypeManager,
     variables: VarManager<'ctx>,
     else_stack: Vec<BasicBlock<'ctx>>,
     always_stack: Vec<BasicBlock<'ctx>>,
@@ -28,15 +27,15 @@ pub struct Functiongen<'a, 'ctx> {
     codeblock_returns: bool,
 }
 
-impl<'a, 'ctx> Functiongen<'a, 'ctx> {
+impl<'a, 'b, 'ctx> Functiongen<'a, 'b, 'ctx> {
     pub fn new(
         name: &str,
         context: &'ctx Context,
         module: &'a Module<'ctx>,
-        fns: FnManager,
-        structs: StructManager,
+        fns: &'b mut FnManager<'a, 'ctx>,
+        structs: TypeManager,
         args: &[FnParam],
-    ) -> Result<Functiongen<'a, 'ctx>> {
+    ) -> Result<Functiongen<'a, 'b, 'ctx>> {
         trace!("Creating new functiongen for a function with name {}", name);
         let fn_value_opt = module.get_function(name);
         match fn_value_opt {
@@ -187,7 +186,10 @@ impl<'a, 'ctx> Functiongen<'a, 'ctx> {
             Some(prev) => match &ec.this {
                 ExpressionChainType::VARIABLE(id) => {
                     let name = prev.try_get_struct_name()?;
-                    let cs = self.structs.get(&name)?;
+                    let cs = match self.structs.get_type(&name)? {
+                        ManagedType::STRUCT(strct) => strct.clone(),
+                        ManagedType::INTERFACE(_) => return Err(CompileError::NotAStruct),
+                    };
                     let field_index = cs.get_field_index(id)?;
                     let source_ptr = self
                         .builder
@@ -209,7 +211,10 @@ impl<'a, 'ctx> Functiongen<'a, 'ctx> {
     }
 
     fn build_struct_init(&mut self, si: &StructInit) -> Result<CrabValueType<'ctx>> {
-        let crab_struct = self.structs.get(&si.name)?.clone();
+        let crab_struct = match self.structs.get_type(&si.name)? {
+            ManagedType::STRUCT(strct) => strct.clone(),
+            ManagedType::INTERFACE(_) => return Err(CompileError::NotAStruct),
+        };
         let st = self
             .module
             .get_struct_type(&crab_struct.name)
@@ -273,74 +278,43 @@ impl<'a, 'ctx> Functiongen<'a, 'ctx> {
         caller_opt: Option<CrabValueType<'ctx>>,
     ) -> Result<CrabValueType<'ctx>> {
         trace!("Building a call to function {:#?}", call.name);
-        let mangled_name = mangle_function_name(
-            &call.name,
-            caller_opt
-                .clone()
-                .map(|ct| {
-                    ct.try_get_struct_name()
-                        .expect("Method called on a type that is not a struct")
-                })
-                .as_ref(),
-        );
-        let fn_header = self.fns.get(&mangled_name)?.clone();
-
-        let supplied_pos_arg_count = match caller_opt {
-            None => call.unnamed_args.len(),
-            Some(_) => call.unnamed_args.len() + 1,
-        };
-
-        // Check to make sure we have exactly the arguments we expect
-        if supplied_pos_arg_count != fn_header.unnamed_params.len() {
-            return Err(CompileError::PositionalArgumentCount(
-                fn_header.name.clone(),
-                fn_header.unnamed_params.len(),
-                call.unnamed_args.len(),
-            ));
-        }
-        for named_expr in &call.named_args {
-            if !fn_header
-                .named_params
-                .iter()
-                .any(|param| param.name == named_expr.name)
-            {
-                return Err(CompileError::InvalidNamedArgument(
-                    fn_header.name.clone(),
-                    named_expr.name.clone(),
-                ));
-            }
-        }
-
-        let mut args = vec![];
-
-        // Add 'self' if this is a method call
-        if let Some(caller) = caller_opt {
-            args.push(caller.try_as_basic_metadata_value()?);
-        }
 
         // Handle all of the positional arguments
+        let mut unnamed_args = vec![];
+        // Add 'self' if this is a method call
+        if let Some(caller) = caller_opt.clone() {
+            unnamed_args.push(caller);
+        }
         for arg in &call.unnamed_args {
-            args.push(self.build_expression(arg)?.try_as_basic_metadata_value()?);
+            unnamed_args.push(self.build_expression(arg)?);
         }
 
         // Handle all of the optional arguments
-        for named_param in fn_header.named_params {
-            let mut arg_found = false;
-            for named_arg in &call.named_args {
-                if named_param.name == named_arg.name {
-                    arg_found = true;
-                    args.push(
-                        self.build_expression(&named_arg.expr)?
-                            .try_as_basic_metadata_value()?,
-                    );
-                }
-            }
+        let mut named_args = HashMap::new();
+        for named_arg in &call.named_args {
+            named_args.insert(
+                named_arg.name.clone(),
+                self.build_expression(&named_arg.expr)?,
+            );
+        }
 
-            if !arg_found {
-                args.push(
+        let fn_header = self
+            .fns
+            .get_signature(call.clone(), caller_opt, &unnamed_args, &named_args)?
+            .clone();
+
+        // Build the args array
+        let mut args = vec![];
+        for arg in unnamed_args {
+            args.push(arg.try_as_basic_metadata_value()?);
+        }
+        for named_param in fn_header.named_params {
+            match named_args.get(&named_param.name) {
+                Some(arg) => args.push(arg.try_as_basic_metadata_value()?),
+                None => args.push(
                     self.build_expression(&named_param.expr)?
                         .try_as_basic_metadata_value()?,
-                );
+                ),
             }
         }
 

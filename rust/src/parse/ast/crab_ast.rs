@@ -1,6 +1,7 @@
 use crate::parse::ast::{AstNode, CrabInterface, Func, Ident, Struct, StructImpl, StructIntr};
 use crate::parse::{ParseError, Result, Rule};
 use crate::try_from_pair;
+use crate::util::main_func_name;
 use pest::iterators::Pair;
 use std::collections::HashMap;
 use std::convert::TryFrom;
@@ -10,9 +11,10 @@ pub struct CrabAst {
     pub functions: Vec<Func>,
     pub structs: Vec<Struct>,
     pub interfaces: HashMap<Ident, CrabInterface>,
+    pub main: Option<Func>,
+    pub intrs: Vec<StructIntr>,
 
     impls: Vec<StructImpl>,
-    intrs: Vec<StructIntr>,
 }
 
 try_from_pair!(CrabAst, Rule::program);
@@ -24,10 +26,17 @@ impl AstNode for CrabAst {
         let mut impls = vec![];
         let mut interfaces = HashMap::new();
         let mut intrs = vec![];
+        let mut main = None;
 
         for in_pair in inner {
             match in_pair.clone().as_rule() {
-                Rule::function => functions.push(Func::try_from(in_pair)?.with_mangled_name()),
+                Rule::function => {
+                    let func = Func::try_from(in_pair)?.with_mangled_name();
+                    if func.signature.name == main_func_name() {
+                        main = Some(func.clone());
+                    }
+                    functions.push(func);
+                }
                 Rule::crab_struct => structs.push(Struct::try_from(in_pair)?),
                 Rule::impl_block => impls.push(StructImpl::try_from(in_pair)?),
                 Rule::interface => {
@@ -52,17 +61,39 @@ impl AstNode for CrabAst {
             interfaces,
             intrs,
             impls,
+            main,
         })
     }
 }
 impl CrabAst {
     pub fn join(self, other: Self) -> Self {
         Self {
-            impls: self.impls.into_iter().chain(other.impls.into_iter()).collect(),
-            functions: self.functions.into_iter().chain(other.functions.into_iter()).collect(),
-            structs: self.structs.into_iter().chain(other.structs.into_iter()).collect(),
-            interfaces: self.interfaces.into_iter().chain(other.interfaces.into_iter()).collect(),
-            intrs: self.intrs.into_iter().chain(other.intrs.into_iter()).collect(),
+            impls: self
+                .impls
+                .into_iter()
+                .chain(other.impls.into_iter())
+                .collect(),
+            functions: self
+                .functions
+                .into_iter()
+                .chain(other.functions.into_iter())
+                .collect(),
+            structs: self
+                .structs
+                .into_iter()
+                .chain(other.structs.into_iter())
+                .collect(),
+            interfaces: self
+                .interfaces
+                .into_iter()
+                .chain(other.interfaces.into_iter())
+                .collect(),
+            intrs: self
+                .intrs
+                .into_iter()
+                .chain(other.intrs.into_iter())
+                .collect(),
+            main: self.main.or(other.main),
         }
     }
     pub fn verify(&self) -> Result<()> {
