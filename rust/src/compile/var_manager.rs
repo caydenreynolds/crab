@@ -1,5 +1,4 @@
-use crate::compile::llvmgen::CrabValueType;
-use crate::compile::{CompileError, Result};
+use crate::compile::{CompileError, CrabValueType, Result};
 use crate::parse::ast::Ident;
 use std::collections::HashMap;
 

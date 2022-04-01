@@ -1,5 +1,4 @@
-use crate::compile::llvmgen::{add_builtins, add_main_func, FnManager, Functiongen};
-use crate::compile::{CompileError, Result, TypeManager};
+use crate::compile::{add_builtins, add_main_func, CompileError, FnManager, Functiongen, Result, TypeManager};
 use crate::parse::ast::{CrabAst, CrabInterface, Func, Struct};
 use inkwell::context::Context;
 use inkwell::module::Module;
@@ -57,26 +56,6 @@ impl<'a, 'ctx> Codegen<'a, 'ctx> {
     pub fn print_to_file(&self, path: PathBuf) -> std::result::Result<(), LLVMString> {
         self.module.print_to_file(path)
     }
-
-    // // //TODO: The linkage, mason! What does it mean?
-    // pub fn register_function(
-    //     &mut self,
-    //     func: FuncSignature,
-    //     variadic: bool,
-    //     linkage: Option<Linkage>,
-    // ) -> Result<()> {
-    //     let params = func.get_params();
-    //     trace!(
-    //         "Registering new function with name {} and {} args",
-    //         func.name,
-    //         params.len()
-    //     );
-    //     let fn_type =
-    //         func.return_type
-    //             .try_as_fn_type(self.context, self.module, &params, variadic)?;
-    //     let _fn_value = self.module.add_function(&func.name, fn_type, linkage);
-    //     Ok(())
-    // }
 
     pub fn get_context(&self) -> &Context {
         self.context

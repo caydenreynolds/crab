@@ -1,5 +1,4 @@
 use anyhow::{anyhow, Result};
-use crab::compile::llvmgen::Codegen;
 use crab::parse::parse;
 use glob::glob;
 use inkwell::context::Context;
@@ -8,6 +7,7 @@ use simple_logger::SimpleLogger;
 use std::path::PathBuf;
 use std::process::exit;
 use structopt::StructOpt;
+use crab::compile::Codegen;
 
 /// A basic example
 #[derive(StructOpt, Debug)]

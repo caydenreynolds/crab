@@ -1,5 +1,4 @@
-use crate::compile::llvmgen::CrabValueType;
-use crate::compile::{CompileError, ManagedType, Result, TypeManager};
+use crate::compile::{CompileError, CrabValueType, ManagedType, Result, TypeManager};
 use crate::parse::ast::{CodeBlock, CrabType, FnCall, FnParam, Func, FuncSignature, Ident};
 use crate::util::{add_param_mangles, main_func_name, mangle_function_name};
 use inkwell::context::Context;
@@ -7,7 +6,6 @@ use inkwell::module::{Linkage, Module};
 use log::trace;
 use std::collections::{HashMap, HashSet};
 
-// #[derive(Debug, Clone, Default)]
 #[derive(Debug, Clone)]
 pub struct FnManager<'a, 'ctx> {
     /// All fns that have been defined in the source code

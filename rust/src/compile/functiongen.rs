@@ -1,6 +1,5 @@
-use crate::compile::llvmgen::crab_value_type::CrabValueType;
-use crate::compile::llvmgen::{FnManager, VarManager};
-use crate::compile::{CompileError, ManagedType, Result, TypeManager};
+use crate::compile::crab_value_type::CrabValueType;
+use crate::compile::{CompileError, FnManager, ManagedType, Result, TypeManager, VarManager};
 use crate::parse::ast::{
     Assignment, CodeBlock, CrabType, DoWhileStmt, ElseStmt, Expression, ExpressionChain,
     ExpressionChainType, FnCall, FnParam, IfStmt, Primitive, Statement, StructInit, WhileStmt,

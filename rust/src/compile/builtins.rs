@@ -1,5 +1,4 @@
-use crate::compile::llvmgen::{Codegen, CrabValueType, FnManager};
-use crate::compile::{CompileError, Result};
+use crate::compile::{Codegen, CompileError, CrabValueType, FnManager, Result};
 use crate::parse::ast::{CrabType, FnParam, FuncSignature, Ident};
 use crate::util::{
     add_int_name, format_i_c_name, format_i_name, int_struct_name, main_func_name,
