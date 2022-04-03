@@ -7,7 +7,6 @@ use crate::util::{
 use inkwell::builder::Builder;
 use inkwell::module::Linkage;
 use inkwell::values::{BasicMetadataValueEnum, FunctionValue};
-use inkwell::AddressSpace;
 
 pub fn add_builtins(codegen: &mut Codegen, fns: &mut FnManager) -> Result<()> {
     printf_c(codegen, fns)?;
@@ -69,19 +68,34 @@ fn new_str(codegen: &mut Codegen, fns: &mut FnManager) -> Result<()> {
 
     let (fn_value, builder) = begin_func(codegen, &signature)?;
 
-    let strct = builder.build_alloca(
-        codegen
-            .get_module()
-            .get_struct_type(&string_type_name())
-            .unwrap(),
-        "strct",
-    );
-    let buf = builder
-        .build_struct_gep(strct, 0, "buf")
-        .or(Err(CompileError::Gep(String::from("builtins::new_str"))))?;
+    // Get the values of the function parameters
     let src = fn_value.get_nth_param(0).unwrap().into_pointer_value();
     let len = fn_value.get_nth_param(1).unwrap().into_int_value();
+
+    //TODO: free
+    let strct = builder
+        .build_malloc(
+            codegen
+                .get_module()
+                .get_struct_type(&string_type_name())
+                .unwrap(),
+            "strct",
+        )
+        .or(Err(CompileError::MallocErr(String::from(
+            "builtins::new_str",
+        ))))?;
+    //TODO: free
+    let buf = builder
+        .build_array_malloc(codegen.get_context().i8_type(), len, "buf")
+        .or(Err(CompileError::MallocErr(String::from(
+            "builtins::new_str",
+        ))))?;
+    let dest_ptr = builder
+        .build_struct_gep(strct, 0, "buf_ptr")
+        .or(Err(CompileError::Gep(String::from("builtins::new_str"))))?;
+
     builder.build_memcpy(buf, 1, src, 1, len).unwrap();
+    builder.build_store(dest_ptr, buf);
     builder.build_return(Some(&strct));
 
     Ok(())
@@ -124,14 +138,7 @@ fn printf_crab(codegen: &mut Codegen, fns: &mut FnManager) -> Result<()> {
         .or(Err(CompileError::Gep(String::from(
             "builtins::printf_crab",
         ))))?;
-    let buf_ptr = builder.build_bitcast(
-        buf,
-        codegen
-            .get_context()
-            .i8_type()
-            .ptr_type(AddressSpace::Generic),
-        "buf_ptr",
-    );
+    let buf_ptr = builder.build_load(buf, "buf_ptr");
     let args = [BasicMetadataValueEnum::from(buf_ptr)];
     builder.build_call(printf_c_fn_value, &args, "call");
     builder.build_return(None);
@@ -177,32 +184,59 @@ fn format_i(codegen: &mut Codegen, fns: &mut FnManager) -> Result<()> {
         .unwrap();
     let (fn_value, builder) = begin_func(codegen, &signature)?;
 
-    let str = builder.build_alloca(
-        codegen
-            .get_module()
-            .get_struct_type(&string_type_name())
-            .unwrap(),
-        "str",
-    );
+    // let str = builder.build_alloca(
+    //     codegen
+    //         .get_module()
+    //         .get_struct_type(&string_type_name())
+    //         .unwrap(),
+    //     "str",
+    // );
+
+    //TODO: free
+    let strct = builder
+        .build_malloc(
+            codegen
+                .get_module()
+                .get_struct_type(&string_type_name())
+                .unwrap(),
+            "strct",
+        )
+        .or(Err(CompileError::MallocErr(String::from(
+            "builtins::new_str",
+        ))))?;
+    //TODO: An arbitrary len was chosen here
+    let len = codegen.get_context().i32_type().const_int(50, false);
+    //TODO: free
     let buf = builder
-        .build_struct_gep(str, 0, "buf")
-        .or(Err(CompileError::Gep(String::from("builtins::format_i"))))?;
-    let buf_ptr = builder.build_bitcast(
-        buf,
-        codegen
-            .get_context()
-            .i8_type()
-            .ptr_type(AddressSpace::Generic),
-        "buf_ptr",
-    );
+        .build_array_malloc(codegen.get_context().i8_type(), len, "buf")
+        .or(Err(CompileError::MallocErr(String::from(
+            "builtins::new_str",
+        ))))?;
+    let dest_ptr = builder
+        .build_struct_gep(strct, 0, "buf_ptr")
+        .or(Err(CompileError::Gep(String::from("builtins::new_str"))))?;
+    builder.build_store(dest_ptr, buf);
+
+    // let buf = builder.build_malloc(codegen.get_context().i8_type(), )
+    // let buf = builder
+    //     .build_struct_gep(str, 0, "buf")
+    //     .or(Err(CompileError::Gep(String::from("builtins::format_i"))))?;
+    // let buf_ptr = builder.build_bitcast(
+    //     buf,
+    //     codegen
+    //         .get_context()
+    //         .i8_type()
+    //         .ptr_type(AddressSpace::Generic),
+    //     "buf_ptr",
+    // );
     let int = fn_value.get_nth_param(0).unwrap().into_int_value();
     let args = [
-        BasicMetadataValueEnum::from(buf_ptr),
+        BasicMetadataValueEnum::from(buf),
         BasicMetadataValueEnum::from(int),
     ];
 
     builder.build_call(format_i_c_value, &args, "call");
-    builder.build_return(Some(&str));
+    builder.build_return(Some(&strct));
 
     Ok(())
 }

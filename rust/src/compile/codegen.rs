@@ -1,4 +1,6 @@
-use crate::compile::{add_builtins, add_main_func, CompileError, FnManager, Functiongen, Result, TypeManager};
+use crate::compile::{
+    add_builtins, add_main_func, CompileError, FnManager, Functiongen, Result, TypeManager,
+};
 use crate::parse::ast::{CrabAst, CrabInterface, Func, Struct};
 use inkwell::context::Context;
 use inkwell::module::Module;

@@ -145,39 +145,25 @@ impl<'a, 'ctx> FnManager<'a, 'ctx> {
             // )
             .filter(|param| match &param.crab_type {
                 CrabType::STRUCT(id) => {
-                    // Have to unwrap here, because rust doesn't let me return an error from filter
+                    // Have to unwrap here, because there doesn't seem to be a try_filter
                     let ty = self.types.get_type(id).unwrap();
                     matches!(ty, ManagedType::INTERFACE(_))
                 }
-                CrabType::STRUCT_ARRAY(id, _) => {
-                    // Have to unwrap here, because rust doesn't let me return an error from filter
-                    let ty = self.types.get_type(id).unwrap();
-                    matches!(ty, ManagedType::INTERFACE(_))
+                CrabType::LIST(l) => {
+                    if let CrabType::STRUCT(id) = l.as_ref() {
+                        // Have to unwrap here, because there doesn't seem to be a try_filter
+                        let ty = self.types.get_type(id).unwrap();
+                        matches!(ty, ManagedType::INTERFACE(_))
+                    } else {
+                        false
+                    }
                 }
                 _ => false,
             })
-            .map(|param| match &param.crab_type {
-                CrabType::STRUCT(id) => {
-                    let ty = self.types.get_type(id).unwrap();
-                    if let ManagedType::INTERFACE(_) = ty {
-                        param
-                            .clone()
-                            .with_type(param_type_map.get(&param.name).unwrap().clone())
-                    } else {
-                        unreachable!()
-                    }
-                }
-                CrabType::STRUCT_ARRAY(id, _) => {
-                    let ty = self.types.get_type(id).unwrap();
-                    if let ManagedType::INTERFACE(_) = ty {
-                        param
-                            .clone()
-                            .with_type(param_type_map.get(&param.name).unwrap().clone())
-                    } else {
-                        unreachable!()
-                    }
-                }
-                _ => unreachable!(),
+            .map(|param| {
+                param
+                    .clone()
+                    .with_type(param_type_map.get(&param.name).unwrap().clone())
             })
             .collect();
         let fully_mangled_name = add_param_mangles(&mangled_name, &interface_params);

@@ -4,7 +4,7 @@ use crate::parse::{ParseError, Rule};
 use crate::{compile, parse, try_from_pair};
 use inkwell::context::Context;
 use inkwell::module::Module;
-use inkwell::types::{AnyTypeEnum, BasicMetadataTypeEnum, BasicTypeEnum, FunctionType};
+use inkwell::types::{AnyTypeEnum, BasicMetadataTypeEnum, BasicType, BasicTypeEnum, FunctionType};
 use inkwell::AddressSpace;
 use log::trace;
 use pest::iterators::Pair;
@@ -21,8 +21,7 @@ pub enum CrabType {
     FLOAT,
     BOOL,
     STRUCT(Ident), // TODO: Struct currently encompasses both structs and interfaces
-    UINT8_ARRAY(u32),
-    STRUCT_ARRAY(Ident, u32),
+    LIST(Box<CrabType>),
 }
 
 try_from_pair!(CrabType, Rule::crab_type);
@@ -31,36 +30,18 @@ impl AstNode for CrabType {
     where
         Self: Sized,
     {
-        let mut inner = pair.into_inner();
-        match inner.clone().count() {
-            1 => {
-                let ct = inner.next().ok_or(ParseError::ExpectedInner)?;
-                match ct.as_str() {
-                    "__uint64__" => Ok(Self::UINT64),
-                    "__uint8__" => Ok(Self::UINT8),
-                    "__string__" => Ok(Self::STRING),
-                    "Float" => Ok(Self::FLOAT),
-                    "Bool" => Ok(Self::BOOL),
-                    s => Ok(Self::STRUCT(Ident::from(s))),
-                }
-            }
-            2 => {
-                let ct = inner.next().ok_or(ParseError::ExpectedInner)?;
-                let array_len_pair = inner.next().ok_or(ParseError::ExpectedInner)?;
-                let array_len = array_len_pair.as_str().parse()?;
-
-                match ct.as_str() {
-                    "__uint8__" => Ok(Self::UINT8_ARRAY(array_len)),
-                    "__uint64__" => Err(ParseError::InvalidCrabType(String::from(
-                        "__uint64__ array",
-                    ))),
-                    "Float" => Err(ParseError::InvalidCrabType(String::from("Float array"))),
-                    "Bool" => Err(ParseError::InvalidCrabType(String::from("Bool array"))),
-                    "Void" => Err(ParseError::InvalidCrabType(String::from("Void array"))),
-                    s => Ok(Self::STRUCT_ARRAY(Ident::from(s), array_len)),
-                }
-            }
-            _ => unreachable!(),
+        let next = pair.into_inner().next().ok_or(ParseError::ExpectedInner)?;
+        match next.clone().as_rule() {
+            Rule::type_name => match next.as_str() {
+                "__uint64__" => Ok(Self::UINT64),
+                "__uint8__" => Ok(Self::UINT8),
+                "__string__" => Ok(Self::STRING),
+                "Float" => Ok(Self::FLOAT),
+                "Bool" => Ok(Self::BOOL),
+                s => Ok(Self::STRUCT(Ident::from(s))),
+            },
+            Rule::crab_type => Ok(Self::LIST(Box::new(CrabType::try_from(next)?))),
+            _ => Err(ParseError::NoMatch(String::from("CrabType::from_pair"))),
         }
     }
 }
@@ -87,15 +68,9 @@ impl<'a, 'ctx> CrabType {
                     .ok_or(CompileError::StructDoesNotExist(id.clone()))?
                     .ptr_type(AddressSpace::Generic),
             )),
-            Self::UINT8_ARRAY(len) => {
-                Ok(AnyTypeEnum::ArrayType(context.i8_type().array_type(*len)))
-            }
-            Self::STRUCT_ARRAY(id, len) => Ok(AnyTypeEnum::ArrayType(
-                module
-                    .get_struct_type(id)
-                    .ok_or(CompileError::StructDoesNotExist(id.clone()))?
-                    .ptr_type(AddressSpace::Generic)
-                    .array_type(*len),
+            Self::LIST(l) => Ok(AnyTypeEnum::PointerType(
+                l.try_as_basic_type(context, module)?
+                    .ptr_type(AddressSpace::Generic),
             )),
         };
     }
@@ -123,15 +98,9 @@ impl<'a, 'ctx> CrabType {
             Self::VOID => Err(CompileError::InvalidArgType(String::from(stringify!(
                 CrabType::Void
             )))),
-            Self::UINT8_ARRAY(len) => {
-                Ok(BasicTypeEnum::ArrayType(context.i8_type().array_type(*len)))
-            }
-            Self::STRUCT_ARRAY(id, len) => Ok(BasicTypeEnum::ArrayType(
-                module
-                    .get_struct_type(id)
-                    .ok_or(CompileError::StructDoesNotExist(id.clone()))?
-                    .ptr_type(AddressSpace::Generic)
-                    .array_type(*len),
+            Self::LIST(l) => Ok(BasicTypeEnum::PointerType(
+                l.try_as_basic_type(context, module)?
+                    .ptr_type(AddressSpace::Generic),
             )),
         };
     }
@@ -179,15 +148,9 @@ impl<'a, 'ctx> CrabType {
                 .ptr_type(AddressSpace::Generic)
                 .fn_type(param_types, variadic)),
             Self::VOID => Ok(context.void_type().fn_type(param_types, variadic)),
-            Self::UINT8_ARRAY(len) => Ok(context
-                .i8_type()
-                .array_type(*len)
-                .fn_type(param_types, variadic)),
-            Self::STRUCT_ARRAY(id, len) => Ok(module
-                .get_struct_type(id)
-                .ok_or(CompileError::StructDoesNotExist(id.clone()))?
+            Self::LIST(l) => Ok(l
+                .try_as_basic_type(context, module)?
                 .ptr_type(AddressSpace::Generic)
-                .array_type(*len)
                 .fn_type(param_types, variadic)),
         };
     }
@@ -210,8 +173,7 @@ impl Display for CrabType {
             CrabType::FLOAT => write!(f, "FLOAT"),
             CrabType::BOOL => write!(f, "BOOL"),
             CrabType::STRUCT(n) => write!(f, "{}", n),
-            CrabType::UINT8_ARRAY(l) => write!(f, "UINT8_{}", l),
-            CrabType::STRUCT_ARRAY(n, l) => write!(f, "{}_{}", n, l),
+            CrabType::LIST(l) => write!(f, "LIST_{}", l),
         }?;
 
         Ok(())

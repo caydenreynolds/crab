@@ -1,10 +1,9 @@
 ///
 /// This struct represents a String type
-/// Right now, a string is represented as an array of 1024 characters
 /// Note that the String type will later be promoted to an interface
 ///
 struct String {
-    __uint8__[1024] value
+    [__uint8__] value,
 }
 
 intr String {
@@ -13,6 +12,6 @@ intr String {
 
 impl String {
     fn toString() -> String {
-        return String { value = self.value }
+        return self
     }
 }

@@ -16,6 +16,7 @@ llc \
 
 clang \
   -v \
+  -fuse-ld=lld-link \
   -L ../c/target/ \
   -l crabcbuiltins \
   -o target/out.exe \

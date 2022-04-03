@@ -1,4 +1,5 @@
 use crate::compile::crab_value_type::CrabValueType;
+use crate::compile::CompileError::MallocErr;
 use crate::compile::{CompileError, FnManager, ManagedType, Result, TypeManager, VarManager};
 use crate::parse::ast::{
     Assignment, CodeBlock, CrabType, DoWhileStmt, ElseStmt, Expression, ExpressionChain,
@@ -246,7 +247,11 @@ impl<'a, 'b, 'ctx> Functiongen<'a, 'b, 'ctx> {
             )?);
         }
 
-        let new_struct_ptr = self.builder.build_alloca(st, "struct_init");
+        //TODO: free
+        let new_struct_ptr = self
+            .builder
+            .build_malloc(st, "struct_init")
+            .or(Err(MallocErr(String::from("Funcgen::build_struct_init"))))?;
 
         for i in 0..init_field_list.len() {
             let init_field = init_field_list.get(i).unwrap();
