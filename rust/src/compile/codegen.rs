@@ -77,8 +77,8 @@ impl<'a, 'ctx> Codegen<'a, 'ctx> {
             self.types.clone(),
             &params,
         )?;
-        fg.build_codeblock(&func.body)?;
-        return if fg.returns() {
+        let returns = fg.build_codeblock(&func.body)?;
+        return if returns {
             Ok(())
         } else {
             Err(CompileError::NoReturn(func.signature.name.clone()))

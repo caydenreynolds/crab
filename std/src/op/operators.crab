@@ -1,0 +1,40 @@
+///
+/// Implementing this interface for your type allows you to use the '+' operator
+///
+interface Addable {}
+
+///
+/// Implementing this interface for your type allows you to use the '-' operator
+///
+interface Subtractable {}
+
+///
+/// Implementing this interface for your type allows you to use the '*' operator
+///
+interface Multiplicable {}
+
+///
+/// Implementing this interface for your type allows you to use the '/' operator
+///
+interface Divisible {}
+
+///
+/// Implementing this interface for your type allows you to use the '<<' operator
+///
+interface Lshable {}
+
+///
+/// Implementing this interface for your type allows you to use the '>>' operator
+///
+interface Rshable {}
+
+///
+/// Implementing this interface for your type allows you to use the '==' operator
+///
+interface Equable {}
+
+///
+/// Implementing this interface for your type allows you to use the '<', "<=", ">", ">=" and '==' operators
+/// Implementing comparable implies you have implemented Equable
+///
+interface Comparable {}

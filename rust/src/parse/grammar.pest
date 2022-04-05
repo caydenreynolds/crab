@@ -31,11 +31,11 @@ fn_param = { crab_type ~ ident }
 fn_params = _{ (named_fn_param | fn_param) ~ ("," ~ (named_fn_param | fn_param))* }
 
 code_block = { "{" ~ statement* ~ "}" }
-expression = { primitive | struct_init | expression_chain }
-expression_chain = { (fn_call | ident) ~ ("." ~ (fn_call | ident))* }
+expression = { ( primitive | struct_init | fn_call | ident ) ~ ("." ~ (fn_call | ident))* ~ (operator ~ expression)? }
+operator = { "+" | "-" | "*" | "/" | "<<" | ">>" | "==" | "<" | ">" | "<=" | ">=" }
 
 // TODO: Using an expression chain here is too permissive -- Simply accessing a struct's field as a statement makes no sense
-statement = { (return_stmt | assignment | reassignment | expression_chain | if_stmt | while_stmt | do_while_stmt ) }
+statement = { ( return_stmt | assignment | reassignment | if_stmt | while_stmt | do_while_stmt | expression ) }
 assignment = { "let" ~ ident ~ "=" ~ expression }
 reassignment = { ident ~ "=" ~ expression }
 return_stmt = { "return" ~ expression? }
@@ -45,8 +45,6 @@ else_stmt = { "else" ~ (if_stmt | code_block) }
 
 while_stmt = { "while" ~ expression ~ code_block }
 do_while_stmt = { "do" ~ code_block ~ "while" ~ expression }
-// TODO: After iterators
-// for_stmt = { "for" ~ ident ~ "in" ~ expression ~ code_block }
 
 primitive = { (uint64_primitive | string_primitive | bool_primitive) }
 uint64_primitive = @{ ASCII_DIGIT+ }

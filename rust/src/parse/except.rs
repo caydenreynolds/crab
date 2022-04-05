@@ -51,6 +51,9 @@ pub enum ParseError {
     #[error("The interface {0} does not exist")]
     InterfaceNotFound(Ident),
 
+    #[error("Tried to create an ExpressionChain from a primitive")]
+    UnexpectedPrim,
+
     #[error(transparent)]
     Io(#[from] std::io::Error),
 

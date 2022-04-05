@@ -9,7 +9,6 @@ use std::path::PathBuf;
 use std::process::exit;
 use structopt::StructOpt;
 
-/// A basic example
 #[derive(StructOpt, Debug)]
 #[structopt(name = "blue")]
 struct Args {
@@ -22,10 +21,19 @@ struct Args {
     #[structopt(short, long, parse(from_occurrences))]
     verbose: u8,
 
+    // Use debug_assertions to tell whether this is a debug or release build
+    // If it is a debug build, add a flag to disable the verify step
     /// Skip verifying the emitted ir
     #[cfg(debug_assertions)]
     #[structopt(short, long)]
     no_verify: bool,
+
+    // Use debug_assertions to tell whether this is a debug or release build
+    // If it is a release build, add a flag to enable the verify step
+    /// Verify the emitted ir
+    #[cfg(not(debug_assertions))]
+    #[structopt(long)]
+    verify: bool,
 }
 
 fn get_crabfiles(paths: Vec<PathBuf>) -> Vec<PathBuf> {
@@ -66,7 +74,6 @@ fn handle_crabfile(crabfiles: &[PathBuf], verify: bool) -> Result<()> {
     let mut codegen = Codegen::new(&context, &module);
     codegen.compile(parse_result)?;
 
-    #[cfg(debug_assertions)]
     if verify {
         debug!("Verifying generated IR");
         // Use unwrap because of weird thread-safety compiler checks
@@ -107,12 +114,15 @@ fn _main() -> Result<()> {
 
     let paths = get_crabfiles(args.paths);
 
-    if cfg!(debug_assertions) {
-        #[cfg(debug_assertions)]
-        handle_crabfile(&paths, !args.no_verify)?;
-    } else {
-        handle_crabfile(&paths, false)?;
-    }
+    // Use debug_assertions to tell whether this is a debug or release build
+    // If it is a debug build, enable verify by default, but override with the no_verify flag
+    // If iti s a release build, disable verify by default, but override with the verify flag
+    #[cfg(debug_assertions)]
+    let verify = !args.no_verify;
+    #[cfg(not(debug_assertions))]
+    let verify = args.verify;
+
+    handle_crabfile(&paths, verify)?;
 
     info!("Finished!");
 

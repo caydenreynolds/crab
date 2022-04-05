@@ -1,6 +1,4 @@
-use crate::parse::ast::{
-    Assignment, AstNode, DoWhileStmt, Expression, ExpressionChain, IfStmt, WhileStmt,
-};
+use crate::parse::ast::{Assignment, AstNode, DoWhileStmt, Expression, IfStmt, WhileStmt};
 use crate::parse::{ParseError, Result, Rule};
 use crate::try_from_pair;
 use pest::iterators::Pair;
@@ -12,7 +10,7 @@ pub enum Statement {
     RETURN(Option<Expression>),
     ASSIGNMENT(Assignment),
     REASSIGNMENT(Assignment),
-    EXPRESSION_CHAIN(ExpressionChain),
+    EXPRESSION(Expression),
     IF_STATEMENT(IfStmt),
     WHILE_STATEMENT(WhileStmt),
     DO_WHILE_STATEMENT(DoWhileStmt),
@@ -43,9 +41,7 @@ impl AstNode for Statement {
             }
             Rule::assignment => Ok(Statement::ASSIGNMENT(Assignment::try_from(expr_type)?)),
             Rule::reassignment => Ok(Statement::REASSIGNMENT(Assignment::try_from(expr_type)?)),
-            Rule::expression_chain => Ok(Statement::EXPRESSION_CHAIN(ExpressionChain::try_from(
-                expr_type,
-            )?)),
+            Rule::expression => Ok(Statement::EXPRESSION(Expression::try_from(expr_type)?)),
             Rule::if_stmt => Ok(Statement::IF_STATEMENT(IfStmt::try_from(expr_type)?)),
             Rule::while_stmt => Ok(Statement::WHILE_STATEMENT(WhileStmt::try_from(expr_type)?)),
             Rule::do_while_stmt => Ok(Statement::DO_WHILE_STATEMENT(DoWhileStmt::try_from(

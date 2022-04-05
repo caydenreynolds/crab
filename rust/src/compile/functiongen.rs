@@ -2,8 +2,8 @@ use crate::compile::crab_value_type::CrabValueType;
 use crate::compile::CompileError::MallocErr;
 use crate::compile::{CompileError, FnManager, ManagedType, Result, TypeManager, VarManager};
 use crate::parse::ast::{
-    Assignment, CodeBlock, CrabType, DoWhileStmt, ElseStmt, Expression, ExpressionChain,
-    ExpressionChainType, FnCall, FnParam, IfStmt, Primitive, Statement, StructInit, WhileStmt,
+    Assignment, CodeBlock, CrabType, DoWhileStmt, ElseStmt, Expression, ExpressionType, FnCall,
+    FnParam, IfStmt, Primitive, Statement, StructInit, WhileStmt,
 };
 use inkwell::basic_block::BasicBlock;
 use inkwell::builder::Builder;
@@ -20,11 +20,7 @@ pub struct Functiongen<'a, 'b, 'ctx> {
     fns: &'b mut FnManager<'a, 'ctx>,
     structs: TypeManager,
     variables: VarManager<'ctx>,
-    else_stack: Vec<BasicBlock<'ctx>>,
-    always_stack: Vec<BasicBlock<'ctx>>,
     fn_value: FunctionValue<'ctx>,
-    current_basic_block: BasicBlock<'ctx>,
-    codeblock_returns: bool,
 }
 
 impl<'a, 'b, 'ctx> Functiongen<'a, 'b, 'ctx> {
@@ -51,11 +47,7 @@ impl<'a, 'b, 'ctx> Functiongen<'a, 'b, 'ctx> {
                     variables,
                     fns,
                     structs,
-                    else_stack: vec![],
-                    always_stack: vec![],
                     fn_value,
-                    current_basic_block: basic_block,
-                    codeblock_returns: false,
                 };
 
                 let mut n = 0;
@@ -71,47 +63,80 @@ impl<'a, 'b, 'ctx> Functiongen<'a, 'b, 'ctx> {
         }
     }
 
-    pub fn returns(&self) -> bool {
-        self.codeblock_returns
+    ///
+    /// Build llvm ir for a given codeblock
+    ///
+    /// Params:
+    /// - `cb`: The codeblock to build
+    ///
+    /// Returns:
+    /// True if the built codeblock will always return a value, or false otherwise
+    ///
+    pub fn build_codeblock(&mut self, cb: &CodeBlock) -> Result<bool> {
+        let returns = cb.statements.iter().try_fold(false, |returns, stmt| {
+            if !returns {
+                self.build_statement(stmt)
+            } else {
+                Ok(true)
+            }
+        })?;
+        Ok(returns)
     }
 
-    pub fn build_codeblock(&mut self, cb: &CodeBlock) -> Result<()> {
-        self.codeblock_returns = false;
-        for stmt in &cb.statements {
-            self.build_statement(stmt)?;
-
-            if self.codeblock_returns {
-                break;
+    ///
+    /// Builds llvm ir for a given statement
+    ///
+    /// Params:
+    /// - `stmt`: The statement to build
+    ///
+    /// Returns:
+    /// True if the statement always returns a value, or false otherwise
+    ///
+    fn build_statement(&mut self, stmt: &Statement) -> Result<bool> {
+        return match &stmt {
+            Statement::IF_STATEMENT(is) => self.build_if_stmt(&is),
+            Statement::WHILE_STATEMENT(ws) => self.build_while_stmt(&ws),
+            Statement::DO_WHILE_STATEMENT(dws) => self.build_do_while_stmt(&dws),
+            Statement::EXPRESSION(expr) => {
+                self.build_expression(expr, None)?;
+                Ok(false)
             }
-        }
-        Ok(())
-    }
-
-    fn build_statement(&mut self, stmt: &Statement) -> Result<()> {
-        match &stmt {
-            Statement::IF_STATEMENT(is) => self.build_if_stmt(&is)?,
-            Statement::WHILE_STATEMENT(ws) => self.build_while_stmt(&ws)?,
-            Statement::DO_WHILE_STATEMENT(dws) => self.build_do_while_stmt(&dws)?,
-            Statement::EXPRESSION_CHAIN(ec) => {
-                self.build_expression_chain(ec, None)?;
-            }
-            Statement::ASSIGNMENT(ass) => self.build_assignment(ass)?,
-            Statement::REASSIGNMENT(reass) => self.build_reassignment(reass)?,
-            Statement::RETURN(ret) => self.build_return(ret)?,
+            Statement::ASSIGNMENT(ass) => self.build_assignment(ass),
+            Statement::REASSIGNMENT(reass) => self.build_reassignment(reass),
+            Statement::RETURN(ret) => self.build_return(ret),
         };
-        Ok(())
     }
 
-    fn build_assignment(&mut self, ass: &Assignment) -> Result<()> {
+    ///
+    /// Builds llvm ir for a given assignment statement
+    /// This function always returns false
+    ///
+    /// Params:
+    /// - `ass`: The assignment to build
+    ///
+    /// Returns:
+    /// True if the statement always returns a value, or false otherwise
+    ///
+    fn build_assignment(&mut self, ass: &Assignment) -> Result<bool> {
         trace!("Assigning to a variable with name {:?}", ass.var_name);
-        let bv = self.build_expression(&ass.expr)?;
+        let bv = self.build_expression(&ass.expr, None)?;
         self.variables.assign(ass.var_name.clone(), bv)?;
-        Ok(())
+        Ok(false)
     }
 
-    fn build_reassignment(&mut self, ass: &Assignment) -> Result<()> {
+    ///
+    /// Builds llvm ir for a given reassignment statement
+    /// This function always returns false
+    ///
+    /// Params:
+    /// - `ass`: The assignment to build
+    ///
+    /// Returns:
+    /// True if the statement always returns a value, or false otherwise
+    ///
+    fn build_reassignment(&mut self, ass: &Assignment) -> Result<bool> {
         trace!("Reassigning to a variable with name {:?}", ass.var_name);
-        let bv = self.build_expression(&ass.expr)?;
+        let bv = self.build_expression(&ass.expr, None)?;
         if let CrabType::STRUCT(_) = bv.get_crab_type() {
             let src = self
                 .builder
@@ -121,70 +146,72 @@ impl<'a, 'b, 'ctx> Functiongen<'a, 'b, 'ctx> {
         } else {
             self.variables.reassign(ass.var_name.clone(), bv)?;
         }
-        Ok(())
+        Ok(false)
     }
 
-    fn build_while_stmt(&mut self, ws: &WhileStmt) -> Result<()> {
-        let bv = self.build_expression(&ws.expr)?;
-        self.begin_while(&bv)?;
-        self.build_codeblock(&ws.then)?;
-        let bv = self.build_expression(&ws.expr)?;
-        self.end_while(&bv)?;
-        Ok(())
-    }
+    ///
+    /// Builds llvm ir for a given if statement
+    ///
+    /// Params:
+    /// - `is`: The if statement to build
+    ///
+    /// Returns:
+    /// True if the statement always returns a value, or false otherwise
+    ///
+    fn build_if_stmt(&mut self, is: &IfStmt) -> Result<bool> {
+        // Setup the stuff we need
+        let bv = self.build_expression(&is.expr, None)?;
+        let then_block = self.context.append_basic_block(self.fn_value, "if");
+        let else_block = self.context.append_basic_block(self.fn_value, "else");
+        let always_block = self.context.append_basic_block(self.fn_value, "always");
 
-    fn build_do_while_stmt(&mut self, dws: &DoWhileStmt) -> Result<()> {
-        self.begin_do_while()?;
-        self.build_codeblock(&dws.then)?;
-        let bv = self.build_expression(&dws.expr)?;
-        self.end_while(&bv)?;
-        Ok(())
-    }
-
-    fn build_if_stmt(&mut self, is: &IfStmt) -> Result<()> {
-        let bv = self.build_expression(&is.expr)?;
-        self.begin_if_then(&bv)?;
-        self.build_codeblock(&is.then)?;
-        let mut returns = self.codeblock_returns;
-        self.begin_if_else()?; // Always begin if else -- even if no else block present, we still need a jump instruction
-        if let Some(es) = &is.else_stmt {
-            match es.as_ref() {
-                ElseStmt::ELSE(cb) => self.build_codeblock(cb)?,
-                ElseStmt::ELIF(ifs) => self.build_if_stmt(ifs)?,
-            }
-            returns = returns && self.codeblock_returns;
-        } else {
-            returns = false
+        // The if
+        self.builder
+            .build_conditional_branch(bv.try_as_bool_value()?, then_block, else_block);
+        self.builder.position_at_end(then_block);
+        let if_returns = self.build_codeblock(&is.then)?;
+        if !if_returns {
+            self.builder.build_unconditional_branch(always_block);
         }
-        self.end_if()?;
-        self.codeblock_returns = returns;
-        if returns {
+
+        // The else
+        self.builder.position_at_end(else_block);
+        let else_returns = if let Some(es) = &is.else_stmt {
+            match es.as_ref() {
+                ElseStmt::ELSE(cb) => self.build_codeblock(&cb),
+                ElseStmt::ELIF(ifs) => self.build_if_stmt(&ifs),
+            }?
+        } else {
+            false
+        };
+        if !else_returns {
+            self.builder.build_unconditional_branch(always_block);
+        }
+
+        // The ugly
+        self.builder.position_at_end(always_block);
+        let always_returns = if_returns && else_returns;
+        if always_returns {
             self.build_unreachable()?;
         }
-        Ok(())
+        Ok(always_returns)
     }
 
-    fn build_expression(&mut self, expr: &Expression) -> Result<CrabValueType<'ctx>> {
-        return match expr {
-            Expression::STRUCT_INIT(si) => self.build_struct_init(si),
-            Expression::PRIM(prim) => self.build_primitive(prim),
-            Expression::CHAIN(ec) => self.build_expression_chain(ec, None),
-        };
-    }
-
-    fn build_expression_chain(
+    fn build_expression(
         &mut self,
-        ec: &ExpressionChain,
+        expr: &Expression,
         previous: Option<CrabValueType<'ctx>>,
     ) -> Result<CrabValueType<'ctx>> {
-        trace!("Building expression chain {:?}", ec);
-        let result = match previous {
-            None => match &ec.this {
-                ExpressionChainType::VARIABLE(id) => self.variables.get(id)?,
-                ExpressionChainType::FN_CALL(fc) => self.build_fn_call(fc, None)?,
+        let val = match &expr.this {
+            ExpressionType::STRUCT_INIT(si) => self.build_struct_init(si),
+            ExpressionType::PRIM(prim) => self.build_primitive(prim),
+            ExpressionType::FN_CALL(fc) => match previous {
+                None => self.build_fn_call(fc, None),
+                Some(prev) => self.build_fn_call(fc, Some(prev)),
             },
-            Some(prev) => match &ec.this {
-                ExpressionChainType::VARIABLE(id) => {
+            ExpressionType::VARIABLE(id) => match previous {
+                None => self.variables.get(id),
+                Some(prev) => {
                     let name = prev.try_get_struct_name()?;
                     let cs = match self.structs.get_type(&name)? {
                         ManagedType::STRUCT(strct) => strct.clone(),
@@ -198,15 +225,17 @@ impl<'a, 'b, 'ctx> Functiongen<'a, 'b, 'ctx> {
                             "functiongen::build_expression_chain",
                         ))))?;
                     let val = self.builder.build_load(source_ptr, "dest");
-                    CrabValueType::from_basic_value_enum(val, cs.get_field_crab_type(id)?)
+                    Ok(CrabValueType::from_basic_value_enum(
+                        val,
+                        cs.get_field_crab_type(id)?,
+                    ))
                 }
-                ExpressionChainType::FN_CALL(fc) => self.build_fn_call(fc, Some(prev))?,
             },
-        };
+        }?;
 
-        match &ec.next {
-            None => Ok(result),
-            Some(next) => self.build_expression_chain(next, Some(result)),
+        match &expr.next {
+            None => Ok(val),
+            Some(next) => self.build_expression(next, Some(val)),
         }
     }
 
@@ -230,7 +259,7 @@ impl<'a, 'b, 'ctx> Functiongen<'a, 'b, 'ctx> {
 
         let mut field_vals = HashMap::new();
         for field in &si.fields {
-            let val = self.build_expression(&field.value)?;
+            let val = self.build_expression(&field.value, None)?;
             field_vals.insert(field.name.clone(), val);
         }
 
@@ -290,7 +319,7 @@ impl<'a, 'b, 'ctx> Functiongen<'a, 'b, 'ctx> {
             unnamed_args.push(caller);
         }
         for arg in &call.unnamed_args {
-            unnamed_args.push(self.build_expression(arg)?);
+            unnamed_args.push(self.build_expression(arg, None)?);
         }
 
         // Handle all of the optional arguments
@@ -298,7 +327,7 @@ impl<'a, 'b, 'ctx> Functiongen<'a, 'b, 'ctx> {
         for named_arg in &call.named_args {
             named_args.insert(
                 named_arg.name.clone(),
-                self.build_expression(&named_arg.expr)?,
+                self.build_expression(&named_arg.expr, None)?,
             );
         }
 
@@ -316,7 +345,7 @@ impl<'a, 'b, 'ctx> Functiongen<'a, 'b, 'ctx> {
             match named_args.get(&named_param.name) {
                 Some(arg) => args.push(arg.try_as_basic_metadata_value()?),
                 None => args.push(
-                    self.build_expression(&named_param.expr)?
+                    self.build_expression(&named_param.expr, None)?
                         .try_as_basic_metadata_value()?,
                 ),
             }
@@ -335,20 +364,29 @@ impl<'a, 'b, 'ctx> Functiongen<'a, 'b, 'ctx> {
         ))
     }
 
-    pub fn build_return(&mut self, expr: &Option<Expression>) -> Result<()> {
+    ///
+    /// Builds llvm ir for a given return statement
+    /// This function always returns true
+    ///
+    /// Params:
+    /// - `expr`: The optional expression to return
+    ///
+    /// Returns:
+    /// True if the statement always returns a value, or false otherwise
+    ///
+    pub fn build_return(&mut self, expr: &Option<Expression>) -> Result<bool> {
         trace!("Building return statement");
-        self.codeblock_returns = true;
         match expr {
             None => self.builder.build_return(None),
             Some(expr) => {
-                let bv = self.build_expression(&expr)?;
+                let bv = self.build_expression(&expr, None)?;
                 match bv.get_as_basic_value() {
                     Some(x) => self.builder.build_return(Some(&x)),
                     None => unreachable!(),
                 }
             }
         };
-        Ok(())
+        Ok(true)
     }
 
     fn build_const_u64(&self, value: u64) -> CrabValueType<'ctx> {
@@ -383,109 +421,71 @@ impl<'a, 'b, 'ctx> Functiongen<'a, 'b, 'ctx> {
         Ok(())
     }
 
-    fn begin_if_then(&mut self, condition: &CrabValueType) -> Result<()> {
-        let then_block = self.context.append_basic_block(self.fn_value, "if_then");
-        let else_block = self.context.append_basic_block(self.fn_value, "else");
-        let always_block = self.context.append_basic_block(self.fn_value, "always");
-
-        self.builder.build_conditional_branch(
-            condition.try_as_bool_value()?,
-            then_block,
-            else_block,
-        );
-
-        self.else_stack.push(else_block);
-        self.always_stack.push(always_block);
-
-        self.builder.position_at_end(then_block);
-        self.current_basic_block = then_block;
-
-        Ok(())
-    }
-
-    fn begin_if_else(&mut self) -> Result<()> {
-        // Only build a branch to end instruction if this block does not return
-        if !self.codeblock_returns {
-            let always_block = self
-                .always_stack
-                .pop()
-                .ok_or(CompileError::EmptyStack(String::from("Always stack")))?;
-            self.add_terminating_instruction(self.current_basic_block, always_block);
-            self.always_stack.push(always_block);
-        }
-
-        let else_block = self
-            .else_stack
-            .pop()
-            .ok_or(CompileError::EmptyStack(String::from("else_stack")))?;
-        self.builder.position_at_end(else_block);
-        self.current_basic_block = else_block;
-        Ok(())
-    }
-
-    fn end_if(&mut self) -> Result<()> {
-        let always_block = self
-            .always_stack
-            .pop()
-            .ok_or(CompileError::EmptyStack(String::from("always_stack")))?;
-
-        if !self.codeblock_returns {
-            self.add_terminating_instruction(self.current_basic_block, always_block);
-        }
-
-        self.builder.position_at_end(always_block);
-        self.current_basic_block = always_block;
-        Ok(())
-    }
-
-    fn begin_while(&mut self, condition: &CrabValueType) -> Result<()> {
+    ///
+    /// Builds llvm ir for a given while statement
+    ///
+    /// Params:
+    /// - `ws`: The while statement to build
+    ///
+    /// Returns:
+    /// True if the statement always returns a value, or false otherwise
+    ///
+    fn build_while_stmt(&mut self, ws: &WhileStmt) -> Result<bool> {
+        let bv = self.build_expression(&ws.expr, None)?;
         let then_block = self.context.append_basic_block(self.fn_value, "while");
         let always_block = self.context.append_basic_block(self.fn_value, "always");
-        self.always_stack.push(always_block);
-        self.builder.build_conditional_branch(
-            condition.try_as_bool_value()?,
-            then_block,
-            always_block,
-        );
-        self.builder.position_at_end(then_block);
-        self.current_basic_block = then_block;
-        Ok(())
+
+        self.builder
+            .build_conditional_branch(bv.try_as_bool_value()?, then_block, always_block);
+
+        self.build_loop(&ws.then, then_block, always_block, &ws.expr)
     }
 
-    fn begin_do_while(&mut self) -> Result<()> {
-        let then_block = self.context.append_basic_block(self.fn_value, "do_while");
+    ///
+    /// Builds llvm ir for a given do-while statement
+    ///
+    /// Params:
+    /// - `dws`: The do-while statement to build
+    ///
+    /// Returns:
+    /// True if the statement always returns a value, or false otherwise
+    ///
+    fn build_do_while_stmt(&mut self, dws: &DoWhileStmt) -> Result<bool> {
+        let then_block = self.context.append_basic_block(self.fn_value, "do-while");
         let always_block = self.context.append_basic_block(self.fn_value, "always");
-        self.always_stack.push(always_block);
+
         self.builder.build_unconditional_branch(then_block);
-        self.builder.position_at_end(then_block);
-        self.current_basic_block = then_block;
-        Ok(())
+
+        self.build_loop(&dws.then, then_block, always_block, &dws.expr)
     }
 
-    /// Used to terminate a while or do while block
-    fn end_while(&mut self, condition: &CrabValueType) -> Result<()> {
-        let always_block = self
-            .always_stack
-            .pop()
-            .ok_or(CompileError::EmptyStack(String::from("always_stack")))?;
-
-        self.builder.build_conditional_branch(
-            condition.try_as_bool_value()?,
-            self.current_basic_block,
-            always_block,
-        );
-
-        self.builder.position_at_end(always_block);
-        self.current_basic_block = always_block;
-        Ok(())
-    }
-
-    fn add_terminating_instruction(
+    ///
+    /// Builds the guts of a loop
+    /// Includes the loop body and the conditional branch
+    /// Resets the builder position at the end of the loop
+    ///
+    /// Returns:
+    /// True if the statement always returns a value, or false otherwise
+    ///
+    fn build_loop(
         &mut self,
-        block: BasicBlock<'ctx>,
-        always_block: BasicBlock<'ctx>,
-    ) {
-        self.builder.position_at_end(block);
-        self.builder.build_unconditional_branch(always_block);
+        then: &CodeBlock,
+        then_block: BasicBlock,
+        always_block: BasicBlock,
+        condition: &Expression,
+    ) -> Result<bool> {
+        self.builder.position_at_end(then_block);
+        let returns = self.build_codeblock(then)?;
+        // Rebuild the condition
+        let bv = self.build_expression(condition, None)?;
+        self.builder
+            .build_conditional_branch(bv.try_as_bool_value()?, then_block, always_block);
+
+        // The always block will be built by the caller
+        // I don't really like having this kind of side effect
+        // How can we transfer that responsibility into this function?
+        self.builder.position_at_end(always_block);
+
+        Ok(returns)
     }
 }

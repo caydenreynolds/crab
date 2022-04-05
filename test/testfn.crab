@@ -28,10 +28,10 @@ fn so_ugly() -> Int {
     let a_variable = 40
     let b = false
     if b {
-        a_variable = a_variable.operatorAdd(104)
+        a_variable = a_variable + 104
         print("12 squared")
     } else {
-        a_variable = a_variable.operatorAdd(2)
+        a_variable = a_variable + 2
         print("Life, the universe, and everything")
     }
     let message = "foo"
