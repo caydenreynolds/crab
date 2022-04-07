@@ -2,12 +2,11 @@ rust/Cargo.lock
 
 pyenv/*
 **/__pycache__
+crab_env/
 
 **/*.sqlite
 
 .idea/*
 
 # Various build directories
-rust/target
-c/target
-scripts/target
+**/target

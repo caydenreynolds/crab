@@ -92,4 +92,7 @@ pub enum CompileError {
 
     #[error("No main function found")]
     NoMain,
+
+    #[error("Failed to write bitcode to a file")]
+    FailedToWriteBitcode,
 }

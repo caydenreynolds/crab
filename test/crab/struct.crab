@@ -1,0 +1,23 @@
+struct GymGoer {
+    String name,
+    Int fitness,
+}
+
+impl GymGoer {
+    fn go_to_the_gym() {
+        print(self.name, newline=false)
+        print(" went to the gym")
+    }
+}
+
+fn new_gym_goer() -> GymGoer {
+    return GymGoer {name = "Phillip",fitness = 12345}
+}
+
+fn main() -> Int {
+
+    let my_gym_goer = new_gym_goer()
+    my_gym_goer.go_to_the_gym()
+
+    return 0
+}

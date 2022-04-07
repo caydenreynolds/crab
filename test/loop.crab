@@ -1,6 +1,0 @@
-fn main() -> Int {
-    while true {
-        print("We're going to be here for a while")
-    }
-    return 0
-}

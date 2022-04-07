@@ -1,5 +1,4 @@
-use anyhow::{anyhow, Result};
-use crab::compile::Codegen;
+use anyhow::Result;
 use crab::parse::parse;
 use glob::glob;
 use log::{error, warn, LevelFilter};

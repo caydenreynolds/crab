@@ -1,0 +1,5 @@
+fn main() -> Int {
+    let number = 40
+    print(number+2)
+    return 0
+}

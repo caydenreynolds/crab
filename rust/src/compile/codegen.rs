@@ -6,7 +6,7 @@ use inkwell::context::Context;
 use inkwell::module::Module;
 use inkwell::support::LLVMString;
 use log::trace;
-use std::path::PathBuf;
+use std::path::Path;
 
 pub struct Codegen<'a, 'ctx> {
     context: &'ctx Context,
@@ -55,8 +55,16 @@ impl<'a, 'ctx> Codegen<'a, 'ctx> {
         Ok(())
     }
 
-    pub fn print_to_file(&self, path: PathBuf) -> std::result::Result<(), LLVMString> {
+    pub fn print_to_file(&self, path: &Path) -> std::result::Result<(), LLVMString> {
         self.module.print_to_file(path)
+    }
+
+    pub fn write_bitcode_to_file(&self, path: &Path) -> Result<()> {
+        if !self.module.write_bitcode_to_path(&path) {
+            Err(CompileError::FailedToWriteBitcode)
+        } else {
+            Ok(())
+        }
     }
 
     pub fn get_context(&self) -> &Context {

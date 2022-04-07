@@ -1,0 +1,6 @@
+fn main() -> Int {
+    print("foo", newline=false)
+    print("bar", newline=true,)
+
+    return 0
+}

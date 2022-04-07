@@ -1,0 +1,16 @@
+fn main() -> Int {
+    let yo_momma = so_ugly()
+    return yo_momma
+}
+
+fn so_ugly() -> Int {
+    let a_variable = 0
+    # TODO: Do an actual comparison here
+    let b = false
+    if b {
+        print("failed")
+    } else {
+        print("passed")
+    }
+    return a_variable
+}

@@ -5,12 +5,12 @@ use glob::glob;
 use inkwell::context::Context;
 use log::{debug, error, info, warn, LevelFilter};
 use simple_logger::SimpleLogger;
-use std::path::PathBuf;
-use std::process::exit;
+use std::path::{Path, PathBuf};
+use std::process::{exit, Command};
 use structopt::StructOpt;
 
 #[derive(StructOpt, Debug)]
-#[structopt(name = "blue")]
+#[structopt(name = "crabc")]
 struct Args {
     /// Input files
     #[structopt(parse(from_os_str))]
@@ -20,6 +20,18 @@ struct Args {
     /// Verbose mode (-v, -vv, -vvv, etc.)
     #[structopt(short, long, parse(from_occurrences))]
     verbose: u8,
+
+    /// The name of the output file to write
+    #[structopt(short, long, default_value = "out.exe")]
+    output: PathBuf,
+
+    /// Perform an optimized build
+    #[structopt(long)]
+    release: bool,
+
+    /// Where to find the c builtins library, which must be linked
+    #[structopt(short, long)]
+    c_builtins: PathBuf,
 
     // Use debug_assertions to tell whether this is a debug or release build
     // If it is a debug build, add a flag to disable the verify step
@@ -61,7 +73,7 @@ fn get_crabfiles(paths: Vec<PathBuf>) -> Vec<PathBuf> {
     crabfiles
 }
 
-fn handle_crabfile(crabfiles: &[PathBuf], verify: bool) -> Result<()> {
+fn handle_crabfile(crabfiles: &[PathBuf], verify: bool, artifact_path: &Path) -> Result<()> {
     // parse crabfile
     info!("Parsing crabfiles");
     let parse_result = parse(crabfiles)?;
@@ -80,13 +92,67 @@ fn handle_crabfile(crabfiles: &[PathBuf], verify: bool) -> Result<()> {
         module.verify().unwrap();
     }
     debug!("Printing to file");
-    codegen.print_to_file(PathBuf::from("out.ll")).unwrap();
+    #[cfg(debug_assertions)]
+    codegen.print_to_file(artifact_path).unwrap();
+    #[cfg(not(debug_assertions))]
+    codegen.write_bitcode_to_file(artifact_path)?;
     info!("Successfully wrote llvm ir to 'out.ll'");
     Ok(())
 }
 
+fn clang_compile(
+    artifact_path: &Path,
+    output: &Path,
+    c_builtins: &Path,
+    release: bool,
+) -> Result<()> {
+    let opt_level = if release { "-O3" } else { "-O0" };
+    let cmd_output = Command::new("clang")
+        .arg("-fuse-ld=lld-link")
+        .args([
+            "-L",
+            c_builtins
+                .as_os_str()
+                .to_str()
+                .expect("Failed to stringify c_builtins"),
+        ])
+        .args(["-l", "crabcbuiltins"])
+        .args([
+            "-o",
+            output
+                .as_os_str()
+                .to_str()
+                .expect("Failed to stringify output"),
+        ])
+        .arg(opt_level)
+        .arg(artifact_path)
+        .output()?;
+
+    info!("{}", String::from_utf8_lossy(&cmd_output.stdout));
+    if !cmd_output.status.success() {
+        error!("{}", String::from_utf8_lossy(&cmd_output.stderr));
+        Err(anyhow!("Failed to compile {:?} with clang!", artifact_path))
+    } else {
+        warn!("{}", String::from_utf8_lossy(&cmd_output.stderr));
+        Ok(())
+    }
+}
+
 fn _main() -> Result<()> {
     let args = Args::from_args();
+    let artifact_name = PathBuf::from(
+        args.output
+            .file_stem()
+            .ok_or(anyhow!("Failed to get file stem of {:?}", args.output))?,
+    );
+    let target_dir: &Path = args
+        .output
+        .parent()
+        .ok_or(anyhow!("Failed to get parent of {:?}", args.output))?;
+    #[cfg(debug_assertions)]
+    let artifact_path = target_dir.join(artifact_name.with_extension("ll"));
+    #[cfg(not(debug_assertions))]
+    let artifact_path = target_dir.join(artifact_name.with_extension("bc"));
 
     if args.verbose == 0 {
         SimpleLogger::new()
@@ -122,7 +188,8 @@ fn _main() -> Result<()> {
     #[cfg(not(debug_assertions))]
     let verify = args.verify;
 
-    handle_crabfile(&paths, verify)?;
+    handle_crabfile(&paths, verify, &artifact_path)?;
+    clang_compile(&artifact_path, &args.output, &args.c_builtins, args.release)?;
 
     info!("Finished!");
 
