@@ -1,5 +1,10 @@
 use crate::parse::ast::{AstNode, Ident};
 use crate::parse::{ParseError, Rule};
+use crate::util::{
+    operator_add_name, operator_div_name, operator_eq_name, operator_gt_name, operator_gte_name,
+    operator_lsh_name, operator_lt_name, operator_lte_name, operator_mult_name, operator_rsh_name,
+    operator_sub_name,
+};
 use crate::{parse, try_from_pair};
 use pest::iterators::Pair;
 use std::convert::TryFrom;
@@ -43,18 +48,18 @@ impl AstNode for Operator {
 }
 impl Operator {
     pub fn into_fn_name(self) -> Ident {
-        Ident::from(match self {
-            Self::ADD => "operatorAdd",
-            Self::SUB => "operatorSub",
-            Self::MULT => "operatorMult",
-            Self::DIV => "operatorDiv",
-            Self::EQ => "operatorEq",
-            Self::LT => "operatorLt",
-            Self::GT => "operatorGt",
-            Self::LTE => "operatorLte",
-            Self::GTE => "operatorGte",
-            Self::LSH => "operatorLsh",
-            Self::RSH => "operatorRsh",
-        })
+        match self {
+            Self::ADD => operator_add_name(),
+            Self::SUB => operator_sub_name(),
+            Self::MULT => operator_mult_name(),
+            Self::DIV => operator_div_name(),
+            Self::EQ => operator_eq_name(),
+            Self::LT => operator_lt_name(),
+            Self::GT => operator_gt_name(),
+            Self::LTE => operator_lte_name(),
+            Self::GTE => operator_gte_name(),
+            Self::LSH => operator_lsh_name(),
+            Self::RSH => operator_rsh_name(),
+        }
     }
 }

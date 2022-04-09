@@ -1,9 +1,11 @@
 use crate::compile::crab_value_type::CrabValueType;
 use crate::compile::CompileError::MallocErr;
-use crate::compile::{CompileError, FnManager, ManagedType, Result, TypeManager, VarManager};
+use crate::compile::{
+    add_builtin_definition, CompileError, FnManager, ManagedType, Result, TypeManager, VarManager,
+};
 use crate::parse::ast::{
-    Assignment, CodeBlock, CrabType, DoWhileStmt, ElseStmt, Expression, ExpressionType, FnCall,
-    FnParam, IfStmt, Primitive, Statement, StructInit, WhileStmt,
+    Assignment, BodyType, CodeBlock, CrabType, DoWhileStmt, ElseStmt, Expression, ExpressionType,
+    FnCall, FnParam, IfStmt, Primitive, Statement, StructInit, WhileStmt,
 };
 use inkwell::basic_block::BasicBlock;
 use inkwell::builder::Builder;
@@ -14,13 +16,14 @@ use log::trace;
 use std::collections::HashMap;
 
 pub struct Functiongen<'a, 'b, 'ctx> {
-    builder: Builder<'ctx>,
-    context: &'ctx Context,
-    module: &'a Module<'ctx>,
-    fns: &'b mut FnManager<'a, 'ctx>,
-    structs: TypeManager,
-    variables: VarManager<'ctx>,
-    fn_value: FunctionValue<'ctx>,
+    pub name: String,
+    pub builder: Builder<'ctx>,
+    pub context: &'ctx Context,
+    pub module: &'a Module<'ctx>,
+    pub fns: &'b mut FnManager<'a, 'ctx>,
+    pub structs: TypeManager,
+    pub variables: VarManager<'ctx>,
+    pub fn_value: FunctionValue<'ctx>,
 }
 
 impl<'a, 'b, 'ctx> Functiongen<'a, 'b, 'ctx> {
@@ -48,6 +51,7 @@ impl<'a, 'b, 'ctx> Functiongen<'a, 'b, 'ctx> {
                     fns,
                     structs,
                     fn_value,
+                    name: String::from(name),
                 };
 
                 let mut n = 0;
@@ -64,6 +68,30 @@ impl<'a, 'b, 'ctx> Functiongen<'a, 'b, 'ctx> {
     }
 
     ///
+    /// Build llvm ir for this function
+    /// If the bt is a codeblock, that codeblock will be built
+    /// If the bt is a compiler builtin, builtins will be used to generate the implementation
+    ///
+    /// Params:
+    /// - `bt`: The function's body type
+    ///
+    /// Returns:
+    /// True if
+    pub fn build(&mut self, bt: BodyType) -> Result<()> {
+        match bt {
+            BodyType::CODEBLOCK(cb) => {
+                let returns = self.build_codeblock(&cb)?;
+                if returns {
+                    Ok(())
+                } else {
+                    Err(CompileError::NoReturn(self.name.clone()))
+                }
+            }
+            BodyType::COMPILER_PROVIDED => add_builtin_definition(self),
+        }
+    }
+
+    ///
     /// Build llvm ir for a given codeblock
     ///
     /// Params:
@@ -72,7 +100,7 @@ impl<'a, 'b, 'ctx> Functiongen<'a, 'b, 'ctx> {
     /// Returns:
     /// True if the built codeblock will always return a value, or false otherwise
     ///
-    pub fn build_codeblock(&mut self, cb: &CodeBlock) -> Result<bool> {
+    fn build_codeblock(&mut self, cb: &CodeBlock) -> Result<bool> {
         let returns = cb.statements.iter().try_fold(false, |returns, stmt| {
             if !returns {
                 self.build_statement(stmt)

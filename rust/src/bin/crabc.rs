@@ -116,7 +116,7 @@ fn clang_compile(
                 .to_str()
                 .expect("Failed to stringify c_builtins"),
         ])
-        .args(["-l", "crabcbuiltins"])
+        .args(["-l", "crabbuiltins"])
         .args([
             "-o",
             output

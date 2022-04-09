@@ -10,3 +10,8 @@ crab_env/
 
 # Various build directories
 **/target
+
+# Stray build artifacts
+*.ll
+*.bc
+*.exe

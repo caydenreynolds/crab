@@ -85,12 +85,7 @@ impl<'a, 'ctx> Codegen<'a, 'ctx> {
             self.types.clone(),
             &params,
         )?;
-        let returns = fg.build_codeblock(&func.body)?;
-        return if returns {
-            Ok(())
-        } else {
-            Err(CompileError::NoReturn(func.signature.name.clone()))
-        };
+        fg.build(func.body)
     }
 
     fn register_interface(&mut self, intfc: CrabInterface) -> Result<()> {

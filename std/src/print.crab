@@ -1,6 +1,9 @@
 ///
 /// Call this function to print a String to stdout
 ///
+/// This could stand to be a compiler builtin, but there's a lot going on here that I don't want to do by hand
+/// So I'm just going to leave it as is for now
+///
 /// Params:
 /// * `str` - The string to print
 /// * `newline` - If true, print a newline after the string is printed

@@ -1,19 +1,45 @@
-use crate::compile::{Codegen, CompileError, CrabValueType, FnManager, Result};
+use crate::compile::CompileError::MallocErr;
+use crate::compile::{Codegen, CompileError, CrabValueType, FnManager, Functiongen, Result};
 use crate::parse::ast::{CrabType, FnParam, FuncSignature, Ident};
 use crate::util::{
-    add_int_name, format_i_c_name, format_i_name, int_struct_name, main_func_name,
-    mangle_function_name, new_string_name, printf_c_name, printf_crab_name, string_type_name,
+    format_i_c_name, int_struct_name, main_func_name, mangle_function_name, new_string_name,
+    operator_add_name, printf_c_name, printf_crab_name, string_type_name, to_string_name,
 };
 use inkwell::builder::Builder;
 use inkwell::module::Linkage;
-use inkwell::values::{BasicMetadataValueEnum, FunctionValue};
+use inkwell::values::{BasicMetadataValueEnum, FunctionValue, IntValue, PointerValue};
+use lazy_static::lazy_static;
+use std::collections::HashMap;
+
+lazy_static! {
+    /// A map of the names of each of our compiler builtins to the function that generates the ir for that builtin
+    static ref BUILTIN_NAME_MAP: HashMap<String, fn(&mut Functiongen)->Result<()>> = init_builtin_name_map();
+}
+
+///
+/// Initialize the builtin name map
+/// The builtin name map is populated with *hashed* function names -> function body generator
+///
+fn init_builtin_name_map() -> HashMap<String, fn(&mut Functiongen) -> Result<()>> {
+    let mut map: HashMap<String, fn(&mut Functiongen) -> Result<()>> = HashMap::new();
+
+    let int_add = mangle_function_name(&operator_add_name(), Some(&int_struct_name()));
+    map.insert(int_add, add_int);
+    let int_to_str = mangle_function_name(&to_string_name(), Some(&int_struct_name()));
+    map.insert(int_to_str, format_i);
+
+    map
+}
+
+pub fn add_builtin_definition(funcgen: &mut Functiongen) -> Result<()> {
+    BUILTIN_NAME_MAP
+        .get(&funcgen.name)
+        .ok_or(CompileError::CouldNotFindFunction(funcgen.name.clone()))?(funcgen)
+}
 
 pub fn add_builtins(codegen: &mut Codegen, fns: &mut FnManager) -> Result<()> {
     printf_c(codegen, fns)?;
     printf_crab(codegen, fns)?;
-    format_i_c(codegen, fns)?;
-    format_i(codegen, fns)?;
-    add_int(codegen, fns)?;
     new_str(codegen, fns)?;
 
     Ok(())
@@ -145,8 +171,9 @@ fn printf_crab(codegen: &mut Codegen, fns: &mut FnManager) -> Result<()> {
     Ok(())
 }
 
-fn format_i_c(_codegen: &mut Codegen, fns: &mut FnManager) -> Result<()> {
-    let signature = FuncSignature {
+fn format_i(funcgen: &mut Functiongen) -> Result<()> {
+    // The signature of the underlying c functino (in crabbuiltins.lib) that we want to link to
+    let format_i_c_signature = FuncSignature {
         name: format_i_c_name(),
         return_type: CrabType::UINT64,
         unnamed_params: vec![
@@ -161,116 +188,104 @@ fn format_i_c(_codegen: &mut Codegen, fns: &mut FnManager) -> Result<()> {
         ],
         named_params: vec![],
     };
-    fns.register_builtin(signature.clone(), false, None)?;
-    Ok(())
-}
+    funcgen
+        .fns
+        .register_builtin(format_i_c_signature, false, None)?;
 
-fn format_i(codegen: &mut Codegen, fns: &mut FnManager) -> Result<()> {
-    let signature = FuncSignature {
-        name: format_i_name(),
-        return_type: CrabType::STRUCT(string_type_name()),
-        unnamed_params: vec![FnParam {
-            name: Ident::from("name"),
-            crab_type: CrabType::UINT64,
-        }],
-        named_params: vec![],
-    }
-    .with_mangled_name();
-    fns.register_builtin(signature.clone(), false, None)?;
-
-    let format_i_c_value = codegen
-        .get_module()
-        .get_function(&format_i_c_name())
-        .unwrap();
-    let (fn_value, builder) = begin_func(codegen, &signature)?;
-
-    // let str = builder.build_alloca(
-    //     codegen
-    //         .get_module()
-    //         .get_struct_type(&string_type_name())
-    //         .unwrap(),
-    //     "str",
-    // );
+    let format_i_c_value = funcgen.module.get_function(&format_i_c_name()).unwrap();
 
     //TODO: free
-    let strct = builder
+    let strct = funcgen
+        .builder
         .build_malloc(
-            codegen
-                .get_module()
-                .get_struct_type(&string_type_name())
-                .unwrap(),
+            funcgen.module.get_struct_type(&string_type_name()).unwrap(),
             "strct",
         )
         .or(Err(CompileError::MallocErr(String::from(
             "builtins::new_str",
         ))))?;
-    //TODO: An arbitrary len was chosen here
-    let len = codegen.get_context().i32_type().const_int(50, false);
+    //An arbitrary len was chosen here, but we should never be able to exceed 25 characters
+    let len = funcgen.context.i32_type().const_int(25, false);
     //TODO: free
-    let buf = builder
-        .build_array_malloc(codegen.get_context().i8_type(), len, "buf")
+    let buf = funcgen
+        .builder
+        .build_array_malloc(funcgen.context.i8_type(), len, "buf")
         .or(Err(CompileError::MallocErr(String::from(
             "builtins::new_str",
         ))))?;
-    let dest_ptr = builder
+    let dest_ptr = funcgen
+        .builder
         .build_struct_gep(strct, 0, "buf_ptr")
         .or(Err(CompileError::Gep(String::from("builtins::new_str"))))?;
-    builder.build_store(dest_ptr, buf);
+    funcgen.builder.build_store(dest_ptr, buf);
 
-    // let buf = builder.build_malloc(codegen.get_context().i8_type(), )
-    // let buf = builder
-    //     .build_struct_gep(str, 0, "buf")
-    //     .or(Err(CompileError::Gep(String::from("builtins::format_i"))))?;
-    // let buf_ptr = builder.build_bitcast(
-    //     buf,
-    //     codegen
-    //         .get_context()
-    //         .i8_type()
-    //         .ptr_type(AddressSpace::Generic),
-    //     "buf_ptr",
-    // );
-    let int = fn_value.get_nth_param(0).unwrap().into_int_value();
+    let int_arg = funcgen
+        .fn_value
+        .get_nth_param(0)
+        .unwrap()
+        .into_pointer_value();
+    let int_val = extract_int(funcgen, int_arg)?;
     let args = [
         BasicMetadataValueEnum::from(buf),
-        BasicMetadataValueEnum::from(int),
+        BasicMetadataValueEnum::from(int_val),
     ];
 
-    builder.build_call(format_i_c_value, &args, "call");
-    builder.build_return(Some(&strct));
+    funcgen.builder.build_call(format_i_c_value, &args, "call");
+    funcgen.builder.build_return(Some(&strct));
 
     Ok(())
 }
 
-fn add_int(codegen: &mut Codegen, fns: &mut FnManager) -> Result<()> {
-    let fn_name = add_int_name();
-    let signature = FuncSignature {
-        name: fn_name.clone(),
-        return_type: CrabType::UINT64,
-        unnamed_params: vec![
-            FnParam {
-                name: Ident::from("lhs"),
-                crab_type: CrabType::UINT64,
-            },
-            FnParam {
-                name: Ident::from("rhs"),
-                crab_type: CrabType::UINT64,
-            },
-        ],
-        named_params: vec![],
-    }
-    .with_mangled_name();
-    fns.register_builtin(signature.clone(), false, None)?;
+fn add_int(funcgen: &mut Functiongen) -> Result<()> {
+    let arg1 = funcgen
+        .fn_value
+        .get_nth_param(0)
+        .unwrap()
+        .into_pointer_value();
+    let arg2 = funcgen
+        .fn_value
+        .get_nth_param(1)
+        .unwrap()
+        .into_pointer_value();
 
-    let (fn_value, builder) = begin_func(codegen, &signature)?;
+    let lhs = extract_int(funcgen, arg1)?;
+    let rhs = extract_int(funcgen, arg2)?;
 
-    let result = builder.build_int_add(
-        fn_value.get_nth_param(0).unwrap().into_int_value(),
-        fn_value.get_nth_param(1).unwrap().into_int_value(),
-        "addition",
-    );
-    builder.build_return(Some(&result));
+    let result_val = funcgen.builder.build_int_add(lhs, rhs, "result_val");
+    let result = funcgen
+        .builder
+        .build_malloc(
+            funcgen
+                .module
+                .get_struct_type(&int_struct_name())
+                .ok_or(CompileError::StructDoesNotExist(int_struct_name()))?,
+            "result",
+        )
+        .or(Err(MallocErr(String::from("builtins::add_int"))))?;
+    let result_ptr = funcgen
+        .builder
+        .build_struct_gep(result, 0, "result_ptr")
+        .or(Err(CompileError::Gep(String::from("builtins::add_int"))))?;
+
+    funcgen.builder.build_store(result_ptr, result_val);
+    funcgen.builder.build_return(Some(&result));
 
     Ok(())
+}
+
+///
+/// Extracts the underlying uint64 value from a pointer to an int struct
+///
+fn extract_int<'a, 'b, 'ctx>(
+    funcgen: &mut Functiongen<'a, 'b, 'ctx>,
+    value: PointerValue<'ctx>,
+) -> Result<IntValue<'ctx>> {
+    let ptr = funcgen
+        .builder
+        .build_struct_gep(value, 0, "ptr")
+        .or(Err(CompileError::Gep(String::from("builtins::add_int"))))?;
+    let value = funcgen.builder.build_load(ptr, "value").into_int_value();
+    Ok(value)
 }
 
 fn begin_func<'ctx>(

@@ -1,5 +1,5 @@
 *** Settings ***
-Documentation     A test suite for simple crabfiles that take no args, always return 0, and print some output.
+Documentation     A test suite for simple crabfiles that will never exit on their own
 Resource          keywords/all.robot
 Library           Process
 Library           String

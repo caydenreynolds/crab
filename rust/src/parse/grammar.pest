@@ -21,7 +21,7 @@ struct_field_init = { ident ~ "=" ~ expression }
 
 impl_block = { "impl" ~ ident ~ ("of " ~ ident)? ~ "{" ~ (function*) ~ "}" }
 
-function = { fn_signature ~ code_block }
+function = { fn_signature ~ (compiler_provided | code_block) }
 fn_signature = { "fn" ~ ident ~ "(" ~ fn_params? ~ ","?  ~ ")" ~ ("->" ~ crab_type)? }
 fn_call = { ident ~ "(" ~ fn_args? ~ ","? ~ ")" }
 named_expression = { ident ~ "=" ~ expression }
@@ -30,6 +30,7 @@ named_fn_param = { crab_type ~ ident ~ "=" ~ expression }
 fn_param = { crab_type ~ ident }
 fn_params = _{ (named_fn_param | fn_param) ~ ("," ~ (named_fn_param | fn_param))* }
 
+compiler_provided = { "{" ~ "(V) '--' (V)" ~ "}" }
 code_block = { "{" ~ statement* ~ "}" }
 expression = { ( primitive | struct_init | fn_call | ident ) ~ ("." ~ (fn_call | ident))* ~ (operator ~ expression)? }
 operator = { "+" | "-" | "*" | "/" | "<<" | ">>" | "==" | "<" | ">" | "<=" | ">=" }

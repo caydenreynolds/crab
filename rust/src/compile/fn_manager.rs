@@ -1,5 +1,7 @@
 use crate::compile::{CompileError, CrabValueType, ManagedType, Result, TypeManager};
-use crate::parse::ast::{CodeBlock, CrabType, FnCall, FnParam, Func, FuncSignature, Ident};
+use crate::parse::ast::{
+    BodyType, CodeBlock, CrabType, FnCall, FnParam, Func, FuncSignature, Ident,
+};
 use crate::util::{add_param_mangles, main_func_name, mangle_function_name};
 use inkwell::context::Context;
 use inkwell::module::{Linkage, Module};
@@ -299,7 +301,7 @@ impl<'a, 'ctx> FnManager<'a, 'ctx> {
     ) -> Result<()> {
         let func = Func {
             signature: signature.clone(),
-            body: CodeBlock { statements: vec![] },
+            body: BodyType::CODEBLOCK(CodeBlock { statements: vec![] }),
         };
         self.register_function(signature, variadic, linkage)?;
 
