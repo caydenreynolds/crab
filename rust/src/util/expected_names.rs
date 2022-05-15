@@ -15,9 +15,6 @@ pub fn primitive_field_name() -> Ident {
 pub fn main_func_name() -> Ident {
     Ident::from("main")
 }
-pub fn new_string_name() -> Ident {
-    Ident::from("__new_string__")
-}
 pub fn printf_c_name() -> Ident {
     Ident::from("printf")
 }
