@@ -15,3 +15,7 @@ impl String {
         return self
     }
 }
+
+fn __new_string__(__string__ who, __uint64__ cares) {
+    (V) '--' (V)
+}

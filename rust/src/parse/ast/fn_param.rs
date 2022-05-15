@@ -24,24 +24,6 @@ impl AstNode for FnParam {
     }
 }
 
-impl FnParam {
-    ///
-    /// Used to resolve FnParams with an interface name to FnParams with a StructName
-    ///
-    /// Params:
-    /// * `ty` - The CrabType for the new FnParam
-    ///
-    /// Returns:
-    /// An fn param with this FnParams's name and the given type
-    ///
-    pub fn with_type(self, ty: CrabType) -> Self {
-        Self {
-            crab_type: ty,
-            ..self
-        }
-    }
-}
-
 impl From<NamedFnParam> for FnParam {
     fn from(nfp: NamedFnParam) -> Self {
         Self {

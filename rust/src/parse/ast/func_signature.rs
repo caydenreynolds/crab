@@ -70,25 +70,20 @@ impl AstNode for FuncSignature {
     }
 }
 impl FuncSignature {
-    pub fn get_params(&self) -> Vec<FnParam> {
-        let mut params = vec![];
-        for param in &self.unnamed_params {
-            params.push(param.clone())
+    pub fn with_mangled_name(self) -> Self {
+        Self {
+            named_params: self.named_params,
+            unnamed_params: self.unnamed_params,
+            return_type: self.return_type,
+            name: mangle_function_name(&self.name, None),
         }
-        for named_param in &self.named_params {
-            params.push(FnParam {
-                name: named_param.name.clone(),
-                crab_type: named_param.crab_type.clone(),
-            })
-        }
-        params
     }
 
     ///
     /// Convert this function signature to a method
     /// This works by adding an parameter of type struct_name to the beginning of this func's arguments
     ///
-    pub fn method(self, struct_name: Ident) -> Self {
+    pub(super) fn method(self, struct_name: Ident) -> Self {
         let new_name = mangle_function_name(&self.name, Some(&struct_name));
         let mut new_unnamed_params = vec![FnParam {
             name: Ident::from("self"),
@@ -100,15 +95,6 @@ impl FuncSignature {
             return_type: self.return_type,
             named_params: self.named_params,
             unnamed_params: new_unnamed_params,
-        }
-    }
-
-    pub fn with_mangled_name(self) -> Self {
-        Self {
-            named_params: self.named_params,
-            unnamed_params: self.unnamed_params,
-            return_type: self.return_type,
-            name: mangle_function_name(&self.name, None),
         }
     }
 

@@ -1,38 +1,59 @@
-use crate::compile::{CompileError, CrabValueType, Result};
+use crate::compile::{CompileError, Result};
 use crate::parse::ast::Ident;
+use crate::quill::{PolyQuillType, QuillValue};
 use std::collections::HashMap;
 
-#[derive(Clone, Default)]
-pub struct VarManager<'ctx> {
-    vars: HashMap<Ident, CrabValueType<'ctx>>,
-}
+#[derive(Debug, Clone)]
+pub(super) struct VarManager(HashMap<Ident, QuillValue<PolyQuillType>>);
 
-impl<'ctx> VarManager<'ctx> {
-    pub fn new() -> VarManager<'ctx> {
-        Self::default()
+impl VarManager {
+    pub(super) fn new() -> Self {
+        Self(HashMap::new())
     }
 
-    pub fn assign(&mut self, name: Ident, value: CrabValueType<'ctx>) -> Result<()> {
-        return if self.vars.insert(name.clone(), value).is_some() {
-            Err(CompileError::VarAlreadyExists(name))
-        } else {
-            Ok(())
-        };
+    ///
+    /// Assigns a new value with a given name and value
+    /// Returns an error if a variable already exists with the given name
+    ///
+    /// Params:
+    /// * `name` - The name of the variable to assign
+    /// * `value` - The value of the variable to assign
+    ///
+    pub(super) fn assign(&mut self, name: Ident, value: QuillValue<PolyQuillType>) -> Result<()> {
+        match self.0.insert(name.clone(), value) {
+            Some(_) => Err(CompileError::VarAlreadyExists(name)),
+            None => Ok(()),
+        }
     }
 
-    pub fn reassign(&mut self, name: Ident, value: CrabValueType<'ctx>) -> Result<()> {
-        return if self.vars.insert(name.clone(), value).is_none() {
-            Err(CompileError::VarDoesNotExist(name))
-        } else {
-            Ok(())
-        };
+    ///
+    /// Reassigns a new value with a given name and value
+    /// Returns an error if a variable does not already exist with the given name
+    ///
+    /// Params:
+    /// * `name` - The name of the variable to assign
+    /// * `value` - The value of the variable to assign
+    ///
+    pub(super) fn reassign(&mut self, name: Ident, value: QuillValue<PolyQuillType>) -> Result<()> {
+        match self.0.insert(name.clone(), value) {
+            Some(_) => Ok(()),
+            None => Err(CompileError::VarDoesNotExist(name)),
+        }
     }
 
-    pub fn get(&mut self, name: &Ident) -> Result<CrabValueType<'ctx>> {
-        return Ok(self
-            .vars
-            .get(name)
-            .ok_or(CompileError::VarDoesNotExist(name.clone()))?
-            .clone());
+    ///
+    /// Retrieve a value from the var manager by name
+    ///
+    /// Params:
+    /// * `name` - The name of the variable to retrieve
+    ///
+    /// Returns:
+    /// The QuillValue with the given name
+    ///
+    pub(super) fn get(&mut self, name: &Ident) -> Result<QuillValue<PolyQuillType>> {
+        match self.0.get(name) {
+            None => Err(CompileError::VarDoesNotExist(name.clone())),
+            Some(val) => Ok(val.clone()),
+        }
     }
 }

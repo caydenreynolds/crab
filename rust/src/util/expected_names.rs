@@ -6,6 +6,9 @@ pub fn int_struct_name() -> Ident {
 pub fn string_type_name() -> Ident {
     Ident::from("String")
 }
+pub fn bool_struct_name() -> Ident {
+    Ident::from("Bool")
+}
 pub fn primitive_field_name() -> Ident {
     Ident::from("value")
 }

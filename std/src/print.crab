@@ -14,3 +14,10 @@ fn print(Printable str, Bool newline=true) {
         __printf__("\n")
     }
 }
+
+///
+/// Internal printf function
+///
+fn __printf__(String str) {
+    (V) '--' (V)
+}

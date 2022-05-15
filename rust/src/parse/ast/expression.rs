@@ -2,7 +2,7 @@ use crate::parse::ast::{AstNode, FnCall, Ident, Operator, Primitive, StructField
 use crate::parse::ParseError::ExpectedInner;
 use crate::parse::{ParseError, Result, Rule};
 use crate::try_from_pair;
-use crate::util::{int_struct_name, new_string_name, primitive_field_name};
+use crate::util::{bool_struct_name, int_struct_name, primitive_field_name, string_type_name};
 use pest::iterators::Pair;
 use std::convert::TryFrom;
 
@@ -119,21 +119,26 @@ impl TryFrom<Pair<'_, Rule>> for ExpressionType {
                             },
                         }],
                     })),
-                    Primitive::STRING(str) => Ok(Self::FN_CALL(FnCall {
-                        name: new_string_name(),
-                        unnamed_args: vec![
-                            Expression {
-                                this: ExpressionType::PRIM(prim.clone()),
+                    Primitive::STRING(_) => Ok(Self::STRUCT_INIT(StructInit {
+                        name: string_type_name(),
+                        fields: vec![StructFieldInit {
+                            name: primitive_field_name(),
+                            value: Expression {
+                                this: ExpressionType::PRIM(prim),
                                 next: None,
                             },
-                            Expression {
-                                this: ExpressionType::PRIM(Primitive::UINT((str.len() + 1) as u64)),
-                                next: None,
-                            },
-                        ],
-                        named_args: vec![],
+                        }],
                     })),
-                    _ => Ok(Self::PRIM(prim)),
+                    Primitive::BOOL(_) => Ok(Self::STRUCT_INIT(StructInit {
+                        name: bool_struct_name(),
+                        fields: vec![StructFieldInit {
+                            name: primitive_field_name(),
+                            value: Expression {
+                                this: ExpressionType::PRIM(prim),
+                                next: None,
+                            },
+                        }],
+                    })),
                 }
             }
             Rule::struct_init => Ok(Self::STRUCT_INIT(StructInit::try_from(pair)?)),

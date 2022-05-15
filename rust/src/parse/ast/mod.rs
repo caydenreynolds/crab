@@ -70,9 +70,6 @@ pub use crab_interface::*;
 mod struct_intr;
 pub use struct_intr::*;
 
-mod else_stmt;
-pub use else_stmt::*;
-
 mod do_while_stmt;
 pub use do_while_stmt::*;
 

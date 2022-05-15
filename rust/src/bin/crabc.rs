@@ -1,8 +1,8 @@
 use anyhow::{anyhow, Result};
-use crab::compile::Codegen;
+use crab::compile::compile;
 use crab::parse::parse;
+use crab::quill::ArtifactType;
 use glob::glob;
-use inkwell::context::Context;
 use log::{debug, error, info, warn, LevelFilter};
 use simple_logger::SimpleLogger;
 use std::path::{Path, PathBuf};
@@ -40,6 +40,10 @@ struct Args {
     #[structopt(short, long)]
     no_verify: bool,
 
+    /// Output a Quill IR file instead of a regular artifact
+    #[structopt(short, long)]
+    quill_ir: bool,
+
     // Use debug_assertions to tell whether this is a debug or release build
     // If it is a release build, add a flag to enable the verify step
     /// Verify the emitted ir
@@ -73,7 +77,12 @@ fn get_crabfiles(paths: Vec<PathBuf>) -> Vec<PathBuf> {
     crabfiles
 }
 
-fn handle_crabfile(crabfiles: &[PathBuf], verify: bool, artifact_path: &Path) -> Result<()> {
+fn handle_crabfile(
+    crabfiles: &[PathBuf],
+    verify: bool,
+    artifact_path: &Path,
+    artifact_type: &ArtifactType,
+) -> Result<()> {
     // parse crabfile
     info!("Parsing crabfiles");
     let parse_result = parse(crabfiles)?;
@@ -81,22 +90,9 @@ fn handle_crabfile(crabfiles: &[PathBuf], verify: bool, artifact_path: &Path) ->
 
     // build llvm ir
     debug!("Generating IR");
-    let context = Context::create();
-    let module = context.create_module("main");
-    let mut codegen = Codegen::new(&context, &module);
-    codegen.compile(parse_result)?;
+    compile(parse_result, artifact_path, &artifact_type, verify)?;
 
-    if verify {
-        debug!("Verifying generated IR");
-        // Use unwrap because of weird thread-safety compiler checks
-        module.verify().unwrap();
-    }
-    debug!("Printing to file");
-    #[cfg(debug_assertions)]
-    codegen.print_to_file(artifact_path).unwrap();
-    #[cfg(not(debug_assertions))]
-    codegen.write_bitcode_to_file(artifact_path)?;
-    info!("Successfully wrote llvm ir to 'out.ll'");
+    info!("Successfully wrote intermediate artifact");
     Ok(())
 }
 
@@ -188,8 +184,26 @@ fn _main() -> Result<()> {
     #[cfg(not(debug_assertions))]
     let verify = args.verify;
 
-    handle_crabfile(&paths, verify, &artifact_path)?;
-    clang_compile(&artifact_path, &args.output, &args.c_builtins, args.release)?;
+    let artifact_type = match args.quill_ir {
+        true => ArtifactType::QIR,
+        false => {
+            #[cfg(debug_assertions)]
+            {
+                ArtifactType::LIR
+            }
+            #[cfg(not(debug_assertions))]
+            {
+                ArtifactType::Bitcode
+            }
+        }
+    };
+
+    handle_crabfile(&paths, verify, &artifact_path, &artifact_type)?;
+
+    match artifact_type {
+        ArtifactType::QIR => {} // Do nothing
+        _ => clang_compile(&artifact_path, &args.output, &args.c_builtins, args.release)?,
+    }
 
     info!("Finished!");
 

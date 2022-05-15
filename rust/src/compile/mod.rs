@@ -2,22 +2,21 @@ mod except;
 pub use except::*;
 
 mod type_manager;
-pub use type_manager::*;
+#[allow(unused_imports)]
+// Required because the compiler erroneously produces an error claiming this reexport isn't used
+pub(super) use type_manager::*;
 
 mod codegen;
 pub use codegen::*;
 
-mod functiongen;
-pub use functiongen::*;
-
-mod crab_value_type;
-pub use crab_value_type::*;
-
 mod var_manager;
-pub use var_manager::*;
+#[allow(unused_imports)]
+pub(super) use var_manager::*;
 
 mod builtins;
-pub use builtins::*;
+#[allow(unused_imports)]
+pub(super) use builtins::*;
 
 mod fn_manager;
-pub use fn_manager::*;
+#[allow(unused_imports)]
+pub(super) use fn_manager::*;
