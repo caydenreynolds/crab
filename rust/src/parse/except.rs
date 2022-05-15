@@ -3,7 +3,7 @@ use crate::parse::Rule;
 use std::num::ParseIntError;
 use thiserror::Error;
 
-pub(crate) type Result<T> = std::result::Result<T, ParseError>;
+pub type Result<T> = std::result::Result<T, ParseError>;
 
 #[derive(Error, Debug)]
 pub enum ParseError {
@@ -24,18 +24,6 @@ pub enum ParseError {
     )]
     UnexpectedInner,
 
-    #[error("Modifier is not recognized as a valid access modifier. Use 'pro', 'pub', or ''. Does your grammer.pest match your parser.old?")]
-    BadAccessModifier,
-
-    #[error("Program cannot have any AST nodes placed to the right of it")]
-    ProgramRight,
-
-    #[error("This AST node cannot be set because it is already set")]
-    NodeAlreadySet,
-
-    #[error("{0} is not a valid CrabType")]
-    InvalidCrabType(String),
-
     #[error("Function {0} has positional param {1} after a named param")]
     PositionalParamAfterNamedParam(Ident, Ident),
 
@@ -50,9 +38,6 @@ pub enum ParseError {
 
     #[error("The interface {0} does not exist")]
     InterfaceNotFound(Ident),
-
-    #[error("Tried to create an ExpressionChain from a primitive")]
-    UnexpectedPrim,
 
     #[error(transparent)]
     Io(#[from] std::io::Error),

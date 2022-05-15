@@ -57,5 +57,5 @@ char = @{ !("\"" | "\\") ~ ANY | ("\\" ~ ( "n" )) }
 
 // For now, we're only allowing primitive types
 crab_type = { (type_name) | ("[" ~ crab_type ~ "]") }
-type_name = @{ "__uint64__" | "__uint8__" | "__string__" | "Float" | "Bool" | ident }
+type_name = @{ "__uint64__" | "__uint8__" | "__string__" | "Float" | "__bool__" | ident }
 array_len = @{ ASCII_DIGIT+ }

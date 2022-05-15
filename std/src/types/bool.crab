@@ -1,0 +1,7 @@
+///
+/// This struct represents a boolean type
+/// Note that the Int type will later be promoted to an interface
+///
+struct Bool {
+    __bool__ value,
+}

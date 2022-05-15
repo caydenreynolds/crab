@@ -1,45 +1,34 @@
-use crate::compile::{CompileError, CrabValueType, ManagedType, Result, TypeManager};
-use crate::parse::ast::{
-    BodyType, CodeBlock, CrabType, FnCall, FnParam, Func, FuncSignature, Ident,
-};
-use crate::util::{add_param_mangles, main_func_name, mangle_function_name};
-use inkwell::context::Context;
-use inkwell::module::{Linkage, Module};
-use log::trace;
-use std::collections::{HashMap, HashSet};
+use crate::compile::{CompileError, Result, TypeManager};
+use crate::parse::ast::{CrabType, FnCall, FnParam, Func, FuncSignature, Ident, NamedFnParam};
+use crate::quill::{PolyQuillType, QuillPointerType, QuillStructType, QuillValue};
+use crate::util::{add_param_mangles, main_func_name, mangle_function_name, ListFunctional};
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::convert::TryFrom;
+use std::rc::Rc;
 
 #[derive(Debug, Clone)]
-pub struct FnManager<'a, 'ctx> {
+pub(super) struct FnManager {
     /// All fns that have been defined in the source code
     fn_sources: HashMap<Ident, Func>,
 
     /// All fns that have been registered to be built
-    registered_fns: HashSet<Ident>,
+    registered_fns: HashMap<Ident, Func>,
 
     /// All registered fns that have not been built yet
-    fn_build_queue: Vec<Func>,
+    fn_build_queue: Vec<Ident>,
 
     /// All of the registered types. Required for resolving params
-    types: TypeManager,
-
-    context: &'ctx Context,
-    module: &'a Module<'ctx>,
+    types: Rc<RefCell<TypeManager>>,
 }
 
-impl<'a, 'ctx> FnManager<'a, 'ctx> {
-    pub fn new(
-        types: TypeManager,
-        context: &'ctx Context,
-        module: &'a Module<'ctx>,
-    ) -> FnManager<'a, 'ctx> {
+impl FnManager {
+    pub fn new(types: Rc<RefCell<TypeManager>>) -> Self {
         Self {
-            fn_sources: Default::default(),
-            registered_fns: Default::default(),
+            fn_sources: HashMap::new(),
+            registered_fns: HashMap::new(),
             fn_build_queue: vec![],
             types,
-            context,
-            module,
-            // ..Self::default()
         }
     }
 
@@ -63,13 +52,17 @@ impl<'a, 'ctx> FnManager<'a, 'ctx> {
     /// An error if there is no main function source
     ///
     pub fn add_main_to_queue(&mut self) -> Result<()> {
+        let main_name = mangle_function_name(&main_func_name(), None);
+
+        // Verify there is a main fn
         let main = self
             .fn_sources
-            .get(&mangle_function_name(&main_func_name(), None))
-            .ok_or(CompileError::NoMain)?
-            .clone();
-        self.fn_build_queue.push(main.clone());
-        self.register_function(main.signature, false, None)?;
+            .get(&main_name)
+            .ok_or(CompileError::NoMain)?;
+
+        // Do the thing
+        self.fn_build_queue.push(main_name.clone());
+        self.registered_fns.insert(main_name, main.clone());
         Ok(())
     }
 
@@ -80,7 +73,36 @@ impl<'a, 'ctx> FnManager<'a, 'ctx> {
     /// The function signature removed from the queue
     ///
     pub fn pop_build_queue(&mut self) -> Option<Func> {
-        self.fn_build_queue.pop()
+        let name = self.fn_build_queue.pop();
+        name.map(|name| self.registered_fns.get(&name).expect("FnManager's build queue included a function name that isn't in the function sources").clone())
+    }
+
+    ///
+    /// Returns whether or not the build queue is empty
+    ///
+    /// Returns:
+    /// True if the build queue is empty, or false otherwise
+    ///
+    pub fn build_queue_empty(&self) -> bool {
+        self.fn_build_queue.is_empty()
+    }
+
+    ///
+    /// Retrieve a copy of a function's signature from the registered functions
+    ///
+    /// Params:
+    /// * `name` - The name of the signature to get
+    ///
+    /// Returns:
+    /// A copy of the requested signature
+    ///
+    pub fn get_source_signature(&self, name: &Ident) -> Result<FuncSignature> {
+        Ok(self
+            .fn_sources
+            .get(name)
+            .ok_or(CompileError::CouldNotFindFunction(name.clone()))?
+            .signature
+            .clone())
     }
 
     ///
@@ -94,104 +116,108 @@ impl<'a, 'ctx> FnManager<'a, 'ctx> {
     /// Params:
     /// * `call` - The FnCall to get the FuncSignature of
     /// * `caller_opt` - The caller of this function, if any
+    ///
     pub fn get_signature(
         &mut self,
-        call: FnCall,
-        caller_opt: Option<CrabValueType>,
-        unnamed_values: &[CrabValueType],
-        named_values: &HashMap<Ident, CrabValueType>,
+        call: &FnCall,
+        caller_opt: &Option<QuillValue<PolyQuillType>>,
+        unnamed_values: &[QuillValue<PolyQuillType>],
+        named_values: &HashMap<Ident, QuillValue<PolyQuillType>>,
     ) -> Result<FuncSignature> {
+        // For now, we're assuming we can only get a pointer to a struct value
+        let caller_opt_t = match caller_opt {
+            Some(caller) => Some(QuillStructType::try_from(
+                QuillValue::<QuillPointerType>::try_from(caller.clone())?
+                    .get_type()
+                    .get_inner_type(),
+            )?),
+            None => None,
+        };
+
         // Get the source signature
         let mangled_name = mangle_function_name(
             &call.name,
-            caller_opt
-                .clone()
-                .map(|ct| {
-                    ct.try_get_struct_name()
-                        .expect("Method called on a type that is not a struct")
-                })
-                .as_ref(),
+            caller_opt_t.map(|caller_t| caller_t.get_name()).as_ref(),
         );
         let source_fn = self
             .fn_sources
             .get(&mangled_name)
-            .ok_or(CompileError::CouldNotFindFunction(call.name))?;
+            .ok_or(CompileError::CouldNotFindFunction(call.name.clone()))?;
 
-        self.verify_values(
-            &source_fn.signature,
-            unnamed_values,
-            named_values,
-            caller_opt,
-        )?;
+        self.verify_values(&source_fn.signature, unnamed_values, named_values)?;
 
-        // Create a map of params to their actual type
-        let mut param_type_map = HashMap::new();
-        for i in 0..unnamed_values.len() {
-            let unnamed_arg = &unnamed_values[i];
-            let unnamed_param = source_fn.signature.unnamed_params.get(i).unwrap();
-            param_type_map.insert(unnamed_param.name.clone(), unnamed_arg.get_crab_type());
-        }
+        // Add all of the param names and types to a vec
+        let unnamed_params = unnamed_values
+            .iter()
+            .zip(source_fn.signature.unnamed_params.iter())
+            .try_fold(vec![], |params, (value, param)| {
+                Result::Ok(
+                    params.fpush(FnParam {
+                        name: param.name.clone(),
+                        crab_type: CrabType::STRUCT(
+                            QuillStructType::try_from(
+                                QuillValue::<QuillPointerType>::try_from(value.clone())?
+                                    .get_type()
+                                    .get_inner_type(),
+                            )?
+                            .get_name(),
+                        ),
+                    }),
+                )
+            })?;
+        let named_params =
+            source_fn
+                .signature
+                .named_params
+                .iter()
+                .try_fold(vec![], |params, param| {
+                    let named_value = named_values.get(&param.name).unwrap();
+                    Result::Ok(
+                        params.fpush(NamedFnParam {
+                            name: param.name.clone(),
+                            crab_type: CrabType::STRUCT(
+                                QuillStructType::try_from(
+                                    QuillValue::<QuillPointerType>::try_from(named_value.clone())?
+                                        .get_type()
+                                        .get_inner_type(),
+                                )?
+                                .get_name(),
+                            ),
+                            expr: param.expr.clone(),
+                        }),
+                    )
+                })?;
 
-        // Perform any interface mangling
-        let interface_params: Vec<FnParam> = source_fn
-            .signature
-            .unnamed_params
-            .clone()
-            .into_iter()
-            // .chain(
-            //     source_sig
-            //         .named_params
-            //         .clone()
-            //         .into_iter()
-            //         .map(|named| FnParam::from(named))
-            // )
-            .filter(|param| match &param.crab_type {
-                CrabType::STRUCT(id) => {
-                    // Have to unwrap here, because there doesn't seem to be a try_filter
-                    let ty = self.types.get_type(id).unwrap();
-                    matches!(ty, ManagedType::INTERFACE(_))
-                }
-                CrabType::LIST(l) => {
-                    if let CrabType::STRUCT(id) = l.as_ref() {
-                        // Have to unwrap here, because there doesn't seem to be a try_filter
-                        let ty = self.types.get_type(id).unwrap();
-                        matches!(ty, ManagedType::INTERFACE(_))
-                    } else {
-                        false
-                    }
-                }
-                _ => false,
-            })
-            .map(|param| {
-                param
-                    .clone()
-                    .with_type(param_type_map.get(&param.name).unwrap().clone())
-            })
-            .collect();
-        let fully_mangled_name = add_param_mangles(&mangled_name, &interface_params);
+        // Just add all of the params to the mangle
+        // As long as llvm doesn't enforce a maximum function name length, this should be fine
+        let all_params = named_params
+            .iter()
+            .fold(unnamed_params.clone(), |params, named| {
+                params.fpush(FnParam {
+                    crab_type: named.crab_type.clone(),
+                    name: named.name.clone(),
+                })
+            });
+        let fully_mangled_name = add_param_mangles(&mangled_name, &all_params);
 
         // Build proper Signature
-        let mut unnamed_params = vec![];
-        for i in 0..unnamed_values.len() {
-            let unnamed_arg = &unnamed_values[i];
-            // Probably shouldn't assume we have the correct number of unnamed params, but I'm lazy
-            let unnamed_param = source_fn.signature.unnamed_params.get(i).unwrap();
-            unnamed_params.push(unnamed_param.clone().with_type(unnamed_arg.get_crab_type()));
-        }
         let generated_signature = FuncSignature {
             unnamed_params,
+            named_params,
             name: fully_mangled_name.clone(),
-            ..source_fn.signature.clone()
+            return_type: source_fn.signature.return_type.clone(),
         };
 
         // Register if needed
-        if !self.registered_fns.contains(&fully_mangled_name) {
-            trace!("Registering new function {}", fully_mangled_name);
-            self.fn_build_queue.push(Func {
-                body: source_fn.body.clone(),
-                signature: generated_signature.clone(),
-            });
-            self.register_function(generated_signature.clone(), false, None)?;
+        if !self.registered_fns.contains_key(&fully_mangled_name) {
+            self.registered_fns.insert(
+                fully_mangled_name.clone(),
+                Func {
+                    body: source_fn.body.clone(),
+                    signature: generated_signature.clone(),
+                },
+            );
+            self.fn_build_queue.push(fully_mangled_name);
         }
 
         Ok(generated_signature)
@@ -212,125 +238,62 @@ impl<'a, 'ctx> FnManager<'a, 'ctx> {
     fn verify_values(
         &self,
         signature: &FuncSignature,
-        unnamed_values: &[CrabValueType],
-        named_values: &HashMap<Ident, CrabValueType>,
-        caller_opt: Option<CrabValueType>,
+        unnamed_values: &[QuillValue<PolyQuillType>],
+        named_values: &HashMap<Ident, QuillValue<PolyQuillType>>,
     ) -> Result<()> {
-        // let unnamed_values_len = match caller_opt {
-        //     Some(_) => unnamed_values.len()+1,
-        //     None => unnamed_values.len(),
-        // };
-        let unnamed_values_len = unnamed_values.len();
-        if unnamed_values_len != signature.unnamed_params.len() {
-            trace!("****\n{:#?}\n****{:#?}\n", unnamed_values, signature);
+        if unnamed_values.len() != signature.unnamed_params.len() {
             return Err(CompileError::PositionalArgumentCount(
                 signature.name.clone(),
                 signature.unnamed_params.len(),
-                unnamed_values_len,
+                unnamed_values.len(),
             ));
         }
 
-        if let Some(val) = caller_opt {
-            let unnamed_param = signature.unnamed_params.get(0).unwrap();
-            if val.try_get_struct_name()? != unnamed_param.crab_type.try_get_struct_name()? {
-                return Err(CompileError::ArgumentType(
-                    signature.name.clone(),
-                    unnamed_param.name.clone(),
-                    unnamed_param.crab_type.clone(),
-                    val.get_crab_type(),
-                ));
-            }
-        }
-        for j in 0..unnamed_values.len() {
-            let val_type = unnamed_values.get(j).unwrap().get_crab_type();
-            let unnamed_param = signature.unnamed_params.get(j).unwrap();
-
-            if !self
-                .types
-                .is_a(val_type.clone(), unnamed_param.crab_type.clone())
-            {
-                return Err(CompileError::ArgumentType(
-                    signature.name.clone(),
-                    unnamed_param.name.clone(),
-                    unnamed_param.crab_type.clone(),
-                    val_type,
-                ));
-            }
-        }
-
-        let mut found_names = HashSet::new();
-        for named_param in &signature.named_params {
-            match named_values.get(&named_param.name) {
-                Some(val) => {
-                    found_names.insert(named_param.name.clone());
-                    if !self
-                        .types
-                        .is_a(val.get_crab_type(), named_param.crab_type.clone())
-                    {
-                        return Err(CompileError::ArgumentType(
-                            signature.name.clone(),
-                            named_param.name.clone(),
-                            named_param.crab_type.clone(),
-                            val.get_crab_type(),
-                        ));
-                    }
+        unnamed_values
+            .iter()
+            .zip(signature.unnamed_params.iter())
+            .try_for_each(|(value, param)| {
+                let val_t = CrabType::STRUCT(
+                    QuillStructType::try_from(
+                        QuillValue::<QuillPointerType>::try_from(value.clone())?
+                            .get_type()
+                            .get_inner_type(),
+                    )?
+                    .get_name(),
+                );
+                match self.types.borrow().is_a(&val_t, &param.crab_type) {
+                    true => Ok(()),
+                    false => Err(CompileError::ArgumentType(
+                        signature.name.clone(),
+                        param.name.clone(),
+                        param.crab_type.clone(),
+                        val_t,
+                    )),
                 }
-                None => {} // Do nothing
+            })?;
+        signature.named_params.iter().try_for_each(|param| {
+            let named_value = named_values
+                .get(&param.name)
+                .ok_or(CompileError::ArgumentNotSupplied(param.name.clone()))?;
+            let val_t = CrabType::STRUCT(
+                QuillStructType::try_from(
+                    QuillValue::<QuillPointerType>::try_from(named_value.clone())?
+                        .get_type()
+                        .get_inner_type(),
+                )?
+                .get_name(),
+            );
+            match self.types.borrow().is_a(&val_t, &param.crab_type) {
+                true => Ok(()),
+                false => Err(CompileError::ArgumentType(
+                    signature.name.clone(),
+                    param.name.clone(),
+                    param.crab_type.clone(),
+                    val_t,
+                )),
             }
-        }
+        })?;
 
-        if found_names.len() != named_values.len() {
-            return Err(CompileError::InvalidNamedArgument(signature.name.clone()));
-        }
-
-        Ok(())
-    }
-
-    ///
-    /// Register a builtin function
-    /// Assumes that the function has already been built
-    ///
-    /// Params:
-    /// * `signature` - The signature of the builtin function to register
-    ///
-    pub fn register_builtin(
-        &mut self,
-        signature: FuncSignature,
-        variadic: bool,
-        linkage: Option<Linkage>,
-    ) -> Result<()> {
-        let func = Func {
-            signature: signature.clone(),
-            body: BodyType::CODEBLOCK(CodeBlock { statements: vec![] }),
-        };
-        self.register_function(signature, variadic, linkage)?;
-
-        self.add_source(func);
-
-        Ok(())
-    }
-
-    ///
-    /// Register the function with the llvm stuff
-    /// TODO: The linkage, mason! What does it mean?
-    ///
-    pub fn register_function(
-        &mut self,
-        func: FuncSignature,
-        variadic: bool,
-        linkage: Option<Linkage>,
-    ) -> Result<()> {
-        let params = func.get_params();
-        trace!(
-            "Registering new function with name {} and {} args",
-            func.name,
-            params.len()
-        );
-        self.registered_fns.insert(func.name.clone());
-        let fn_type =
-            func.return_type
-                .try_as_fn_type(self.context, self.module, &params, variadic)?;
-        let _fn_value = self.module.add_function(&func.name, fn_type, linkage);
         Ok(())
     }
 }
