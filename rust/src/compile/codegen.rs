@@ -2,7 +2,7 @@ use crate::compile::{
     add_builtin_definition, add_main_func, CompileError, FnManager, Result, TypeManager, VarManager,
 };
 use crate::parse::ast::{
-    Assignment, BodyType, CodeBlock, CrabAst, DoWhileStmt, Expression, ExpressionType, FnCall,
+    Assignment, CodeBlock, CrabAst, DoWhileStmt, Expression, ExpressionType, FnBodyType, FnCall,
     FnParam, IfStmt, Primitive, Statement, StructInit, WhileStmt,
 };
 use crate::quill::{
@@ -65,7 +65,7 @@ pub fn compile(
         let mut nib = FnNib::new(name.clone(), fn_t);
         let (nib, returns) =
             match func.body {
-                BodyType::CODEBLOCK(cb) => {
+                FnBodyType::CODEBLOCK(cb) => {
                     let all_params =
                         func.signature
                             .unnamed_params
@@ -82,7 +82,7 @@ pub fn compile(
                     let returns = codegen.build_codeblock(cb)?;
                     (codegen.into_nib(), returns)
                 }
-                BodyType::COMPILER_PROVIDED => {
+                FnBodyType::COMPILER_PROVIDED => {
                     add_builtin_definition(&mut peter, &mut nib)?;
                     (nib, true) // Just assume it's all good for now
                 }
@@ -99,18 +99,7 @@ pub fn compile(
         .clone()
         .into_iter()
         .try_for_each(|name| {
-            peter.register_struct_type(
-                name.clone(),
-                tm.get_struct(&name)?.fields.clone().into_iter().try_fold(
-                    HashMap::new(),
-                    |fields, field| {
-                        Result::Ok(
-                            fields
-                                .finsert(field.name.clone(), tm.get_quill_type(&field.crab_type)?),
-                        )
-                    },
-                )?,
-            );
+            peter.register_struct_type(name.clone(), tm.get_fields(&name)?);
             Result::Ok(())
         })?;
     add_main_func(&mut peter)?;
@@ -402,23 +391,18 @@ impl<NibType: Nib> Codegen<NibType> {
                                 ))
                             }
                         };
-                        let struct_def = self
+                        let expected_type = self
                             .types
                             .borrow_mut()
-                            .get_struct(&prev_strct.get_name())?
-                            .clone();
-                        let matching_field = struct_def
-                            .fields
+                            .get_fields(&prev_strct.get_name())?
                             .iter()
-                            .filter(|field| field.name == id)
-                            .next();
-                        let expected_type = match matching_field {
-                            Some(field) => self.types.borrow_mut().get_quill_type(&field.crab_type),
-                            None => Err(CompileError::StructFieldName(
+                            .filter(|(name, _)| **name == id)
+                            .next()
+                            .map(|(_, pqt)| pqt.clone())
+                            .ok_or(CompileError::StructFieldName(
                                 prev_strct.get_name(),
                                 prev_strct.get_name(),
-                            )),
-                        }?;
+                            ))?;
 
                         // Get that value from the struct
                         let val = self.nib.get_value_from_struct(
@@ -468,12 +452,13 @@ impl<NibType: Nib> Codegen<NibType> {
     fn build_struct_init(&mut self, si: StructInit) -> Result<QuillValue<QuillPointerType>> {
         trace!("Codegen::build_struct_init");
         let struct_name = si.name;
-        let struct_ct = self.types.borrow_mut().get_struct(&struct_name)?.clone();
-        let struct_field_names = struct_ct
-            .fields
-            .into_iter()
-            .fold(HashSet::new(), |struct_field_names, field| {
-                struct_field_names.finsert(field.name)
+        let struct_field_names = self
+            .types
+            .borrow_mut()
+            .get_fields(&struct_name)?
+            .iter()
+            .fold(HashSet::new(), |struct_field_names, (name, _)| {
+                struct_field_names.finsert(name.clone())
             });
 
         let fields =

@@ -3,7 +3,7 @@
 /// Note that the Int type will later be promoted to an interface
 ///
 struct Int {
-    __uint64__ value
+    (V) '--' (V)
 }
 
 intr Int {

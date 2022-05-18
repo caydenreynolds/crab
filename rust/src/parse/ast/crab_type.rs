@@ -27,14 +27,7 @@ impl AstNode for CrabType {
     {
         let next = pair.into_inner().next().ok_or(ParseError::ExpectedInner)?;
         match next.clone().as_rule() {
-            Rule::type_name => match next.as_str() {
-                "__uint64__" => Ok(Self::UINT64),
-                "__uint8__" => Ok(Self::UINT8),
-                "__string__" => Ok(Self::STRING),
-                "Float" => Ok(Self::FLOAT),
-                "__bool__" => Ok(Self::BOOL),
-                s => Ok(Self::STRUCT(Ident::from(s))),
-            },
+            Rule::ident => Ok(Self::STRUCT(Ident::from(next.as_str()))),
             Rule::crab_type => Ok(Self::LIST(Box::new(CrabType::try_from(next)?))),
             _ => Err(ParseError::NoMatch(String::from("CrabType::from_pair"))),
         }

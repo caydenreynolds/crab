@@ -12,7 +12,7 @@ interface_fns = _{ fn_signature ~ ("," ~ fn_signature)* ~ ","?}
 intr_block = { "intr" ~ ident ~ "{" ~ inter_interfaces? ~ "}" }
 inter_interfaces = _{ ident ~ ("," ~ ident)* ~ ","? }
 
-crab_struct = { "struct" ~ ident ~ "{" ~ struct_fields? ~ "}" }
+crab_struct = { "struct" ~ ident ~ ("{" ~ (struct_fields?) ~ "}" | compiler_provided) }
 struct_fields = _{ struct_field ~ ("," ~ struct_field)* ~ ","?}
 struct_field = { crab_type ~ ident }
 struct_init = { ident ~ "{" ~ struct_fields_init? ~ "}" }
@@ -56,6 +56,5 @@ string_inner = @{ char* }
 char = @{ !("\"" | "\\") ~ ANY | ("\\" ~ ( "n" )) }
 
 // For now, we're only allowing primitive types
-crab_type = { (type_name) | ("[" ~ crab_type ~ "]") }
-type_name = @{ "__uint64__" | "__uint8__" | "__string__" | "Float" | "__bool__" | ident }
+crab_type = { ident | ("[" ~ crab_type ~ "]") }
 array_len = @{ ASCII_DIGIT+ }

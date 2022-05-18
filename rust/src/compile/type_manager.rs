@@ -1,10 +1,13 @@
+use crate::compile::builtins::get_builtin_strct_definition;
 use crate::compile::{CompileError, Result};
-use crate::parse::ast::{CrabInterface, CrabType, FuncSignature, Ident, Struct, StructIntr};
+use crate::parse::ast::{
+    CrabInterface, CrabType, FuncSignature, Ident, StrctBodyType, Struct, StructIntr,
+};
 use crate::quill::{
     PolyQuillType, QuillBoolType, QuillFloatType, QuillFnType, QuillIntType, QuillListType,
     QuillPointerType, QuillStructType, QuillVoidType,
 };
-use crate::util::ListFunctional;
+use crate::util::{ListFunctional, MapFunctional};
 use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Clone)]
@@ -273,6 +276,29 @@ impl TypeManager {
                 None => return false,
             }
         }
+    }
+
+    ///
+    /// Returns the fields of a given struct type
+    /// If the struct type's fields are compiler provided, they will be fetched from the ast
+    /// Otherwise, they will be resolved from this type manager's struct definitions
+    ///
+    pub fn get_fields(&mut self, name: &Ident) -> Result<HashMap<String, PolyQuillType>> {
+        Ok(match self.get_struct(name)?.body.clone() {
+            StrctBodyType::COMPILER_PROVIDED => get_builtin_strct_definition(&name)?.clone(),
+            StrctBodyType::FIELDS(fields) => {
+                fields
+                    .into_iter()
+                    .try_fold(HashMap::new(), |fields, field| {
+                        Result::Ok(
+                            fields.finsert(
+                                field.name.clone(),
+                                self.get_quill_type(&field.crab_type)?,
+                            ),
+                        )
+                    })?
+            }
+        })
     }
 
     pub fn get_included_type_names(&self) -> &HashSet<Ident> {

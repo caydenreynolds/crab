@@ -1,28 +1,31 @@
 use crate::compile::{CompileError, Result};
 use crate::parse::ast::{CrabType, FnParam, Ident};
 use crate::quill::{
-    FnNib, Nib, Quill, QuillFloatType, QuillFnType, QuillIntType, QuillListType, QuillPointerType,
-    QuillStructType, QuillVoidType,
+    FnNib, Nib, PolyQuillType, Quill, QuillFloatType, QuillFnType, QuillIntType, QuillListType,
+    QuillPointerType, QuillStructType, QuillVoidType,
 };
 use crate::util::{
-    add_param_mangles, format_i_c_name, int_struct_name, main_func_name, mangle_function_name,
-    operator_add_name, primitive_field_name, printf_c_name, printf_crab_name, string_type_name,
-    to_string_name,
+    add_param_mangles, bool_struct_name, format_i_c_name, int_struct_name, main_func_name,
+    mangle_function_name, operator_add_name, primitive_field_name, printf_c_name, printf_crab_name,
+    string_type_name, to_string_name,
 };
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 
 lazy_static! {
-    /// A map of the names of each of our compiler builtins to the function that generates the ir for that builtin
-    static ref BUILTIN_NAME_MAP: HashMap<String, fn(&mut Quill, &mut FnNib)->Result<()>> = init_builtin_name_map();
+    /// A map of the names of each of our function builtins to the function that generates the ir for that builtin
+    static ref FN_BUILTIN_NAME_MAP: HashMap<Ident, fn(&mut Quill, &mut FnNib)->Result<()>> = init_builtin_fn_map();
+
+    /// A map of the names of each of our struct builtins to the function that generates the ir for that builtin
+    static ref STRCT_BUILTIN_NAME_MAP: HashMap<Ident, HashMap<Ident, PolyQuillType>> = init_builtin_strct_map();
 }
 
 ///
-/// Initialize the builtin name map
+/// Initialize the builtin function map
 /// The builtin name map is populated with *hashed* function names -> function body generator
 ///
-fn init_builtin_name_map() -> HashMap<String, fn(&mut Quill, &mut FnNib) -> Result<()>> {
-    let mut map: HashMap<String, fn(&mut Quill, &mut FnNib) -> Result<()>> = HashMap::new();
+fn init_builtin_fn_map() -> HashMap<Ident, fn(&mut Quill, &mut FnNib) -> Result<()>> {
+    let mut map: HashMap<Ident, fn(&mut Quill, &mut FnNib) -> Result<()>> = HashMap::new();
 
     let int_add = mangle_function_name(&operator_add_name(), Some(&int_struct_name()));
     let int_add = add_param_mangles(
@@ -63,12 +66,44 @@ fn init_builtin_name_map() -> HashMap<String, fn(&mut Quill, &mut FnNib) -> Resu
     map
 }
 
+///
+/// Init the builtin struct definition map
+///
+fn init_builtin_strct_map() -> HashMap<Ident, HashMap<String, PolyQuillType>> {
+    HashMap::from([
+        (
+            int_struct_name(),
+            HashMap::from([(primitive_field_name(), QuillIntType::new(64).into())]),
+        ),
+        (
+            bool_struct_name(),
+            HashMap::from([(primitive_field_name(), QuillIntType::new(1).into())]),
+        ),
+        (
+            string_type_name(),
+            HashMap::from([(
+                primitive_field_name(),
+                QuillPointerType::new(QuillIntType::new(8)).into(),
+            )]),
+        ),
+    ])
+}
+
 pub(super) fn add_builtin_definition(peter: &mut Quill, nib: &mut FnNib) -> Result<()> {
-    BUILTIN_NAME_MAP
+    FN_BUILTIN_NAME_MAP
         .get(nib.get_fn_name())
         .ok_or(CompileError::CouldNotFindFunction(
             nib.get_fn_name().clone(),
         ))?(peter, nib)
+}
+
+pub(super) fn get_builtin_strct_definition(name: &str) -> Result<&HashMap<String, PolyQuillType>> {
+    STRCT_BUILTIN_NAME_MAP
+        .get(name)
+        .ok_or(CompileError::NotAStruct(
+            String::from(name),
+            String::from("builtins::get_builtin_strct_definition"),
+        ))
 }
 
 fn add_printf(peter: &mut Quill, nib: &mut FnNib) -> Result<()> {

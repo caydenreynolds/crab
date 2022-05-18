@@ -3,7 +3,7 @@
 /// Note that the String type will later be promoted to an interface
 ///
 struct String {
-    [__uint8__] value,
+    (V) '--' (V)
 }
 
 intr String {

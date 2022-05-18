@@ -1,4 +1,4 @@
-use crate::parse::ast::BodyType::{CODEBLOCK, COMPILER_PROVIDED};
+use crate::parse::ast::FnBodyType::{CODEBLOCK, COMPILER_PROVIDED};
 use crate::parse::ast::{AstNode, CodeBlock, CrabType, FuncSignature, Ident, Statement};
 use crate::parse::{ParseError, Result, Rule};
 use crate::try_from_pair;
@@ -8,12 +8,12 @@ use std::convert::TryFrom;
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Func {
     pub signature: FuncSignature,
-    pub body: BodyType,
+    pub body: FnBodyType,
 }
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub enum BodyType {
+pub enum FnBodyType {
     CODEBLOCK(CodeBlock),
     COMPILER_PROVIDED,
 }

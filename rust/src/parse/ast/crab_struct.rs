@@ -8,7 +8,14 @@ use std::convert::TryFrom;
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Struct {
     pub name: Ident,
-    pub fields: Vec<StructField>,
+    pub body: StrctBodyType,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub enum StrctBodyType {
+    FIELDS(Vec<StructField>),
+    COMPILER_PROVIDED,
 }
 
 try_from_pair!(Struct, Rule::crab_struct);
@@ -24,12 +31,26 @@ impl AstNode for Struct {
                 .ok_or(ParseError::NoMatch(String::from("Struct::from_pair")))?
                 .as_str(),
         );
-        let mut fields = vec![];
 
-        for in_pair in inner {
-            fields.push(StructField::try_from(in_pair)?);
-        }
+        let next = inner
+            .next()
+            .ok_or(ParseError::NoMatch(String::from("Struct::from_pair")))?;
+        let body = match next.as_rule() {
+            Rule::compiler_provided => StrctBodyType::COMPILER_PROVIDED,
+            Rule::struct_field => StrctBodyType::FIELDS(vec![StructField::try_from(next)?]),
+            _ => return Err(ParseError::NoMatch(String::from("Struct::from_pair"))),
+        };
 
-        Ok(Self { name, fields })
+        let body = match body {
+            StrctBodyType::FIELDS(mut fields) => {
+                for in_pair in inner {
+                    fields.push(StructField::try_from(in_pair)?);
+                }
+                StrctBodyType::FIELDS(fields)
+            }
+            StrctBodyType::COMPILER_PROVIDED => StrctBodyType::COMPILER_PROVIDED, // Do nothing
+        };
+
+        Ok(Self { name, body })
     }
 }
