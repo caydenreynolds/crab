@@ -3,14 +3,20 @@
 # Usage: ./runtest.sh [options]
 # Options:
 #    -v --verbose: More output to console
+#    -n --no-display: Don't immediately display generated html file
 
 # Parse inputs
 verbose="FALSE"
+display_after="TRUE"
 while [[ $# -gt 0 ]]; do
   case $1 in
     -v|--verbose)
       verbose="TRUE"
       shift # past argument
+      ;;
+    -n|--no-display)
+      display_after="FALSE"
+      shift
       ;;
   esac
 done
@@ -43,4 +49,7 @@ robot \
   --variable CRAB_STD:"${actual_paths[CRAB_STD]}" \
   --variable VERBOSE:"$verbose" \
   robot
-start target/report.html
+
+if [[ "$display_after" == "TRUE" ]]; then
+  start target/report.html
+fi
