@@ -5,13 +5,13 @@ use pest::iterators::Pair;
 use std::convert::TryFrom;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub struct StructField {
+pub struct CrabStructField {
     pub name: Ident,
     pub crab_type: CrabType,
 }
 
-try_from_pair!(StructField, Rule::struct_field);
-impl AstNode for StructField {
+try_from_pair!(CrabStructField, Rule::struct_field);
+impl AstNode for CrabStructField {
     fn from_pair(pair: Pair<Rule>) -> Result<Self>
     where
         Self: Sized,

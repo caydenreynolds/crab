@@ -20,3 +20,7 @@ pub(super) use builtins::*;
 mod fn_manager;
 #[allow(unused_imports)]
 pub(super) use fn_manager::*;
+
+mod identified_value;
+#[allow(unused_imports)]
+pub(super) use identified_value::*;

@@ -1,16 +1,13 @@
 use crate::compile::{
     add_builtin_definition, add_main_func, CompileError, FnManager, Result, TypeManager, VarManager,
 };
-use crate::parse::ast::{
-    Assignment, CodeBlock, CrabAst, DoWhileStmt, Expression, ExpressionType, FnBodyType, FnCall,
-    FnParam, IfStmt, Primitive, Statement, StructInit, WhileStmt,
-};
+use crate::parse::ast::{Assignment, CodeBlock, CrabAst, DoWhileStmt, Expression, ExpressionType, FnBodyType, FnCall, FnParam, IfStmt, Primitive, Statement, StructIdent, StructInit, WhileStmt};
 use crate::quill::{
     ArtifactType, ChildNib, FnNib, Nib, PolyQuillType, Quill, QuillBoolType, QuillFnType,
     QuillPointerType, QuillStructType, QuillValue,
 };
 use crate::util::{
-    mangle_function_name, primitive_field_name, ListFunctional, MapFunctional, SetFunctional,
+    mangle_function_name, primitive_field_name, ListFunctional, MapFunctional,
 };
 use log::{debug, trace};
 use std::cell::RefCell;
@@ -18,6 +15,7 @@ use std::collections::{HashMap, HashSet};
 use std::convert::{TryFrom, TryInto};
 use std::path::Path;
 use std::rc::Rc;
+use crate::compile::identified_value::IdentifiedValue;
 
 ///
 /// Compiles the given CrabAst and writes the output to out_path
@@ -99,7 +97,9 @@ pub fn compile(
         .clone()
         .into_iter()
         .try_for_each(|name| {
-            peter.register_struct_type(name.clone(), tm.get_fields(&name)?);
+            peter.register_struct_type(name.clone(), tm.get_struct(&name)?.fields.clone().into_iter().fold(HashMap::new(), |fields_map, field| {
+                fields_map.finsert(field.name, field.field_type)
+            }));
             Result::Ok(())
         })?;
     add_main_func(&mut peter)?;
@@ -213,8 +213,8 @@ impl<NibType: Nib> Codegen<NibType> {
     ///
     fn build_assignment(&mut self, ass: Assignment) -> Result<bool> {
         trace!("Codegen::build_assignment");
-        let value = self.build_expression(ass.expr, None)?;
-        self.vars.assign(ass.var_name, value)?;
+        let (id, value) = self.build_expression(ass.expr, None)?;
+        self.vars.assign(ass.var_name, IdentifiedValue::try_from_parts(id, value)?)?;
         Ok(false)
     }
 
@@ -233,8 +233,8 @@ impl<NibType: Nib> Codegen<NibType> {
     ///
     fn build_reassignment(&mut self, reass: Assignment) -> Result<bool> {
         trace!("Codegen::build_reassignment");
-        let value = self.build_expression(reass.expr, None)?;
-        self.vars.reassign(reass.var_name, value)?;
+        let (id, value) = self.build_expression(reass.expr, None)?;
+        self.vars.reassign(reass.var_name, IdentifiedValue::try_from_parts(id, value)?)?;
         Ok(false)
     }
 
@@ -368,13 +368,15 @@ impl<NibType: Nib> Codegen<NibType> {
     fn build_expression(
         &mut self,
         expr: Expression,
-        prev: Option<QuillValue<PolyQuillType>>,
-    ) -> Result<QuillValue<PolyQuillType>> {
+        prev: Option<IdentifiedValue>,
+    ) -> Result<(Option<StructIdent>, QuillValue<PolyQuillType>)> {
         trace!("Codegen::build_expression");
         let val = match expr.this {
-            ExpressionType::PRIM(prim) => Ok(self.build_primitive(prim)),
-            ExpressionType::STRUCT_INIT(si) => Ok(self.build_struct_init(si)?.into()),
-            ExpressionType::FN_CALL(fc) => self.build_fn_call(fc, prev),
+            ExpressionType::PRIM(prim) => Ok((None, self.build_primitive(prim))),
+            ExpressionType::STRUCT_INIT(si) => Ok(self.build_struct_init(si)?.into_parts()),
+            ExpressionType::FN_CALL(fc) => {
+                self.build_fn_call(fc, prev)
+            }
             ExpressionType::VARIABLE(id) => {
                 match prev {
                     None => self.vars.get(&id),
@@ -394,21 +396,22 @@ impl<NibType: Nib> Codegen<NibType> {
                         let expected_type = self
                             .types
                             .borrow_mut()
-                            .get_fields(&prev_strct.get_name())?
+                            .get_struct(&prev_strct.get_name())?
+                            .fields
                             .iter()
-                            .filter(|(name, _)| **name == id)
-                            .next()
-                            .map(|(_, pqt)| pqt.clone())
+                            .filter(|field| field.name == id)
+                            .next() // Get one
                             .ok_or(CompileError::StructFieldName(
                                 prev_strct.get_name(),
                                 prev_strct.get_name(),
-                            ))?;
+                            ))?
+                            .clone();
 
                         // Get that value from the struct
                         let val = self.nib.get_value_from_struct(
                             &prev.try_into()?,
                             id,
-                            expected_type.clone(),
+                            expected_type.field_type.clone(),
                         )?;
                         Ok(val)
                     }
@@ -418,7 +421,7 @@ impl<NibType: Nib> Codegen<NibType> {
 
         match expr.next {
             None => Ok(val),
-            Some(next) => self.build_expression(*next, Some(val)),
+            Some(next) => self.build_expression(*next, Some(IdentifiedValue::try_from_parts(val.0, val.1)?)),
         }
     }
 
@@ -449,16 +452,16 @@ impl<NibType: Nib> Codegen<NibType> {
     /// Returns:
     /// The value of the new struct
     ///
-    fn build_struct_init(&mut self, si: StructInit) -> Result<QuillValue<QuillPointerType>> {
+    fn build_struct_init(&mut self, si: StructInit) -> Result<IdentifiedValue> {
         trace!("Codegen::build_struct_init");
-        let struct_name = si.name;
         let struct_field_names = self
             .types
             .borrow_mut()
-            .get_fields(&struct_name)?
+            .get_struct(&si.id)?
+            .fields
             .iter()
-            .fold(HashSet::new(), |struct_field_names, (name, _)| {
-                struct_field_names.finsert(name.clone())
+            .fold(HashSet::new(), |struct_field_names, field| {
+                struct_field_names.finsert(field.name.clone())
             });
 
         let fields =
@@ -487,21 +490,21 @@ impl<NibType: Nib> Codegen<NibType> {
         //TODO: free
         let struct_t = self.types.borrow_mut().get_quill_struct(&struct_name)?;
         let new_struct_ptr = self.nib.add_malloc(struct_t);
-        fields.into_iter().try_for_each(|(name, value)| {
+        fields.into_iter().try_for_each(|(name, (value, id))| {
             self.nib.set_value_in_struct(&new_struct_ptr, name, value)
         })?;
 
-        Ok(new_struct_ptr)
+        Ok(IdentifiedValue::new(si.id, new_struct_ptr)?)
     }
 
     fn build_fn_call(
         &mut self,
         call: FnCall,
-        caller_opt: Option<QuillValue<PolyQuillType>>,
-    ) -> Result<QuillValue<PolyQuillType>> {
+        caller_opt: Option<IdentifiedValue>,
+    ) -> Result<(QuillValue<PolyQuillType>, Option<StructIdent>)> {
         trace!("Codegen::build_fn_call");
         // Get the original function
-        // TODO: Once we have namespaces and stuff, we should only be manging inside fn_manager
+        // TODO: Once we have namespaces and stuff, we should only be mangling inside fn_manager
         let mangled_name = match caller_opt.clone() {
             None => mangle_function_name(&call.name, None),
             Some(pqv) => mangle_function_name(

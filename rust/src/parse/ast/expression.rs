@@ -2,7 +2,7 @@ use crate::parse::ast::{AstNode, FnCall, Ident, Operator, Primitive, StructField
 use crate::parse::ParseError::ExpectedInner;
 use crate::parse::{ParseError, Result, Rule};
 use crate::try_from_pair;
-use crate::util::{bool_struct_name, int_struct_name, primitive_field_name, string_type_name};
+use crate::util::{bool_struct_id, int_struct_id, primitive_field_name, string_type_id};
 use pest::iterators::Pair;
 use std::convert::TryFrom;
 
@@ -110,7 +110,7 @@ impl TryFrom<Pair<'_, Rule>> for ExpressionType {
                 let prim = Primitive::try_from(pair)?;
                 match &prim {
                     Primitive::UINT(_) => Ok(Self::STRUCT_INIT(StructInit {
-                        name: int_struct_name(),
+                        id: int_struct_id(),
                         fields: vec![StructFieldInit {
                             name: primitive_field_name(),
                             value: Expression {
@@ -120,7 +120,7 @@ impl TryFrom<Pair<'_, Rule>> for ExpressionType {
                         }],
                     })),
                     Primitive::STRING(_) => Ok(Self::STRUCT_INIT(StructInit {
-                        name: string_type_name(),
+                        id: string_type_id(),
                         fields: vec![StructFieldInit {
                             name: primitive_field_name(),
                             value: Expression {
@@ -130,7 +130,7 @@ impl TryFrom<Pair<'_, Rule>> for ExpressionType {
                         }],
                     })),
                     Primitive::BOOL(_) => Ok(Self::STRUCT_INIT(StructInit {
-                        name: bool_struct_name(),
+                        id: bool_struct_id(),
                         fields: vec![StructFieldInit {
                             name: primitive_field_name(),
                             value: Expression {

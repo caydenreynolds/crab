@@ -1,0 +1,5 @@
+// Much like string, this will eventually be a separated list interface and vector class
+
+struct List<T> {
+    (V) '--' (V)
+}

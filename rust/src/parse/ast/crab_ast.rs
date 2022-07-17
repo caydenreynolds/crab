@@ -1,16 +1,16 @@
-use crate::parse::ast::{AstNode, CrabInterface, Func, Ident, Struct, StructImpl, StructIntr};
+use crate::parse::ast::{AstNode, CrabInterface, Func, Ident, CrabStruct, StructImpl, StructIntr, StructIdent};
 use crate::parse::{ParseError, Result, Rule};
 use crate::try_from_pair;
 use crate::util::main_func_name;
 use pest::iterators::Pair;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::convert::TryFrom;
 
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
 pub struct CrabAst {
     pub functions: Vec<Func>,
-    pub structs: Vec<Struct>,
-    pub interfaces: HashMap<Ident, CrabInterface>,
+    pub structs: Vec<CrabStruct>,
+    pub interfaces: HashMap<StructIdent, CrabInterface>,
     pub main: Option<Func>,
     pub intrs: Vec<StructIntr>,
 
@@ -28,20 +28,25 @@ impl AstNode for CrabAst {
         let mut intrs = vec![];
         let mut main = None;
 
+        let mut func_dupe_filter = HashSet::new();
+
         for in_pair in inner {
             match in_pair.clone().as_rule() {
                 Rule::function => {
-                    let func = Func::try_from(in_pair)?.with_mangled_name();
+                    let func = Func::try_from(in_pair)?;
+                    if !func_dupe_filter.insert(func.signature.name.clone()) {
+                        return Err(ParseError::DuplicateFunc(func.signature.name.clone()))
+                    }
                     if func.signature.name == main_func_name() {
                         main = Some(func.clone());
                     }
                     functions.push(func);
                 }
-                Rule::crab_struct => structs.push(Struct::try_from(in_pair)?),
+                Rule::crab_struct => structs.push(CrabStruct::try_from(in_pair)?),
                 Rule::impl_block => impls.push(StructImpl::try_from(in_pair)?),
                 Rule::interface => {
                     let interface = CrabInterface::try_from(in_pair)?;
-                    interfaces.insert(interface.name.clone(), interface);
+                    interfaces.insert(interface.id.clone(), interface);
                 }
                 Rule::intr_block => intrs.push(StructIntr::try_from(in_pair)?),
                 Rule::EOI => break, // Nothing should ever show up after EOI
@@ -51,7 +56,7 @@ impl AstNode for CrabAst {
 
         for struct_impl in &impls {
             for func in &struct_impl.fns {
-                functions.push(func.clone().method(struct_impl.struct_name.clone()));
+                functions.push(func.clone().method(struct_impl.struct_id.clone()));
             }
         }
 
@@ -103,7 +108,7 @@ impl CrabAst {
     fn verify_intrs(&self) -> Result<()> {
         for intr in &self.intrs {
             for si in &self.impls {
-                if si.struct_name == intr.struct_name {
+                if si.struct_id == intr.struct_id {
                     for inter in &intr.inters {
                         si.verify_implements(
                             self.interfaces

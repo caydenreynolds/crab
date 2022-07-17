@@ -1,17 +1,38 @@
-use crate::parse::ast::Ident;
+use crate::parse::ast::{Ident, StructIdent};
 
-pub fn int_struct_name() -> Ident {
-    Ident::from("Int")
+pub fn int_struct_id() -> StructIdent {
+    StructIdent {
+        name: Ident::from("Int"),
+        tmpls: vec![],
+    }
 }
-pub fn string_type_name() -> Ident {
-    Ident::from("String")
+pub fn string_type_id() -> StructIdent {
+    StructIdent {
+        name: Ident::from("String"),
+        tmpls: vec![],
+    }
 }
-pub fn bool_struct_name() -> Ident {
-    Ident::from("Bool")
+pub fn bool_struct_id() -> StructIdent {
+    StructIdent {
+        name: Ident::from("Bool"),
+        tmpls: vec![],
+    }
 }
+pub fn list_struct_id() -> StructIdent {
+    StructIdent {
+        name: Ident::from("List"),
+        tmpls: vec![],
+    }
+}
+
+pub fn tmpl_param_name() -> Ident { Ident::from("T") }
+
 pub fn primitive_field_name() -> Ident {
     Ident::from("value")
 }
+pub fn capacity_field_name() -> Ident { Ident::from("capacity") }
+pub fn length_field_name() -> Ident { Ident::from("length") }
+
 pub fn main_func_name() -> Ident {
     Ident::from("main")
 }

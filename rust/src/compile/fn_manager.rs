@@ -6,6 +6,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::rc::Rc;
+use crate::compile::identified_value::IdentifiedValue;
 
 #[derive(Debug, Clone)]
 pub(super) struct FnManager {
@@ -111,7 +112,6 @@ impl FnManager {
     /// If the returned signature has not been registered it will be added to the build queue
     /// The caller is always the value of the parents in the FnCall's ExpressionChain, or None if
     /// the FnCall's ExpressionChain does not have any parents
-    /// TODO: Support for named_params to have an interface type
     ///
     /// Params:
     /// * `call` - The FnCall to get the FuncSignature of
@@ -120,24 +120,14 @@ impl FnManager {
     pub fn get_signature(
         &mut self,
         call: &FnCall,
-        caller_opt: &Option<QuillValue<PolyQuillType>>,
-        unnamed_values: &[QuillValue<PolyQuillType>],
-        named_values: &HashMap<Ident, QuillValue<PolyQuillType>>,
+        caller_opt: &Option<IdentifiedValue>,
+        unnamed_values: &[IdentifiedValue],
+        named_values: &HashMap<Ident, IdentifiedValue>,
     ) -> Result<FuncSignature> {
-        // For now, we're assuming we can only get a pointer to a struct value
-        let caller_opt_t = match caller_opt {
-            Some(caller) => Some(QuillStructType::try_from(
-                QuillValue::<QuillPointerType>::try_from(caller.clone())?
-                    .get_type()
-                    .get_inner_type(),
-            )?),
-            None => None,
-        };
-
         // Get the source signature
         let mangled_name = mangle_function_name(
             &call.name,
-            caller_opt_t.map(|caller_t| caller_t.get_name()).as_ref(),
+            caller_opt.map(|co| co.get_quill_name()).as_ref(),
         );
         let source_fn = self
             .fn_sources
@@ -238,8 +228,8 @@ impl FnManager {
     fn verify_values(
         &self,
         signature: &FuncSignature,
-        unnamed_values: &[QuillValue<PolyQuillType>],
-        named_values: &HashMap<Ident, QuillValue<PolyQuillType>>,
+        unnamed_values: &[IdentifiedValue],
+        named_values: &HashMap<Ident, IdentifiedValue>,
     ) -> Result<()> {
         if unnamed_values.len() != signature.unnamed_params.len() {
             return Err(CompileError::PositionalArgumentCount(

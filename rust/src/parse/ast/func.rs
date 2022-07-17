@@ -1,5 +1,5 @@
 use crate::parse::ast::FnBodyType::{CODEBLOCK, COMPILER_PROVIDED};
-use crate::parse::ast::{AstNode, CodeBlock, CrabType, FuncSignature, Ident, Statement};
+use crate::parse::ast::{AstNode, CodeBlock, CrabType, FuncSignature, Ident, Statement, StructIdent};
 use crate::parse::{ParseError, Result, Rule};
 use crate::try_from_pair;
 use pest::iterators::Pair;
@@ -46,21 +46,21 @@ impl AstNode for Func {
     }
 }
 impl Func {
-    ///
-    /// Convert this function to a method
-    /// This works by adding an parameter of type struct_name to the beginning of this func's arguments
-    ///
-    pub fn method(self, struct_name: Ident) -> Self {
-        Self {
-            body: self.body,
-            signature: self.signature.method(struct_name),
-        }
-    }
-
-    pub fn with_mangled_name(self) -> Self {
-        Self {
-            body: self.body,
-            signature: self.signature.with_mangled_name(),
-        }
-    }
+    // ///
+    // /// Convert this function to a method
+    // /// This works by adding an parameter of type struct_name to the beginning of this func's arguments
+    // ///
+    // pub fn method(self, struct_id: StructIdent) -> Self {
+    //     Self {
+    //         body: self.body,
+    //         signature: self.signature.method(struct_name),
+    //     }
+    // }
+    //
+    // pub fn with_mangled_name(self) -> Self {
+    //     Self {
+    //         body: self.body,
+    //         signature: self.signature.with_mangled_name(),
+    //     }
+    // }
 }

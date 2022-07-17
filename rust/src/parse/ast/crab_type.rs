@@ -1,5 +1,5 @@
 use crate::compile::CompileError;
-use crate::parse::ast::{AstNode, Ident};
+use crate::parse::ast::{AstNode, Ident, StructIdent};
 use crate::parse::{ParseError, Rule};
 use crate::{parse, try_from_pair};
 use pest::iterators::Pair;
@@ -9,14 +9,9 @@ use std::fmt::{Display, Formatter};
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum CrabType {
-    UINT8,
-    UINT64,
-    STRING,
-    VOID,
-    FLOAT,
-    BOOL,
-    STRUCT(Ident), // TODO: Struct currently encompasses both structs and interfaces
+    STRUCT(StructIdent), // Struct encompasses both structs and interfaces
     LIST(Box<CrabType>),
+    VOID,
 }
 
 try_from_pair!(CrabType, Rule::crab_type);
@@ -27,21 +22,9 @@ impl AstNode for CrabType {
     {
         let next = pair.into_inner().next().ok_or(ParseError::ExpectedInner)?;
         match next.clone().as_rule() {
-            Rule::ident => Ok(Self::STRUCT(Ident::from(next.as_str()))),
+            Rule::ident => Ok(Self::STRUCT(StructIdent::try_from(next)?)),
             Rule::crab_type => Ok(Self::LIST(Box::new(CrabType::try_from(next)?))),
             _ => Err(ParseError::NoMatch(String::from("CrabType::from_pair"))),
-        }
-    }
-}
-
-impl CrabType {
-    pub fn try_get_struct_name(&self) -> crate::compile::Result<Ident> {
-        match self {
-            Self::STRUCT(id) => Ok(id.clone()),
-            _ => Err(CompileError::NotAStruct(
-                String::from("unknown"),
-                String::from("CrabType::try_get_struct_name"),
-            )),
         }
     }
 }
@@ -49,14 +32,9 @@ impl CrabType {
 impl Display for CrabType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            CrabType::UINT8 => write!(f, "UINT8"),
-            CrabType::UINT64 => write!(f, "UINT64"),
-            CrabType::STRING => write!(f, "STRING"),
-            CrabType::VOID => write!(f, "VOID"),
-            CrabType::FLOAT => write!(f, "FLOAT"),
-            CrabType::BOOL => write!(f, "BOOL"),
             CrabType::STRUCT(n) => write!(f, "{}", n),
             CrabType::LIST(l) => write!(f, "LIST_{}", l),
+            CrabType::VOID => write!(f, "VOID"),
         }?;
 
         Ok(())

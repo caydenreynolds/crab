@@ -40,8 +40,8 @@ pub use crab_type::*;
 mod struct_impl;
 pub use struct_impl::*;
 
-mod struct_field;
-pub use struct_field::*;
+mod crab_struct_field;
+pub use crab_struct_field::*;
 
 mod struct_init;
 pub use struct_init::*;
@@ -75,3 +75,6 @@ pub use do_while_stmt::*;
 
 mod operator;
 pub use operator::*;
+
+pub mod struct_ident;
+pub use struct_ident::*;

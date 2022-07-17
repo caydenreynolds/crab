@@ -1,4 +1,4 @@
-use crate::parse::ast::{AstNode, Ident};
+use crate::parse::ast::{AstNode, Ident, StructIdent};
 use crate::parse::{ParseError, Result, Rule};
 use crate::try_from_pair;
 use pest::iterators::Pair;
@@ -6,8 +6,8 @@ use std::convert::TryFrom;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct StructIntr {
-    pub struct_name: Ident,
-    pub inters: Vec<Ident>,
+    pub struct_id: StructIdent,
+    pub inters: Vec<StructIdent>,
 }
 
 try_from_pair!(StructIntr, Rule::intr_block);
@@ -17,20 +17,11 @@ impl AstNode for StructIntr {
         Self: Sized,
     {
         let mut inner = pair.into_inner();
-        let struct_name = Ident::from(
-            inner
-                .next()
-                .ok_or(ParseError::NoMatch(String::from("StructIntr::from_pair")))?
-                .as_str(),
-        );
-        let mut inters = vec![];
-
-        for in_pair in inner {
-            inters.push(Ident::from(in_pair.as_str()));
-        }
+        let struct_id = StructIdent::try_from(inner.next().ok_or(ParseError::NoMatch(String::from("Struct::from_pair")))?)?;
+        let inters = inner.map(|pair| StructIdent::try_from(pair)).collect::<Result<Vec<StructIdent>>>()?;
 
         Ok(Self {
-            struct_name,
+            struct_id,
             inters,
         })
     }

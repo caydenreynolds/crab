@@ -1,4 +1,4 @@
-use crate::parse::ast::{CrabType, Ident};
+use crate::parse::ast::{CrabType, Ident, StructIdent};
 use crate::quill::QuillError;
 use thiserror::Error;
 
@@ -18,6 +18,12 @@ pub enum CompileError {
     #[error("Could not get value with name {0} as a struct type in {1}")]
     NotAStruct(String, String),
 
+    #[error("Quill pointer points to a value that is not a struct")]
+    ValueNotStruct,
+
+    #[error("Could not build identified type from these parts")]
+    FromParts,
+
     #[error("Could not get a value as an interface type")]
     NotAnInterface,
 
@@ -33,13 +39,13 @@ pub enum CompileError {
     StructRedefinition(Ident),
 
     #[error("Interface {0} is declared multiple times")]
-    InterfaceRedefinition(Ident),
+    InterfaceRedefinition(StructIdent),
 
     #[error("Struct with name {0} does not exist")]
-    StructDoesNotExist(Ident),
+    StructDoesNotExist(StructIdent),
 
     #[error("Type with name {0} does not exist")]
-    TypeDoesNotExist(Ident),
+    TypeDoesNotExist(StructIdent),
 
     #[error("Failed to build function {0} because it does not always return a value")]
     NoReturn(Ident),
@@ -55,6 +61,9 @@ pub enum CompileError {
 
     #[error("Function expected argument with name {0}, but none was supplied")]
     ArgumentNotSupplied(Ident),
+
+    #[error("Was not supplied a template parameter with name {0}")]
+    NoTemplate(Ident),
 
     #[error(transparent)]
     QuillErr(#[from] QuillError),

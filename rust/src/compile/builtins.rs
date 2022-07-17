@@ -1,23 +1,20 @@
 use crate::compile::{CompileError, Result};
 use crate::parse::ast::{CrabType, FnParam, Ident};
 use crate::quill::{
-    FnNib, Nib, PolyQuillType, Quill, QuillFloatType, QuillFnType, QuillIntType, QuillListType,
+    FnNib, Nib, Quill, QuillFloatType, QuillFnType, QuillIntType, QuillListType,
     QuillPointerType, QuillStructType, QuillVoidType,
 };
-use crate::util::{
-    add_param_mangles, bool_struct_name, format_i_c_name, int_struct_name, main_func_name,
-    mangle_function_name, operator_add_name, primitive_field_name, printf_c_name, printf_crab_name,
-    string_type_name, to_string_name,
-};
+use crate::util::{add_param_mangles, bool_struct_name, capacity_field_name, format_i_c_name, int_struct_name, length_field_name, list_struct_name, main_func_name, mangle_function_name, operator_add_name, primitive_field_name, printf_c_name, printf_crab_name, string_type_name, tmpl_param_name, to_string_name};
 use lazy_static::lazy_static;
 use std::collections::HashMap;
+use crate::compile::type_manager::{Struct, StructField};
 
 lazy_static! {
     /// A map of the names of each of our function builtins to the function that generates the ir for that builtin
     static ref FN_BUILTIN_NAME_MAP: HashMap<Ident, fn(&mut Quill, &mut FnNib)->Result<()>> = init_builtin_fn_map();
 
     /// A map of the names of each of our struct builtins to the function that generates the ir for that builtin
-    static ref STRCT_BUILTIN_NAME_MAP: HashMap<Ident, HashMap<Ident, PolyQuillType>> = init_builtin_strct_map();
+    static ref STRCT_BUILTIN_NAME_MAP: HashMap<Ident, Struct> = init_builtin_strct_map();
 }
 
 ///
@@ -69,23 +66,12 @@ fn init_builtin_fn_map() -> HashMap<Ident, fn(&mut Quill, &mut FnNib) -> Result<
 ///
 /// Init the builtin struct definition map
 ///
-fn init_builtin_strct_map() -> HashMap<Ident, HashMap<String, PolyQuillType>> {
+fn init_builtin_strct_map() -> HashMap<Ident, Struct> {
     HashMap::from([
-        (
-            int_struct_name(),
-            HashMap::from([(primitive_field_name(), QuillIntType::new(64).into())]),
-        ),
-        (
-            bool_struct_name(),
-            HashMap::from([(primitive_field_name(), QuillIntType::new(1).into())]),
-        ),
-        (
-            string_type_name(),
-            HashMap::from([(
-                primitive_field_name(),
-                QuillPointerType::new(QuillIntType::new(8)).into(),
-            )]),
-        ),
+        (int_struct_name(), int_strct()),
+        (bool_struct_name(), bool_strct()),
+        (string_type_name(), string_strct()),
+        (list_struct_name(), list_strct()),
     ])
 }
 
@@ -97,13 +83,13 @@ pub(super) fn add_builtin_definition(peter: &mut Quill, nib: &mut FnNib) -> Resu
         ))?(peter, nib)
 }
 
-pub(super) fn get_builtin_strct_definition(name: &str) -> Result<&HashMap<String, PolyQuillType>> {
+pub(super) fn get_builtin_strct_definition(name: &str) -> Result<Struct> {
     STRCT_BUILTIN_NAME_MAP
         .get(name)
         .ok_or(CompileError::NotAStruct(
             String::from(name),
             String::from("builtins::get_builtin_strct_definition"),
-        ))
+        )).cloned()
 }
 
 fn add_printf(peter: &mut Quill, nib: &mut FnNib) -> Result<()> {
@@ -215,4 +201,53 @@ pub(super) fn add_main_func(peter: &mut Quill) -> Result<()> {
     peter.add_fn(nib);
 
     Ok(())
+}
+
+fn int_strct() -> Struct {
+    Struct {
+        tmpl_names: vec![],
+        fields: vec![StructField {
+            name: primitive_field_name(),
+            field_type: QuillIntType::new(64).into()
+        }],
+    }
+}
+
+fn bool_strct() -> Struct {
+    Struct {
+        tmpl_names: vec![],
+        fields: vec![StructField {
+            name: primitive_field_name(),
+            field_type: QuillIntType::new(1).into()
+        }],
+    }}
+
+fn string_strct() -> Struct {
+    Struct {
+        tmpl_names: vec![],
+        fields: vec![StructField {
+            name: primitive_field_name(),
+            field_type: QuillPointerType::new(QuillIntType::new(8)).into()
+        }],
+    }
+}
+
+fn list_strct() -> Struct {
+    Struct {
+        tmpl_names: vec![tmpl_param_name()],
+        fields: vec![
+            StructField {
+                name: primitive_field_name(),
+                field_type: QuillPointerType::new(QuillStructType::new(tmpl_param_name())).into()
+            },
+            StructField {
+                name: capacity_field_name(),
+                field_type: QuillIntType::new(64).into(),
+            },
+            StructField {
+                name: length_field_name(),
+                field_type: QuillIntType::new(64).into(),
+            }
+        ]
+    }
 }

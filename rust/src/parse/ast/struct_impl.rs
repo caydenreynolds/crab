@@ -1,4 +1,4 @@
-use crate::parse::ast::{AstNode, CrabInterface, Func, Ident};
+use crate::parse::ast::{AstNode, CrabInterface, Func, Ident, StructIdent};
 use crate::parse::{ParseError, Result, Rule};
 use crate::try_from_pair;
 use pest::iterators::Pair;
@@ -6,8 +6,8 @@ use std::convert::TryFrom;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct StructImpl {
-    pub struct_name: Ident,
-    pub interface_name: Option<Ident>,
+    pub struct_id: StructIdent,
+    pub interface_id: Option<StructIdent>,
     pub fns: Vec<Func>,
 }
 
@@ -18,16 +18,16 @@ impl AstNode for StructImpl {
         Self: Sized,
     {
         let mut inner = pair.into_inner();
-        let struct_name = Ident::from(inner.next().ok_or(ParseError::ExpectedInner)?.as_str());
+        let struct_id = StructIdent::try_from(inner.next().ok_or(ParseError::NoMatch(String::from("Struct::from_pair")))?)?;
         let next_opt = inner.peek();
 
-        let interface_name = match next_opt {
+        let interface_id = match next_opt {
             None => None,
             Some(next_pair) => match next_pair.clone().as_rule() {
                 Rule::function => None,
-                Rule::ident => {
+                Rule::struct_ident => {
                     inner.next();
-                    Some(Ident::from(next_pair.as_str()))
+                    Some(StructIdent::try_from(next_pair)?)
                 }
                 rule => {
                     return Err(ParseError::IncorrectRule(
@@ -45,8 +45,8 @@ impl AstNode for StructImpl {
         }
 
         Ok(Self {
-            struct_name,
-            interface_name,
+            struct_id,
+            interface_id,
             fns,
         })
     }
@@ -62,9 +62,9 @@ impl StructImpl {
             }
             if !match_found {
                 return Err(ParseError::DoesNotImplement(
-                    self.struct_name.clone(),
+                    self.struct_id.clone(),
                     ifunc.name.clone(),
-                    intr.name.clone(),
+                    intr.id.clone(),
                 ));
             }
         }

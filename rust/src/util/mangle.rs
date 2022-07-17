@@ -1,4 +1,35 @@
-use crate::parse::ast::{FnParam, Ident};
+use crate::parse::ast::{FnParam, Ident, StructIdent};
+
+///
+/// Mangles a struct name based on the tye of the struct and all of the tmpls included in it
+///
+/// Params:
+/// * `strct_name` - The name of the struct to mangle
+/// * `tmpl_names` - The names of all of the resolved template types, if any
+///
+/// Returns:
+/// The mangled struct name
+///
+pub fn mangle_struct_name(strct_name: &Ident, tmpl_names: &[Ident]) -> Ident {
+    let mut result = strct_name.clone();
+    for name in tmpl_names {
+        result = format!("{}-{}", result, name)
+    }
+    return result;
+}
+
+///
+/// Extracts the name of a struct from the mangled name of the struct
+///
+/// Params:
+/// * `mangled_name` - The mangled struct name
+///
+/// Returns
+/// The extracted struct name
+///
+pub fn extract_struct_name(mangled_name: &Ident) -> Ident {
+    Ident::from(mangled_name.split("-").next().unwrap())
+}
 
 ///
 /// Mangles a function name based on whether it's a function or a method
@@ -13,8 +44,8 @@ use crate::parse::ast::{FnParam, Ident};
 ///
 pub fn mangle_function_name(fn_name: &Ident, caller_name: Option<&Ident>) -> Ident {
     match caller_name {
-        None => format!("_FN_{}", fn_name),
-        Some(sn) => format!("_MD_{}_{}", sn, fn_name),
+        None => format!("-FN-{}", fn_name),
+        Some(sn) => format!("-MD-{}-{}", sn, fn_name),
     }
 }
 
@@ -43,7 +74,7 @@ pub fn add_param_mangles(mangled_name: &Ident, params_to_mangle: &[FnParam]) -> 
 ///
 fn add_param_mangle(mangled_name: Ident, param_to_mangle: &FnParam) -> Ident {
     return format!(
-        "{}_{}_{}",
+        "{}-{}-{}",
         mangled_name, param_to_mangle.name, param_to_mangle.crab_type
     );
 }

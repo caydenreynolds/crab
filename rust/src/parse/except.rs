@@ -1,4 +1,4 @@
-use crate::parse::ast::Ident;
+use crate::parse::ast::{Ident, StructIdent};
 use crate::parse::Rule;
 use std::num::ParseIntError;
 use thiserror::Error;
@@ -34,10 +34,13 @@ pub enum ParseError {
     MainSignature,
 
     #[error("The struct {0} does not implement {1}, which is required by interface {2}")]
-    DoesNotImplement(Ident, Ident, Ident),
+    DoesNotImplement(StructIdent, Ident, StructIdent),
 
     #[error("The interface {0} does not exist")]
-    InterfaceNotFound(Ident),
+    InterfaceNotFound(StructIdent),
+
+    #[error("The function {0} has already been defined")]
+    DuplicateFunc(Ident),
 
     #[error(transparent)]
     Io(#[from] std::io::Error),

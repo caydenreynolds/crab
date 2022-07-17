@@ -1,4 +1,4 @@
-use crate::parse::ast::{AstNode, CrabType, FnParam, Ident, NamedFnParam};
+use crate::parse::ast::{AstNode, CrabType, FnParam, Ident, NamedFnParam, StructIdent};
 use crate::parse::{ParseError, Result, Rule};
 use crate::try_from_pair;
 use crate::util::{int_struct_name, main_func_name, mangle_function_name};
@@ -70,33 +70,33 @@ impl AstNode for FuncSignature {
     }
 }
 impl FuncSignature {
-    pub fn with_mangled_name(self) -> Self {
-        Self {
-            named_params: self.named_params,
-            unnamed_params: self.unnamed_params,
-            return_type: self.return_type,
-            name: mangle_function_name(&self.name, None),
-        }
-    }
-
-    ///
-    /// Convert this function signature to a method
-    /// This works by adding an parameter of type struct_name to the beginning of this func's arguments
-    ///
-    pub(super) fn method(self, struct_name: Ident) -> Self {
-        let new_name = mangle_function_name(&self.name, Some(&struct_name));
-        let mut new_unnamed_params = vec![FnParam {
-            name: Ident::from("self"),
-            crab_type: CrabType::STRUCT(struct_name),
-        }];
-        new_unnamed_params.extend(self.unnamed_params);
-        Self {
-            name: new_name,
-            return_type: self.return_type,
-            named_params: self.named_params,
-            unnamed_params: new_unnamed_params,
-        }
-    }
+    // pub fn with_mangled_name(self) -> Self {
+    //     Self {
+    //         named_params: self.named_params,
+    //         unnamed_params: self.unnamed_params,
+    //         return_type: self.return_type,
+    //         name: mangle_function_name(&self.name, None),
+    //     }
+    // }
+    //
+    // ///
+    // /// Convert this function signature to a method
+    // /// This works by adding an parameter of type struct_name to the beginning of this func's arguments
+    // ///
+    // pub(super) fn method(self, struct_name: StructIdent) -> Self {
+    //     let new_name = mangle_function_name(&self.name, Some(&struct_name));
+    //     let mut new_unnamed_params = vec![FnParam {
+    //         name: Ident::from("self"),
+    //         crab_type: CrabType::STRUCT(struct_name),
+    //     }];
+    //     new_unnamed_params.extend(self.unnamed_params);
+    //     Self {
+    //         name: new_name,
+    //         return_type: self.return_type,
+    //         named_params: self.named_params,
+    //         unnamed_params: new_unnamed_params,
+    //     }
+    // }
 
     fn verify_main_fn(&self) -> Result<bool> {
         if self.name == main_func_name() {
