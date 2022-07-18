@@ -11,7 +11,10 @@ crab_env/
 # Various build directories
 **/target
 
-# Stray build artifacts
+# One-off scripts that I don't want to get out
+tools/remote_*
+
+# Stray build bartifacts
 *.ll
 *.bc
 *.exe
