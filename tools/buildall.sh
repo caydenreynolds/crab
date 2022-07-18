@@ -1,10 +1,15 @@
-#!/bin/sh
+#!/bin/bash
 set -e
 
+script_dir=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+echo "Script directory: ${script_dir}"
+
 echo "Building c builtins"
-cd ../c/ || exit
+pushd "${script_dir}/../c/"
 ./scripts/rtccrabc.sh
+popd
 
 echo "Building rust project -- parser and compiler"
-cd ../rust || exit
+pushd "${script_dir}/../rust/"
 cargo build "$@"
+popd
