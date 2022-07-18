@@ -1,9 +1,8 @@
 fn main() -> Int {
-    print_int("asdf")
-
+    just_print()
     return 0
 }
 
-fn print_int(Int argument) {
+fn just_print(Int argument) {
     print(argument)
 }

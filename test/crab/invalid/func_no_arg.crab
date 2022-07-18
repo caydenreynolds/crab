@@ -1,5 +1,5 @@
 fn main() -> Int {
-    print_int("asdf")
+    print_int()
 
     return 0
 }
