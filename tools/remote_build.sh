@@ -24,6 +24,7 @@ branch="${branch:2}"
 echo "On branch $branch"
 
 if [[ "$branch" == "main" ]]; then
+  # If I was smart, I'd use git to enforce this no-master-push rule
   echo "Don't push to master you dumb bitch"
   exit 1
 fi
@@ -34,6 +35,8 @@ git commit -m "Autopush from remote_build.sh"
 git push --set-upstream origin "$branch"
 popd
 
+# Yes, this is extremely specific to me
+# No, I won't fix it
 host_cmd="
               pushd ~/projects/crab
               git checkout $branch
