@@ -11,8 +11,7 @@ crab_env/
 # Various build directories
 **/target
 
-# One-off scripts that I don't want to get out
-tools/remote_*
+# Remote build artifacts
 *.tar.gz
 
 # Stray build bartifacts
