@@ -13,6 +13,7 @@ crab_env/
 
 # One-off scripts that I don't want to get out
 tools/remote_*
+*.tar.gz
 
 # Stray build bartifacts
 *.ll
