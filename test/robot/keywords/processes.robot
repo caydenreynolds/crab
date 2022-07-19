@@ -18,6 +18,8 @@ The following command is run:
     Should Be Equal As Integers  ${return_code}  ${result.rc}
 
 The following command exits with an error:
+    [Arguments]    @{varargs}
+
     Run Keyword If  "${VERBOSE}" == "TRUE"  Log to Console  Running processs @{varargs}
     ${result} =  Run Process  @{varargs}  shell=True
     Log Many  stdOut:  ${result.stdout}
