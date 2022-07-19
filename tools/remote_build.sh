@@ -16,6 +16,7 @@ fi
 
 script_dir=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 echo "Script directory: ${script_dir}"
+pushd "$script_dir"
 
 # I'm looking for this literal asterisk character, not trying to glob
 # shellcheck disable=SC2063
@@ -24,16 +25,15 @@ branch="${branch:2}"
 echo "On branch $branch"
 
 if [[ "$branch" == "main" ]]; then
-  # If I was smart, I'd use git to enforce this no-master-push rule
-  echo "Don't push to master you dumb bitch"
-  exit 1
+  echo "Skipping push because we're on main"
+else
+  echo "Pushing"
+  pushd "../"
+  git add .
+  git commit -m "Autopush from remote_build.sh"
+  git push --set-upstream origin "$branch"
+  popd
 fi
-
-pushd "${script_dir}/../"
-git add .
-git commit -m "Autopush from remote_build.sh"
-git push --set-upstream origin "$branch"
-popd
 
 # Yes, this is extremely specific to me
 # No, I won't fix it
