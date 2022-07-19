@@ -11,7 +11,10 @@ crab_env/
 # Various build directories
 **/target
 
-# Stray build artifacts
+# Remote transfer artifacts
+*.tar.gz
+
+# Stray build bartifacts
 *.ll
 *.bc
 *.exe

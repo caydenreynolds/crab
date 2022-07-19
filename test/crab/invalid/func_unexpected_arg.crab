@@ -1,0 +1,9 @@
+fn main() -> Int {
+    just_print()
+
+    return 0
+}
+
+fn just_print(Int argument) {
+    print(argument)
+}

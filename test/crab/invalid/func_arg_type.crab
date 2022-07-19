@@ -1,0 +1,9 @@
+fn main() -> Int {
+    print_int("asdf")
+
+    return 0
+}
+
+fn print_int(Int argument) {
+    print(argument)
+}

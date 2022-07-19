@@ -27,7 +27,7 @@ rm -rf target
 mkdir target
 
 source crab_env/Scripts/activate
-./../scripts/buildall.sh --release
+./../tools/buildall.sh --release
 
 # FIXME: Shell is hardcoded for windows
 declare -A rel_paths=(["CBUILTINS_DIR"]="../c/target" ["CRABC"]="../rust/target/release/crabc.exe" ["CRAB_SRC"]="crab" ["TARGET_DIR"]="target" ["CRAB_STD"]="../std")
