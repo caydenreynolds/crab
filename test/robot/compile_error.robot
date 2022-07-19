@@ -14,5 +14,8 @@ The crab compiler exits with an error when the Crabfile "${crabfile}" is built"
 
 *** Test Cases ***
 Attempt to build invalid Crabfiles
-    [Template]  The crab compiler exits with an error when the Crabfile "${crabfile}" is built
+    [Template]  The Crab Compiler Exits With An Error When The Crabfile "${crabfile}" Is Built"
     func_arg_type.crab
+    func_no_arg.crab
+    func_unexpected_arg.crab
+    no_such_func.crab
