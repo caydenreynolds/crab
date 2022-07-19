@@ -7,12 +7,12 @@ Library           String
 The crab compiler exits with an error when the Crabfile "${crabfile}" is built"
     ${crabfile_name} =  Fetch From Left  ${crabfile}  .
     IF  "${VERBOSE}" == "TRUE"
-        The following command exits with an error:  ${CRABC}  -c  ${CBUILTINS_DIR}  -o  ${TARGET_DIR}/${crabfile_name}.exe  --verify  -v  ${CRAB_SRC}/${crabfile}  ${CRAB_STD}
+        The Following Command Exits With An Error:  ${CRABC}  -c  ${CBUILTINS_DIR}  -o  ${TARGET_DIR}/${crabfile_name}.exe  --verify  -v  ${CRAB_SRC}/${crabfile}  ${CRAB_STD}
     ELSE
-        The following command exits with an error:  ${CRABC}  -c  ${CBUILTINS_DIR}  -o  ${TARGET_DIR}/${crabfile_name}.exe  --verify  ${CRAB_SRC}/${crabfile}  ${CRAB_STD}
+        The Following Command Exits With An Error:  ${CRABC}  -c  ${CBUILTINS_DIR}  -o  ${TARGET_DIR}/${crabfile_name}.exe  --verify  ${CRAB_SRC}/${crabfile}  ${CRAB_STD}
     END
 
 *** Test Cases ***
-Run Simple Crabfiles
+Attempt to build invalid Crabfiles
     [Template]  The crab compiler exits with an error when the Crabfile "${crabfile}" is built
     func_arg_type.crab
