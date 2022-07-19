@@ -26,7 +26,7 @@ The following command exits with an error:
     Log Many  stdErr:  ${result.stderr}
     Set Test Variable  $last_process_result  ${result}
 
-    Should Not Be Equal As Integers  ${return_code}  0
+    Should Not Be Equal As Integers  ${result.rc}  0
 
 The last process printed "${output}"
     Should be Equal As Strings  ${output}  ${last_process_result.stdout}
