@@ -1,5 +1,6 @@
 fn main() -> Int {
     just_print()
+
     return 0
 }
 
