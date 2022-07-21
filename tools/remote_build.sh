@@ -60,7 +60,7 @@ else
               "
 fi
 # Ensure the host is awake
-ssh "$CRAB_BUILD_HOST" "echo 'Wake up!!'"
+#ssh "$CRAB_BUILD_HOST" "echo 'Wake up!!'"
 ssh "$CRAB_BUILD_HOST" "$host_cmd"
 
 if [[ "$test" == "true" ]]; then
