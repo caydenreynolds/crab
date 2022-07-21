@@ -58,9 +58,7 @@ else
                 ${host_cmd}
                 ./tools/buildall.sh
               "
-fi
-# Ensure the host is awake
-#ssh "$CRAB_BUILD_HOST" "echo 'Wake up!!'"
+fiS
 ssh "$CRAB_BUILD_HOST" "$host_cmd"
 
 if [[ "$test" == "true" ]]; then
