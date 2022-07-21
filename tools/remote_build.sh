@@ -58,7 +58,7 @@ else
                 ${host_cmd}
                 ./tools/buildall.sh
               "
-fiS
+fi
 ssh "$CRAB_BUILD_HOST" "$host_cmd"
 
 if [[ "$test" == "true" ]]; then
