@@ -58,10 +58,9 @@ impl Display for CrabType {
                 for ct in t {
                     write!(f, "_{}", ct)?;
                 }
+                Ok(())
             }
-        }?;
-
-        Ok(())
+        }
     }
 }
 
@@ -88,7 +87,7 @@ impl AstNode for TmplCrabType {
         let mut inner = pair.into_inner();
         let name = Ident::from(pest_helper::get_next(&mut inner)?.as_str());
         let tmpls = inner.try_fold(vec![], |tmpls, tmpl| {
-            Ok(tmpls.fpush(CrabType::try_from(tmpl)?))
+            Result::Ok(tmpls.fpush(CrabType::try_from(tmpl)?))
         })?;
         Ok(Self(name, tmpls))
     }
