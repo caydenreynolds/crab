@@ -78,50 +78,14 @@ impl AstNode for FuncSignature {
     fn from_pair(pair: Pair<Rule>) -> Result<Self> {
         let mut inner = pair.into_inner();
         let name = Ident::from(inner.next().ok_or(ParseError::ExpectedInner)?.as_str());
-        let mut return_type_option = None;
-        let mut unnamed_params = vec![];
-        let mut named_params = vec![];
-        let mut seen_named_param = false;
-
-        for inner_pair in inner {
-            match inner_pair.clone().as_rule() {
-                Rule::crab_type => return_type_option = Some(CrabType::try_from(inner_pair)?),
-                Rule::fn_param => {
-                    unnamed_params.push(PosParam::try_from(inner_pair)?);
-                    if seen_named_param {
-                        return Err(ParseError::PositionalParamAfterNamedParam(
-                            name.clone(),
-                            unnamed_params
-                                .get(unnamed_params.len() - 1)
-                                .unwrap()
-                                .name
-                                .clone(),
-                        ));
-                    }
-                }
-                Rule::named_fn_param => {
-                    named_params.push(NamedParam::try_from(inner_pair)?);
-                    seen_named_param = true;
-                }
-                _ => {
-                    return Err(ParseError::NoMatch(String::from(
-                        "FuncSignature::from_pair",
-                    )))
-                }
-            }
-        }
-        let unnamed_params = unnamed_params;
-        let named_params = named_params;
-
-        let return_type = match return_type_option {
-            None => CrabType::VOID,
-            Some(ct) => ct,
-        };
+        let pos_params = PosParams::try_from(inner.next().ok_or(ParseError::ExpectedInner)?)?.0;
+        let named_params = NamedParams::try_from(inner.next().ok_or(ParseError::ExpectedInner)?)?.0;
+        let return_type = ReturnType::try_from(inner.next().ok_or(ParseError::ExpectedInner)?)?.0;
 
         let new_fn = Self {
             name,
             return_type,
-            pos_params: unnamed_params,
+            pos_params,
             named_params,
         };
 
@@ -171,6 +135,17 @@ impl FuncSignature {
         } else {
             Ok(false)
         }
+    }
+}
+
+struct ReturnType(CrabType);
+try_from_pair!(ReturnType, Rule::return_type);
+impl AstNode for ReturnType {
+    fn from_pair(pair: Pair<Rule>) -> Result<Self> where Self: Sized {
+        Ok(Self(match pair.inner.next() {
+            Some(ct) => CrabType::try_from(ct)?,
+            None => CrabType::VOID,
+        }))
     }
 }
 

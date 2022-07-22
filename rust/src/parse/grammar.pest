@@ -29,7 +29,8 @@ struct_field_init = { ident ~ "=" ~ expression }
 
 // func.rs
 function = { fn_signature ~ (compiler_provided | code_block) }
-fn_signature = { "fn" ~ ident ~ "(" ~ fn_params? ~ ","?  ~ ")" ~ ("->" ~ crab_type)? }
+fn_signature = { "fn" ~ ident ~ "(" ~ fn_params? ~ ","?  ~ ")" ~ return_type }
+return_type = { ("->" ~ crab_type)? }
 fn_params = _{ (pos_fn_params?) ~ ("," ~ (named_fn_params)?) ~ ","?}
 pos_fn_params = { pos_fn_param ~ ("," ~ pos_fn_param) ~ ","? }
 named_fn_params = { named_fn_param ~ ("," ~ named_fn_param) ~ ","? }
