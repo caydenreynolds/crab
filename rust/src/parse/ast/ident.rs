@@ -30,7 +30,7 @@ impl AstNode for CrabType {
             Rule::list_crab_type => Ok(Self::LIST(ListCrabType::try_from(next)?.0)),
             Rule::tmpl_crab_type => {
                 let tct = TmplCrabType::try_from(next)?;
-                Ok(Self::TMPL(txt.0, txt.1))
+                Ok(Self::TMPL(tct.0, tct.1))
             },
             _ => Err(ParseError::NoMatch(String::from("CrabType::from_pair"))),
         }

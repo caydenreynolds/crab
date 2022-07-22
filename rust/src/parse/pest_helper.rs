@@ -3,7 +3,7 @@ use crate::parse::{ParseError, Result, Rule};
 
 /// Returns whatever the next pair is, or an error if there are no more pairs
 /// This does not consume the iterator, but it does consume the next element of the iterator
-pub fn get_next(pairs: &mut Pairs<Rule>) -> Result<Pair<Rule>> {
+pub fn get_next<'a>(pairs: &'a mut Pairs<Rule>) -> Result<Pair<'a, Rule>> {
     pairs.next().ok_or(ParseError::ExpectedInner)
 }
 
