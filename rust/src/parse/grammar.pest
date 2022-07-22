@@ -31,9 +31,9 @@ struct_field_init = { ident ~ "=" ~ expression }
 function = { fn_signature ~ (compiler_provided | code_block) }
 fn_signature = { "fn" ~ ident ~ "(" ~ fn_params? ~ ","?  ~ ")" ~ return_type }
 return_type = { ("->" ~ crab_type)? }
-fn_params = _{ (pos_fn_params?) ~ ("," ~ (named_fn_params)?) ~ ","?}
-pos_params = { pos_fn_param ~ ("," ~ pos_fn_param) ~ ","? }
-named_params = { named_fn_param ~ ("," ~ named_fn_param) ~ ","? }
+fn_params = _{ (pos_params?) ~ ("," ~ (named_params)?) ~ ","?}
+pos_params = { pos_param ~ ("," ~ pos_param) ~ ","? }
+named_params = { named_param ~ ("," ~ named_param) ~ ","? }
 pos_param = { crab_type ~ ident }
 named_param = { crab_type ~ ident ~ "=" ~ expression }
 
