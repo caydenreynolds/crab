@@ -81,7 +81,7 @@ impl AstNode for FuncSignature {
 
         let (pos_params, named_params, return_type) = inner.try_fold((vec![], vec![], CrabType::VOID),
         |(pos_params, named_params, return_type), pair| {
-                Ok(match pair.as_rule() {
+                Result::Ok(match pair.as_rule() {
                     Rule::pos_params => (PosParams::try_from(pair)?.0, named_params, return_type),
                     Rule::named_params => (pos_params, NamedParams::try_from(pair)?.0, return_type),
                     Rule::return_type => (pos_params, named_params, ReturnType::try_from(pair)?.0)
