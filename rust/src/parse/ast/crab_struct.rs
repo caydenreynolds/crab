@@ -24,19 +24,7 @@ impl AstNode for CrabStruct {
                 .ok_or(ParseError::NoMatch(String::from("Struct::from_pair")))?
                 .as_str(),
         );
-
-        let next = inner
-            .next()
-            .ok_or(ParseError::NoMatch(String::from(format!("Struct::from_pair, struct name: {}", name))))?;
-        let body = match next.clone().as_rule() {
-            Rule::compiler_provided => StructBody::COMPILER_PROVIDED,
-            Rule::struct_fields => StructBody::FIELDS(StructFields::try_from(next)?.0),
-            _ => return Err(ParseError::IncorrectRule(
-                String::from(stringify!(CrabStruct)),
-                format!("{:?} or {:?}", Rule::compiler_provided, Rule::struct_fields),
-                format!("{:?}", next.as_rule()),
-            )),
-        };
+        let body = StructBody::try_from(inner.next().ok_or(ParseError::NoMatch(String::from("Struct::from_pair")))?)?;
 
         Ok(Self { name, body })
     }
@@ -47,6 +35,20 @@ impl AstNode for CrabStruct {
 pub enum StructBody {
     FIELDS(Vec<StructField>),
     COMPILER_PROVIDED,
+}
+try_from_pair!(StructBody, Rule::struct_body);
+impl AstNode for StructBody {
+    fn from_pair(pair: Pair<Rule>) -> Result<Self> where Self: Sized {
+        Ok(match next.clone().as_rule() {
+            Rule::compiler_provided => StructBody::COMPILER_PROVIDED,
+            Rule::struct_fields => StructBody::FIELDS(StructFields::try_from(next)?.0),
+            _ => return Err(ParseError::IncorrectRule(
+                String::from(stringify!(StructBody)),
+                format!("{:?} or {:?}", Rule::compiler_provided, Rule::struct_fields),
+                format!("{:?}", next.as_rule()),
+            )),
+        })
+    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
