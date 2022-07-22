@@ -1,8 +1,9 @@
 use crate::parse::ast::{AstNode, CrabType, Ident};
 use crate::parse::{ParseError, Rule, Result};
-use crate::try_from_pair;
+use crate::{try_from_pair, util};
 use pest::iterators::Pair;
 use std::convert::TryFrom;
+use util::ListFunctional;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct CrabStruct {
@@ -42,7 +43,7 @@ impl AstNode for CrabStruct {
             .ok_or(ParseError::NoMatch(String::from("Struct::from_pair")))?;
         let body = match next.clone().as_rule() {
             Rule::compiler_provided => StructBody::COMPILER_PROVIDED,
-            Rule::struct_fields => StructBody::FIELDS(StructFields::try_from(next).0),
+            Rule::struct_fields => StructBody::FIELDS(StructFields::try_from(next)?.0),
             _ => return Err(ParseError::NoMatch(String::from("Struct::from_pair"))),
         };
 
