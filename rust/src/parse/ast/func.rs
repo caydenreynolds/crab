@@ -175,7 +175,7 @@ impl FuncSignature {
 }
 
 struct PosParams(Vec<PosParam>);
-try_from_pair!(PosParams, Rule::struct_fields);
+try_from_pair!(PosParams, Rule::pos_params);
 impl AstNode for PosParams {
     fn from_pair(pair: Pair<Rule>) -> Result<Self>
         where
@@ -209,7 +209,7 @@ pub struct PosParam {
     pub name: Ident,
     pub crab_type: CrabType,
 }
-try_from_pair!(PosParam, Rule::fn_param);
+try_from_pair!(PosParam, Rule::pos_param);
 impl AstNode for PosParam {
     fn from_pair(pair: Pair<Rule>) -> Result<Self>
         where
