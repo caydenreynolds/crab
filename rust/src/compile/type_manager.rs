@@ -4,8 +4,7 @@ use crate::parse::ast::{
     CrabInterface, CrabStruct, CrabType, FuncSignature, Ident, StructBody, StructIntr,
 };
 use crate::quill::{
-    PolyQuillType, QuillBoolType, QuillFloatType, QuillFnType, QuillIntType, QuillListType,
-    QuillPointerType, QuillStructType, QuillVoidType,
+    PolyQuillType, QuillFnType, QuillListType, QuillPointerType, QuillStructType, QuillVoidType,
 };
 use crate::util::{ListFunctional, MapFunctional};
 use std::collections::{HashMap, HashSet};
