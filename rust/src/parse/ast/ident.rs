@@ -4,7 +4,7 @@ use pest::iterators::Pair;
 use crate::compile::CompileError;
 use crate::{compile, parse, try_from_pair};
 use crate::parse::ast::AstNode;
-use crate::parse::{ParseError, pest_helper, Rule};
+use crate::parse::{ParseError, Rule};
 use crate::util::ListFunctional;
 
 pub type Ident = String;
@@ -24,7 +24,7 @@ impl AstNode for CrabType {
         where
             Self: Sized,
     {
-        let next = pest_helper::get_only(pair)?;
+        let next = pairs.next().ok_or(ParseError::ExpectedInner)?;
         match next.as_rule() {
             Rule::simple_crab_type => Ok(Self::SIMPLE(SimpleCrabType::try_from(next)?.0)),
             Rule::list_crab_type => Ok(Self::LIST(ListCrabType::try_from(next)?.0)),
@@ -68,7 +68,7 @@ struct SimpleCrabType(Ident);
 try_from_pair!(SimpleCrabType, Rule::simple_crab_type);
 impl AstNode for SimpleCrabType {
     fn from_pair(pair: Pair<Rule>) -> parse::Result<Self> where Self: Sized {
-        Ok(Self(Ident::from(pest_helper::get_only(pair)?.as_str())))
+        Ok(Self(Ident::from(pairs.next().ok_or(ParseError::ExpectedInner)?.as_str())))
     }
 }
 
@@ -76,7 +76,7 @@ struct ListCrabType(Box<CrabType>);
 try_from_pair!(ListCrabType, Rule::list_crab_type);
 impl AstNode for ListCrabType {
     fn from_pair(pair: Pair<Rule>) -> parse::Result<Self> where Self: Sized {
-        Ok(Self(Box::new(CrabType::try_from(pest_helper::get_only(pair)?)?)))
+        Ok(Self(Box::new(CrabType::try_from(pairs.next().ok_or(ParseError::ExpectedInner)?)?)))
     }
 }
 
@@ -85,7 +85,7 @@ try_from_pair!(TmplCrabType, Rule::tmpl_crab_type);
 impl AstNode for TmplCrabType {
     fn from_pair(pair: Pair<Rule>) -> parse::Result<Self> where Self: Sized {
         let mut inner = pair.into_inner();
-        let name = Ident::from(pest_helper::get_next(&mut inner)?.as_str());
+        let name = Ident::from(pairs.next().ok_or(ParseError::ExpectedInner)?.as_str());
         let tmpls = inner.try_fold(vec![], |tmpls, tmpl| {
             parse::Result::Ok(tmpls.fpush(CrabType::try_from(tmpl)?))
         })?;
