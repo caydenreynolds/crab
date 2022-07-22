@@ -1,5 +1,5 @@
 use pest::iterators::{Pair, Pairs};
-use crate::parse::{ParseError, Result};
+use crate::parse::{ParseError, Result, Rule};
 
 /// Returns whatever the next pair is, or an error if there are no more pairs
 /// This does not consume the iterator, but it does consume the next element of the iterator
