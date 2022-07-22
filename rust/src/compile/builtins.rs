@@ -1,5 +1,5 @@
 use crate::compile::{CompileError, Result};
-use crate::parse::ast::{CrabType, PosParam, Ident};
+use crate::parse::ast::{CrabType, Ident, PosParam};
 use crate::quill::{
     FnNib, Nib, PolyQuillType, Quill, QuillFloatType, QuillFnType, QuillIntType, QuillListType,
     QuillPointerType, QuillStructType, QuillVoidType,

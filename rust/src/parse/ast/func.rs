@@ -2,9 +2,9 @@ use crate::parse::ast::FnBodyType::{CODEBLOCK, COMPILER_PROVIDED};
 use crate::parse::ast::{AstNode, CodeBlock, CrabType, Expression, Ident, Statement};
 use crate::parse::{ParseError, Result, Rule};
 use crate::try_from_pair;
+use crate::util::{int_struct_name, main_func_name, mangle_function_name, ListFunctional};
 use pest::iterators::Pair;
 use std::convert::TryFrom;
-use crate::util::{int_struct_name, ListFunctional, main_func_name, mangle_function_name};
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Func {
@@ -79,19 +79,27 @@ impl AstNode for FuncSignature {
         let mut inner = pair.into_inner();
         let name = Ident::from(inner.next().ok_or(ParseError::ExpectedInner)?.as_str());
 
-        let (pos_params, named_params, return_type) = inner.try_fold((vec![], vec![], CrabType::VOID),
-        |(pos_params, named_params, return_type), pair| {
+        let (pos_params, named_params, return_type) = inner.try_fold(
+            (vec![], vec![], CrabType::VOID),
+            |(pos_params, named_params, return_type), pair| {
                 Result::Ok(match pair.as_rule() {
                     Rule::pos_params => (PosParams::try_from(pair)?.0, named_params, return_type),
                     Rule::named_params => (pos_params, NamedParams::try_from(pair)?.0, return_type),
                     Rule::return_type => (pos_params, named_params, ReturnType::try_from(pair)?.0),
-                    _ => return Err(ParseError::IncorrectRule(
-                        String::from(stringify!(FuncSignature)),
-                        format!("{:?} or {:?} or {:?}", Rule::pos_params, Rule::named_params, Rule::return_type),
-                        format!("{:?}", pair.as_rule()),
-                    )),
+                    _ => {
+                        return Err(ParseError::IncorrectRule(
+                            String::from(stringify!(FuncSignature)),
+                            format!(
+                                "{:?} or {:?} or {:?}",
+                                Rule::pos_params,
+                                Rule::named_params,
+                                Rule::return_type
+                            ),
+                            format!("{:?}", pair.as_rule()),
+                        ))
+                    }
                 })
-            }
+            },
         )?;
 
         let new_fn = Self {
@@ -153,7 +161,10 @@ impl FuncSignature {
 struct ReturnType(CrabType);
 try_from_pair!(ReturnType, Rule::return_type);
 impl AstNode for ReturnType {
-    fn from_pair(pair: Pair<Rule>) -> Result<Self> where Self: Sized {
+    fn from_pair(pair: Pair<Rule>) -> Result<Self>
+    where
+        Self: Sized,
+    {
         Ok(Self(match pair.into_inner().next() {
             Some(ct) => CrabType::try_from(ct)?,
             None => CrabType::VOID,
@@ -165,8 +176,8 @@ struct PosParams(Vec<PosParam>);
 try_from_pair!(PosParams, Rule::pos_params);
 impl AstNode for PosParams {
     fn from_pair(pair: Pair<Rule>) -> Result<Self>
-        where
-            Self: Sized,
+    where
+        Self: Sized,
     {
         Ok(Self(
             pair.into_inner().try_fold(vec![], |params, param| {
@@ -180,8 +191,8 @@ struct NamedParams(Vec<NamedParam>);
 try_from_pair!(NamedParams, Rule::named_params);
 impl AstNode for NamedParams {
     fn from_pair(pair: Pair<Rule>) -> Result<Self>
-        where
-            Self: Sized,
+    where
+        Self: Sized,
     {
         Ok(Self(
             pair.into_inner().try_fold(vec![], |params, param| {
@@ -199,8 +210,8 @@ pub struct PosParam {
 try_from_pair!(PosParam, Rule::pos_param);
 impl AstNode for PosParam {
     fn from_pair(pair: Pair<Rule>) -> Result<Self>
-        where
-            Self: Sized,
+    where
+        Self: Sized,
     {
         let mut inner = pair.into_inner();
         let crab_type = CrabType::try_from(inner.next().ok_or(ParseError::ExpectedInner)?)?;
@@ -227,8 +238,8 @@ pub struct NamedParam {
 try_from_pair!(NamedParam, Rule::named_param);
 impl AstNode for NamedParam {
     fn from_pair(pair: Pair<Rule>) -> Result<Self>
-        where
-            Self: Sized,
+    where
+        Self: Sized,
     {
         let mut inner = pair.into_inner();
         let crab_type = CrabType::try_from(inner.next().ok_or(ParseError::ExpectedInner)?)?;

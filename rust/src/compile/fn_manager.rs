@@ -1,5 +1,5 @@
 use crate::compile::{CompileError, Result, TypeManager};
-use crate::parse::ast::{CrabType, FnCall, PosParam, Func, FuncSignature, Ident, NamedParam};
+use crate::parse::ast::{CrabType, FnCall, Func, FuncSignature, Ident, NamedParam, PosParam};
 use crate::quill::{PolyQuillType, QuillPointerType, QuillStructType, QuillValue};
 use crate::util::{add_param_mangles, main_func_name, mangle_function_name, ListFunctional};
 use std::cell::RefCell;

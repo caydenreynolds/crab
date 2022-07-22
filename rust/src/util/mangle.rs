@@ -1,4 +1,4 @@
-use crate::parse::ast::{PosParam, Ident};
+use crate::parse::ast::{Ident, PosParam};
 
 ///
 /// Mangles a function name based on whether it's a function or a method
