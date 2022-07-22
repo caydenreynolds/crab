@@ -42,6 +42,7 @@ fn_call = { ident ~ "(" ~ fn_args? ~ ","? ~ ")" }
 fn_args = _{ ((pos_args ~ ("," ~ named_args)?) | named_args)? ~ ","? }
 pos_args = { expression ~ ("," ~ expression)* }
 named_args = { named_arg ~ ("," ~ named_arg)* }
+pos_arg = { expression ~ !"=" } // Use negative lookahead to ensure this isn't a named arg
 named_arg = { ident ~ "=" ~ expression }
 
 // Unaffiliated
