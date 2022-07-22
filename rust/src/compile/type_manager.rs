@@ -1,18 +1,17 @@
 use crate::compile::builtins::get_builtin_strct_definition;
 use crate::compile::{CompileError, Result};
 use crate::parse::ast::{
-    CrabInterface, CrabType, FuncSignature, Ident, StrctBodyType, Struct, StructIntr,
+    CrabInterface, CrabStruct, CrabType, FuncSignature, Ident, StructBody, StructIntr,
 };
 use crate::quill::{
-    PolyQuillType, QuillBoolType, QuillFloatType, QuillFnType, QuillIntType, QuillListType,
-    QuillPointerType, QuillStructType, QuillVoidType,
+    PolyQuillType, QuillFnType, QuillListType, QuillPointerType, QuillStructType, QuillVoidType,
 };
 use crate::util::{ListFunctional, MapFunctional};
 use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Clone)]
 pub(super) enum ManagedType {
-    STRUCT(Struct),
+    STRUCT(CrabStruct),
     INTERFACE(CrabInterface),
 }
 
@@ -45,7 +44,7 @@ impl TypeManager {
     /// Params:
     /// * `strct` - The Struct to add to this TypeManager's structs
     ///
-    pub fn register_struct(&mut self, strct: Struct) -> Result<()> {
+    pub fn register_struct(&mut self, strct: CrabStruct) -> Result<()> {
         return if self
             .registered_types
             .insert(strct.name.clone(), ManagedType::STRUCT(strct.clone()))
@@ -145,7 +144,7 @@ impl TypeManager {
     /// Returns:
     /// The struct with the matching name, or an error if there is no struct with the matching name
     ///
-    pub fn get_struct(&mut self, name: &Ident) -> Result<&Struct> {
+    pub fn get_struct(&mut self, name: &Ident) -> Result<&CrabStruct> {
         match self.get_type(name)? {
             ManagedType::INTERFACE(_) => Err(CompileError::NotAStruct(
                 name.clone(),
@@ -168,12 +167,7 @@ impl TypeManager {
     ///
     pub fn get_quill_type(&mut self, ct: &CrabType) -> Result<PolyQuillType> {
         Ok(match ct {
-            CrabType::UINT8 => QuillIntType::new(8).into(),
-            CrabType::UINT64 => QuillIntType::new(64).into(),
-            CrabType::STRING => unimplemented!(),
             CrabType::VOID => QuillVoidType::new().into(),
-            CrabType::FLOAT => QuillFloatType::new().into(),
-            CrabType::BOOL => QuillBoolType::new().into(),
             CrabType::STRUCT(name) => match self.get_type(name)?.clone() {
                 ManagedType::INTERFACE(_) => Err(CompileError::NotAStruct(
                     name.clone(),
@@ -223,12 +217,9 @@ impl TypeManager {
     /// A QuillFnType that is equivalent to the given FuncSignature
     ///
     pub fn get_quill_fn_type(&mut self, fs: FuncSignature) -> Result<QuillFnType> {
-        let params = fs
-            .unnamed_params
-            .into_iter()
-            .try_fold(vec![], |params, up| {
-                Result::Ok(params.fpush((up.name, self.get_quill_type(&up.crab_type)?)))
-            })?;
+        let params = fs.pos_params.into_iter().try_fold(vec![], |params, up| {
+            Result::Ok(params.fpush((up.name, self.get_quill_type(&up.crab_type)?)))
+        })?;
         let params = fs.named_params.into_iter().try_fold(params, |params, np| {
             Result::Ok(params.fpush((np.name, self.get_quill_type(&np.crab_type)?)))
         })?;
@@ -285,8 +276,8 @@ impl TypeManager {
     ///
     pub fn get_fields(&mut self, name: &Ident) -> Result<HashMap<String, PolyQuillType>> {
         Ok(match self.get_struct(name)?.body.clone() {
-            StrctBodyType::COMPILER_PROVIDED => get_builtin_strct_definition(&name)?.clone(),
-            StrctBodyType::FIELDS(fields) => {
+            StructBody::COMPILER_PROVIDED => get_builtin_strct_definition(&name)?.clone(),
+            StructBody::FIELDS(fields) => {
                 fields
                     .into_iter()
                     .try_fold(HashMap::new(), |fields, field| {

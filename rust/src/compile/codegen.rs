@@ -3,7 +3,7 @@ use crate::compile::{
 };
 use crate::parse::ast::{
     Assignment, CodeBlock, CrabAst, DoWhileStmt, Expression, ExpressionType, FnBodyType, FnCall,
-    FnParam, IfStmt, Primitive, Statement, StructInit, WhileStmt,
+    IfStmt, PosParam, Primitive, Statement, StructInit, WhileStmt,
 };
 use crate::quill::{
     ArtifactType, ChildNib, FnNib, Nib, PolyQuillType, Quill, QuillBoolType, QuillFnType,
@@ -63,30 +63,29 @@ pub fn compile(
             .borrow_mut()
             .get_quill_fn_type(func.signature.clone())?;
         let mut nib = FnNib::new(name.clone(), fn_t);
-        let (nib, returns) =
-            match func.body {
-                FnBodyType::CODEBLOCK(cb) => {
-                    let all_params =
-                        func.signature
-                            .unnamed_params
-                            .into_iter()
-                            .chain(func.signature.named_params.into_iter().map(|named_param| {
-                                FnParam {
-                                    name: named_param.name,
-                                    crab_type: named_param.crab_type,
-                                }
-                            }))
-                            .collect();
-                    let mut codegen =
-                        Codegen::new(nib, type_manager.clone(), fn_manager.clone(), all_params)?;
-                    let returns = codegen.build_codeblock(cb)?;
-                    (codegen.into_nib(), returns)
-                }
-                FnBodyType::COMPILER_PROVIDED => {
-                    add_builtin_definition(&mut peter, &mut nib)?;
-                    (nib, true) // Just assume it's all good for now
-                }
-            };
+        let (nib, returns) = match func.body {
+            FnBodyType::CODEBLOCK(cb) => {
+                let all_params =
+                    func.signature
+                        .pos_params
+                        .into_iter()
+                        .chain(func.signature.named_params.into_iter().map(|named_param| {
+                            PosParam {
+                                name: named_param.name,
+                                crab_type: named_param.crab_type,
+                            }
+                        }))
+                        .collect();
+                let mut codegen =
+                    Codegen::new(nib, type_manager.clone(), fn_manager.clone(), all_params)?;
+                let returns = codegen.build_codeblock(cb)?;
+                (codegen.into_nib(), returns)
+            }
+            FnBodyType::COMPILER_PROVIDED => {
+                add_builtin_definition(&mut peter, &mut nib)?;
+                (nib, true) // Just assume it's all good for now
+            }
+        };
 
         match returns {
             true => peter.add_fn(nib),
@@ -524,7 +523,7 @@ impl<NibType: Nib> Codegen<NibType> {
             None => vec![],
         };
         let unnamed_args =
-            call.unnamed_args
+            call.pos_args
                 .iter()
                 .try_fold(unnamed_args, |unnamed_args, unnamed_arg| {
                     Result::Ok(
@@ -601,7 +600,7 @@ impl Codegen<FnNib> {
         mut nib: FnNib,
         types: Rc<RefCell<TypeManager>>,
         fns: Rc<RefCell<FnManager>>,
-        fn_params: Vec<FnParam>,
+        fn_params: Vec<PosParam>,
     ) -> Result<Self> {
         let mut vars = VarManager::new();
         fn_params.into_iter().try_for_each(|fn_param| {

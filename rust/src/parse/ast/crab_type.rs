@@ -9,13 +9,8 @@ use std::fmt::{Display, Formatter};
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum CrabType {
-    UINT8,
-    UINT64,
-    STRING,
     VOID,
-    FLOAT,
-    BOOL,
-    STRUCT(Ident), // TODO: Struct currently encompasses both structs and interfaces
+    STRUCT(Ident),
     LIST(Box<CrabType>),
 }
 
@@ -49,12 +44,7 @@ impl CrabType {
 impl Display for CrabType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            CrabType::UINT8 => write!(f, "UINT8"),
-            CrabType::UINT64 => write!(f, "UINT64"),
-            CrabType::STRING => write!(f, "STRING"),
             CrabType::VOID => write!(f, "VOID"),
-            CrabType::FLOAT => write!(f, "FLOAT"),
-            CrabType::BOOL => write!(f, "BOOL"),
             CrabType::STRUCT(n) => write!(f, "{}", n),
             CrabType::LIST(l) => write!(f, "LIST_{}", l),
         }?;

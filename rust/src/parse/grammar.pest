@@ -1,60 +1,78 @@
 WHITESPACE = _{ " " | NEWLINE }
 COMMENT = _{ ("#" | "//") ~ (!NEWLINE ~ ANY)* ~ NEWLINE }
 
-reserved_word = { "true" | "false" | "if" | "else" | "while" | "do" | "struct" | "impl" | "fn" }
+// ident.rs
 ident = @{ !(reserved_word) ~ ((ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")*) }
 
+// crab_ast.rs
 program = { SOI ~ (function | crab_struct | impl_block | interface | intr_block)+ ~ EOI }
 
+// crab_interface.rs
 interface = { "interface" ~ ident ~ "{" ~ interface_fns? ~ "}" }
 interface_fns = _{ fn_signature ~ ("," ~ fn_signature)* ~ ","?}
 
+// crab_struct_behavior.rs
 intr_block = { "intr" ~ ident ~ "{" ~ inter_interfaces? ~ "}" }
 inter_interfaces = _{ ident ~ ("," ~ ident)* ~ ","? }
+impl_block = { "impl" ~ ident ~ ("of " ~ ident)? ~ "{" ~ (function*) ~ "}" }
 
-crab_struct = { "struct" ~ ident ~ ("{" ~ (struct_fields?) ~ "}" | compiler_provided) }
-struct_fields = _{ struct_field ~ ("," ~ struct_field)* ~ ","?}
+// crab_struct.rs
+crab_struct = { "struct" ~ ident ~ struct_body }
+struct_body = { "{" ~ struct_fields ~ "}" | compiler_provided }
+struct_fields = { (struct_field ~ ("," ~ struct_field)*)? ~ ","?}
 struct_field = { crab_type ~ ident }
+
+// crab_struct_init.rs
 struct_init = { ident ~ "{" ~ struct_fields_init? ~ "}" }
 struct_fields_init = _{ struct_field_init ~ ("," ~ struct_field_init)* ~ ","? }
 struct_field_init = { ident ~ "=" ~ expression }
 
-impl_block = { "impl" ~ ident ~ ("of " ~ ident)? ~ "{" ~ (function*) ~ "}" }
-
+// func.rs
 function = { fn_signature ~ (compiler_provided | code_block) }
-fn_signature = { "fn" ~ ident ~ "(" ~ fn_params? ~ ","?  ~ ")" ~ ("->" ~ crab_type)? }
+fn_signature = { "fn" ~ ident ~ "(" ~ fn_params ~ ")" ~ return_type? }
+return_type = { "->" ~ crab_type }
+fn_params = _{ ((pos_params ~ ("," ~ named_params)?) | named_params)? ~ ","? }
+pos_params = { pos_param ~ ("," ~ pos_param)* }
+named_params = { named_param ~ ("," ~ named_param)* }
+pos_param = { crab_type ~ ident ~ !"=" } // Use negative lookahead to ensure this isn't a named param
+named_param = { crab_type ~ ident ~ "=" ~ expression }
+
+// fn_call.rs
 fn_call = { ident ~ "(" ~ fn_args? ~ ","? ~ ")" }
-named_expression = { ident ~ "=" ~ expression }
-fn_args = _{ (named_expression | expression) ~ ("," ~ (named_expression | expression))* }
-named_fn_param = { crab_type ~ ident ~ "=" ~ expression }
-fn_param = { crab_type ~ ident }
-fn_params = _{ (named_fn_param | fn_param) ~ ("," ~ (named_fn_param | fn_param))* }
+fn_args = _{ ((pos_args ~ ("," ~ named_args)?) | named_args)? ~ ","? }
+pos_args = { pos_arg ~ ("," ~ pos_arg)* }
+named_args = { named_arg ~ ("," ~ named_arg)* }
+pos_arg = { expression ~ !"=" } // Use negative lookahead to ensure this isn't a named arg
+named_arg = { ident ~ "=" ~ expression }
 
-compiler_provided = { "{" ~ "(V) '--' (V)" ~ "}" }
-code_block = { "{" ~ statement* ~ "}" }
-expression = { ( primitive | struct_init | fn_call | ident ) ~ ("." ~ (fn_call | ident))* ~ (operator ~ expression)? }
-operator = { "+" | "-" | "*" | "/" | "<<" | ">>" | "==" | "<" | ">" | "<=" | ">=" }
-
-// TODO: Using an expression chain here is too permissive -- Simply accessing a struct's field as a statement makes no sense
+// statement.rs
 statement = { ( return_stmt | assignment | reassignment | if_stmt | while_stmt | do_while_stmt | expression ) }
 assignment = { "let" ~ ident ~ "=" ~ expression }
 reassignment = { ident ~ "=" ~ expression }
 return_stmt = { "return" ~ expression? }
-
 if_stmt = { "if" ~ expression ~ code_block ~ else_stmt? }
 else_stmt = { "else" ~ (if_stmt | code_block) }
-
 while_stmt = { "while" ~ expression ~ code_block }
 do_while_stmt = { "do" ~ code_block ~ "while" ~ expression }
 
+// code_block.rs
+code_block = { "{" ~ statement* ~ "}" }
+
+// expression.rs
+expression = { ( primitive | struct_init | fn_call | ident ) ~ ("." ~ (fn_call | ident))* ~ (operator ~ expression)? }
+operator = { "+" | "-" | "*" | "/" | "<<" | ">>" | "==" | "<" | ">" | "<=" | ">=" }
+
+// primitive.rs
 primitive = { (uint64_primitive | string_primitive | bool_primitive) }
 uint64_primitive = @{ ASCII_DIGIT+ }
 bool_primitive = { "true" | "false" }
-
 string_primitive = ${ ("\"" | NEWLINE) ~ string_inner ~ "\"" }
 string_inner = @{ char* }
 char = @{ !("\"" | "\\") ~ ANY | ("\\" ~ ( "n" )) }
 
-// For now, we're only allowing primitive types
+// crab_type.rs
 crab_type = { ident | ("[" ~ crab_type ~ "]") }
-array_len = @{ ASCII_DIGIT+ }
+
+// Unaffiliated
+compiler_provided = { "{" ~ "(V) '--' (V)" ~ "}" }
+reserved_word = { "true" | "false" | "if" | "else" | "while" | "do" | "struct" | "impl" | "fn" }
