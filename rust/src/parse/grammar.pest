@@ -1,7 +1,7 @@
 WHITESPACE = _{ " " | NEWLINE }
 COMMENT = _{ ("#" | "//") ~ (!NEWLINE ~ ANY)* ~ NEWLINE }
 
-reserved_word = { "true" | "false" | "if" | "else" | "while" | "do" | "struct" | "impl" | "fn" }
+// ident.rs
 ident = @{ !(reserved_word) ~ ((ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")*) }
 
 // crab_ast.rs
@@ -55,21 +55,24 @@ else_stmt = { "else" ~ (if_stmt | code_block) }
 while_stmt = { "while" ~ expression ~ code_block }
 do_while_stmt = { "do" ~ code_block ~ "while" ~ expression }
 
-// Unaffiliated
-compiler_provided = { "{" ~ "(V) '--' (V)" ~ "}" }
-
+// code_block.rs
 code_block = { "{" ~ statement* ~ "}" }
+
+// expression.rs
 expression = { ( primitive | struct_init | fn_call | ident ) ~ ("." ~ (fn_call | ident))* ~ (operator ~ expression)? }
 operator = { "+" | "-" | "*" | "/" | "<<" | ">>" | "==" | "<" | ">" | "<=" | ">=" }
 
+// primitive.rs
 primitive = { (uint64_primitive | string_primitive | bool_primitive) }
 uint64_primitive = @{ ASCII_DIGIT+ }
 bool_primitive = { "true" | "false" }
-
 string_primitive = ${ ("\"" | NEWLINE) ~ string_inner ~ "\"" }
 string_inner = @{ char* }
 char = @{ !("\"" | "\\") ~ ANY | ("\\" ~ ( "n" )) }
 
-// For now, we're only allowing primitive types
+// crab_type.rs
 crab_type = { ident | ("[" ~ crab_type ~ "]") }
-array_len = @{ ASCII_DIGIT+ }
+
+// Unaffiliated
+compiler_provided = { "{" ~ "(V) '--' (V)" ~ "}" }
+reserved_word = { "true" | "false" | "if" | "else" | "while" | "do" | "struct" | "impl" | "fn" }
