@@ -18,8 +18,8 @@ impl_block = { "impl" ~ ident ~ ("of " ~ ident)? ~ "{" ~ (function*) ~ "}" }
 
 // crab_struct.rs
 crab_struct = { "struct" ~ ident ~ struct_body }
-struct_body = { "{" ~ (struct_fields?) ~ "}" | compiler_provided }
-struct_fields = { struct_field ~ ("," ~ struct_field)* ~ ","?}
+struct_body = { "{" ~ struct_fields ~ "}" | compiler_provided }
+struct_fields = { (struct_field ~ ("," ~ struct_field)*)? ~ ","?}
 struct_field = { crab_type ~ ident }
 
 // crab_struct_init.rs
