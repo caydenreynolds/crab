@@ -60,7 +60,7 @@ impl AstNode for Expression {
 
             expr.append(ExpressionType::FN_CALL(FnCall {
                 name: operator.into_fn_name(),
-                unnamed_args: vec![arg],
+                pos_args: vec![arg],
                 named_args: vec![],
             }));
         }

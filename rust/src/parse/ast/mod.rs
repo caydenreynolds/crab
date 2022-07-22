@@ -43,9 +43,6 @@ pub use crab_struct_behavior::*;
 mod crab_struct_init;
 pub use crab_struct_init::*;
 
-mod named_expression;
-pub use named_expression::*;
-
 mod fn_call;
 pub use fn_call::*;
 

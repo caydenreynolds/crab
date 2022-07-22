@@ -524,7 +524,7 @@ impl<NibType: Nib> Codegen<NibType> {
             None => vec![],
         };
         let unnamed_args =
-            call.unnamed_args
+            call.pos_args
                 .iter()
                 .try_fold(unnamed_args, |unnamed_args, unnamed_arg| {
                     Result::Ok(

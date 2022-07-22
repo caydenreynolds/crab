@@ -39,10 +39,10 @@ named_param = { crab_type ~ ident ~ "=" ~ expression }
 
 // fn_call.rs
 fn_call = { ident ~ "(" ~ fn_args? ~ ","? ~ ")" }
-named_expression = { ident ~ "=" ~ expression }
-fn_args = _{ (named_expression | expression) ~ ("," ~ (named_expression | expression))* }
-//pos_args = {  }
-//named_args = {  }
+fn_args = _{ ((pos_args ~ ("," ~ named_args)?) | named_args)? ~ ","? }
+pos_args = { expression ~ ("," ~ expression)* }
+named_args = { named_arg ~ ("," ~ named_arg)* }
+named_arg = { ident ~ "=" ~ expression }
 
 // Unaffiliated
 compiler_provided = { "{" ~ "(V) '--' (V)" ~ "}" }
