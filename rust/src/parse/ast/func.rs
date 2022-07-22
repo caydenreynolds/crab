@@ -212,7 +212,7 @@ pub struct NamedParam {
     pub crab_type: CrabType,
     pub expr: Expression,
 }
-try_from_pair!(NamedParam, Rule::named_fn_param);
+try_from_pair!(NamedParam, Rule::named_param);
 impl AstNode for NamedParam {
     fn from_pair(pair: Pair<Rule>) -> Result<Self>
         where
