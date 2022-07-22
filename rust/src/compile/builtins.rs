@@ -1,5 +1,5 @@
 use crate::compile::{CompileError, Result};
-use crate::parse::ast::{CrabType, FnParam, Ident};
+use crate::parse::ast::{CrabType, PosParam, Ident};
 use crate::quill::{
     FnNib, Nib, PolyQuillType, Quill, QuillFloatType, QuillFnType, QuillIntType, QuillListType,
     QuillPointerType, QuillStructType, QuillVoidType,
@@ -31,11 +31,11 @@ fn init_builtin_fn_map() -> HashMap<Ident, fn(&mut Quill, &mut FnNib) -> Result<
     let int_add = add_param_mangles(
         &int_add,
         &[
-            FnParam {
+            PosParam {
                 name: Ident::from("self"),
                 crab_type: CrabType::STRUCT(int_struct_name()),
             },
-            FnParam {
+            PosParam {
                 name: Ident::from("other"),
                 crab_type: CrabType::STRUCT(int_struct_name()),
             },
@@ -46,7 +46,7 @@ fn init_builtin_fn_map() -> HashMap<Ident, fn(&mut Quill, &mut FnNib) -> Result<
     let int_to_str = mangle_function_name(&to_string_name(), Some(&int_struct_name()));
     let int_to_str = add_param_mangles(
         &int_to_str,
-        &[FnParam {
+        &[PosParam {
             name: Ident::from("self"),
             crab_type: CrabType::STRUCT(int_struct_name()),
         }],
@@ -56,7 +56,7 @@ fn init_builtin_fn_map() -> HashMap<Ident, fn(&mut Quill, &mut FnNib) -> Result<
     let printf = mangle_function_name(&printf_crab_name(), None);
     let printf = add_param_mangles(
         &printf,
-        &[FnParam {
+        &[PosParam {
             name: Ident::from("str"),
             crab_type: CrabType::STRUCT(string_type_name()),
         }],

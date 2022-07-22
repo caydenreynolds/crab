@@ -11,13 +11,6 @@ pub struct StructImpl {
     pub interface_name: Option<Ident>,
     pub fns: Vec<Func>,
 }
-
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct StructIntr {
-    pub struct_name: Ident,
-    pub inters: Vec<Ident>,
-}
-
 try_from_pair!(StructImpl, Rule::impl_block);
 impl AstNode for StructImpl {
     fn from_pair(pair: Pair<Rule>) -> Result<Self>
@@ -78,6 +71,11 @@ impl StructImpl {
     }
 }
 
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct StructIntr {
+    pub struct_name: Ident,
+    pub inters: Vec<Ident>,
+}
 try_from_pair!(StructIntr, Rule::intr_block);
 impl AstNode for StructIntr {
     fn from_pair(pair: Pair<Rule>) -> Result<Self>

@@ -11,21 +11,6 @@ pub struct CrabStruct {
     pub body: StructBody,
 }
 
-#[allow(non_camel_case_types)]
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub enum StructBody {
-    FIELDS(Vec<StructField>),
-    COMPILER_PROVIDED,
-}
-
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct StructField {
-    pub name: Ident,
-    pub crab_type: CrabType,
-}
-
-struct StructFields(Vec<StructField>);
-
 try_from_pair!(CrabStruct, Rule::crab_struct);
 impl AstNode for CrabStruct {
     fn from_pair(pair: Pair<Rule>) -> Result<Self>
@@ -53,6 +38,18 @@ impl AstNode for CrabStruct {
     }
 }
 
+#[allow(non_camel_case_types)]
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub enum StructBody {
+    FIELDS(Vec<StructField>),
+    COMPILER_PROVIDED,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct StructField {
+    pub name: Ident,
+    pub crab_type: CrabType,
+}
 try_from_pair!(StructField, Rule::struct_field);
 impl AstNode for StructField {
     fn from_pair(pair: Pair<Rule>) -> Result<Self>
@@ -66,6 +63,7 @@ impl AstNode for StructField {
     }
 }
 
+struct StructFields(Vec<StructField>);
 try_from_pair!(StructFields, Rule::struct_fields);
 impl AstNode for StructFields {
     fn from_pair(pair: Pair<Rule>) -> Result<Self>

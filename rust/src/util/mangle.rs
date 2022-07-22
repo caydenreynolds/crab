@@ -1,4 +1,4 @@
-use crate::parse::ast::{FnParam, Ident};
+use crate::parse::ast::{PosParam, Ident};
 
 ///
 /// Mangles a function name based on whether it's a function or a method
@@ -30,7 +30,7 @@ pub fn mangle_function_name(fn_name: &Ident, caller_name: Option<&Ident>) -> Ide
 /// Returns:
 /// The fully mangled name
 ///
-pub fn add_param_mangles(mangled_name: &Ident, params_to_mangle: &[FnParam]) -> Ident {
+pub fn add_param_mangles(mangled_name: &Ident, params_to_mangle: &[PosParam]) -> Ident {
     let mut result = mangled_name.clone();
     for param in params_to_mangle {
         result = add_param_mangle(result, param);
@@ -41,7 +41,7 @@ pub fn add_param_mangles(mangled_name: &Ident, params_to_mangle: &[FnParam]) -> 
 ///
 /// Adds a single param to the mangled name
 ///
-fn add_param_mangle(mangled_name: Ident, param_to_mangle: &FnParam) -> Ident {
+fn add_param_mangle(mangled_name: Ident, param_to_mangle: &PosParam) -> Ident {
     return format!(
         "{}_{}_{}",
         mangled_name, param_to_mangle.name, param_to_mangle.crab_type

@@ -1,5 +1,5 @@
 use crate::compile::{CompileError, Result, TypeManager};
-use crate::parse::ast::{CrabType, FnCall, FnParam, Func, FuncSignature, Ident, NamedFnParam};
+use crate::parse::ast::{CrabType, FnCall, PosParam, Func, FuncSignature, Ident, NamedParam};
 use crate::quill::{PolyQuillType, QuillPointerType, QuillStructType, QuillValue};
 use crate::util::{add_param_mangles, main_func_name, mangle_function_name, ListFunctional};
 use std::cell::RefCell;
@@ -149,10 +149,10 @@ impl FnManager {
         // Add all of the param names and types to a vec
         let unnamed_params = unnamed_values
             .iter()
-            .zip(source_fn.signature.unnamed_params.iter())
+            .zip(source_fn.signature.pos_params.iter())
             .try_fold(vec![], |params, (value, param)| {
                 Result::Ok(
-                    params.fpush(FnParam {
+                    params.fpush(PosParam {
                         name: param.name.clone(),
                         crab_type: CrabType::STRUCT(
                             QuillStructType::try_from(
@@ -173,7 +173,7 @@ impl FnManager {
                 .try_fold(vec![], |params, param| {
                     let named_value = named_values.get(&param.name).unwrap();
                     Result::Ok(
-                        params.fpush(NamedFnParam {
+                        params.fpush(NamedParam {
                             name: param.name.clone(),
                             crab_type: CrabType::STRUCT(
                                 QuillStructType::try_from(
@@ -193,7 +193,7 @@ impl FnManager {
         let all_params = named_params
             .iter()
             .fold(unnamed_params.clone(), |params, named| {
-                params.fpush(FnParam {
+                params.fpush(PosParam {
                     crab_type: named.crab_type.clone(),
                     name: named.name.clone(),
                 })
@@ -202,7 +202,7 @@ impl FnManager {
 
         // Build proper Signature
         let generated_signature = FuncSignature {
-            unnamed_params,
+            pos_params: unnamed_params,
             named_params,
             name: fully_mangled_name.clone(),
             return_type: source_fn.signature.return_type.clone(),
@@ -241,17 +241,17 @@ impl FnManager {
         unnamed_values: &[QuillValue<PolyQuillType>],
         named_values: &HashMap<Ident, QuillValue<PolyQuillType>>,
     ) -> Result<()> {
-        if unnamed_values.len() != signature.unnamed_params.len() {
+        if unnamed_values.len() != signature.pos_params.len() {
             return Err(CompileError::PositionalArgumentCount(
                 signature.name.clone(),
-                signature.unnamed_params.len(),
+                signature.pos_params.len(),
                 unnamed_values.len(),
             ));
         }
 
         unnamed_values
             .iter()
-            .zip(signature.unnamed_params.iter())
+            .zip(signature.pos_params.iter())
             .try_for_each(|(value, param)| {
                 let val_t = CrabType::STRUCT(
                     QuillStructType::try_from(

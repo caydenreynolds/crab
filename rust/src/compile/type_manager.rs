@@ -224,7 +224,7 @@ impl TypeManager {
     ///
     pub fn get_quill_fn_type(&mut self, fs: FuncSignature) -> Result<QuillFnType> {
         let params = fs
-            .unnamed_params
+            .pos_params
             .into_iter()
             .try_fold(vec![], |params, up| {
                 Result::Ok(params.fpush((up.name, self.get_quill_type(&up.crab_type)?)))

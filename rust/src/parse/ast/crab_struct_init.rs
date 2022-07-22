@@ -10,13 +10,6 @@ pub struct StructInit {
     pub name: Ident,
     pub fields: Vec<StructFieldInit>,
 }
-
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct StructFieldInit {
-    pub name: Ident,
-    pub value: Expression,
-}
-
 try_from_pair!(StructInit, Rule::struct_init);
 impl AstNode for StructInit {
     fn from_pair(pair: Pair<Rule>) -> Result<Self>
@@ -37,6 +30,11 @@ impl AstNode for StructInit {
     }
 }
 
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct StructFieldInit {
+    pub name: Ident,
+    pub value: Expression,
+}
 try_from_pair!(StructFieldInit, Rule::struct_field_init);
 impl AstNode for StructFieldInit {
     fn from_pair(pair: Pair<Rule>) -> Result<Self>

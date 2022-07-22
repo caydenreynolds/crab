@@ -46,17 +46,8 @@ pub use crab_struct_init::*;
 mod named_expression;
 pub use named_expression::*;
 
-mod named_fn_param;
-pub use named_fn_param::*;
-
-mod func_signature;
-pub use func_signature::*;
-
 mod fn_call;
 pub use fn_call::*;
-
-mod fn_param;
-pub use fn_param::*;
 
 mod crab_interface;
 pub use crab_interface::*;

@@ -3,7 +3,7 @@ use crate::compile::{
 };
 use crate::parse::ast::{
     Assignment, CodeBlock, CrabAst, DoWhileStmt, Expression, ExpressionType, FnBodyType, FnCall,
-    FnParam, IfStmt, Primitive, Statement, StructInit, WhileStmt,
+    PosParam, IfStmt, Primitive, Statement, StructInit, WhileStmt,
 };
 use crate::quill::{
     ArtifactType, ChildNib, FnNib, Nib, PolyQuillType, Quill, QuillBoolType, QuillFnType,
@@ -68,10 +68,10 @@ pub fn compile(
                 FnBodyType::CODEBLOCK(cb) => {
                     let all_params =
                         func.signature
-                            .unnamed_params
+                            .pos_params
                             .into_iter()
                             .chain(func.signature.named_params.into_iter().map(|named_param| {
-                                FnParam {
+                                PosParam {
                                     name: named_param.name,
                                     crab_type: named_param.crab_type,
                                 }
@@ -601,7 +601,7 @@ impl Codegen<FnNib> {
         mut nib: FnNib,
         types: Rc<RefCell<TypeManager>>,
         fns: Rc<RefCell<FnManager>>,
-        fn_params: Vec<FnParam>,
+        fn_params: Vec<PosParam>,
     ) -> Result<Self> {
         let mut vars = VarManager::new();
         fn_params.into_iter().try_for_each(|fn_param| {
