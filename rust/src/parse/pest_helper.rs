@@ -12,10 +12,10 @@ pub fn get_next<'a>(pairs: &'a mut Pairs<Rule>) -> Result<Pair<'a, Rule>> {
 /// Returns an error if self has no elements, or more than 1 element
 pub fn get_only(pair: Pair<Rule>) -> Result<Pair<Rule>> {
     let mut inner = pair.into_inner();
-    let next = get_next(&mut inner)?;
+    let next = get_next(&mut inner)?.clone();
     if inner.count() > 0 {
         Err(ParseError::TooManyInners)
     } else {
-        Ok(next.clone())
+        Ok(next)
     }
 }
