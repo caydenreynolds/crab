@@ -4,7 +4,7 @@ use crate::parse::{ParseError, Result, Rule};
 use crate::try_from_pair;
 use pest::iterators::Pair;
 use std::convert::TryFrom;
-use crate::util::{int_struct_name, main_func_name, mangle_function_name};
+use crate::util::{int_struct_name, ListFunctional, main_func_name, mangle_function_name};
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Func {
@@ -142,7 +142,7 @@ struct ReturnType(CrabType);
 try_from_pair!(ReturnType, Rule::return_type);
 impl AstNode for ReturnType {
     fn from_pair(pair: Pair<Rule>) -> Result<Self> where Self: Sized {
-        Ok(Self(match pair.inner.next() {
+        Ok(Self(match pair.inner().next() {
             Some(ct) => CrabType::try_from(ct)?,
             None => CrabType::VOID,
         }))
@@ -158,7 +158,7 @@ impl AstNode for PosParams {
     {
         Ok(Self(
             pair.into_inner().try_fold(vec![], |params, param| {
-                Result::Ok(fields.fpush(PosParam::try_from(field)?))
+                Result::Ok(params.fpush(PosParam::try_from(param)?))
             })?,
         ))
     }
@@ -173,7 +173,7 @@ impl AstNode for NamedParams {
     {
         Ok(Self(
             pair.into_inner().try_fold(vec![], |params, param| {
-                Result::Ok(fields.fpush(NamedParam::try_from(field)?))
+                Result::Ok(params.fpush(NamedParam::try_from(param)?))
             })?,
         ))
     }
