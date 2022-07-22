@@ -24,7 +24,7 @@ impl AstNode for CrabType {
         where
             Self: Sized,
     {
-        let next = parse_helper::get_only(pair)?;
+        let next = pest_helper::get_only(pair)?;
         match next.as_rule() {
             Rule::simple_crab_type => Ok(Self::SIMPLE(SimpleCrabType::try_from(next)?.0)),
             Rule::list_crab_type => Ok(Self::LIST(ListCrabType::try_from(next)?.0)),
@@ -69,7 +69,7 @@ struct SimpleCrabType(Ident);
 try_from_pair!(SimpleCrabType, Rule::simple_crab_type);
 impl AstNode for SimpleCrabType {
     fn from_pair(pair: Pair<Rule>) -> parse::Result<Self> where Self: Sized {
-        Ok(Self(Ident::from(parse_helper::get_only(pair)?)))
+        Ok(Self(Ident::from(pest_helper::get_only(pair)?)))
     }
 }
 
@@ -77,7 +77,7 @@ struct ListCrabType(Box<CrabType>);
 try_from_pair!(ListCrabType, Rule::list_crab_type);
 impl AstNode for ListCrabType {
     fn from_pair(pair: Pair<Rule>) -> parse::Result<Self> where Self: Sized {
-        Ok(Self(Box::new(CrabType::try_from(parse_helper::get_only(pair)?)?)))
+        Ok(Self(Box::new(CrabType::try_from(pest_helper::get_only(pair)?)?)))
     }
 }
 
