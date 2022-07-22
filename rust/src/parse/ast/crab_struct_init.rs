@@ -1,9 +1,9 @@
 use crate::parse::ast::{AstNode, Expression, Ident};
 use crate::parse::{ParseError, Result, Rule};
 use crate::try_from_pair;
+use crate::util::ListFunctional;
 use pest::iterators::Pair;
 use std::convert::TryFrom;
-use crate::util::ListFunctional;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct StructInit {
@@ -40,8 +40,8 @@ impl AstNode for StructInit {
 try_from_pair!(StructFieldInit, Rule::struct_field_init);
 impl AstNode for StructFieldInit {
     fn from_pair(pair: Pair<Rule>) -> Result<Self>
-        where
-            Self: Sized,
+    where
+        Self: Sized,
     {
         let mut inner = pair.into_inner();
         let name = Ident::from(inner.next().ok_or(ParseError::ExpectedInner)?.as_str());

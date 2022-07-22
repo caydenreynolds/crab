@@ -11,8 +11,10 @@ program = { SOI ~ (function | crab_struct | impl_block | interface | intr_block)
 interface = { "interface" ~ ident ~ "{" ~ interface_fns? ~ "}" }
 interface_fns = _{ fn_signature ~ ("," ~ fn_signature)* ~ ","?}
 
+// crab_struct_behavior.rs
 intr_block = { "intr" ~ ident ~ "{" ~ inter_interfaces? ~ "}" }
 inter_interfaces = _{ ident ~ ("," ~ ident)* ~ ","? }
+impl_block = { "impl" ~ ident ~ ("of " ~ ident)? ~ "{" ~ (function*) ~ "}" }
 
 // crab_struct.rs
 crab_struct = { "struct" ~ ident ~ struct_body }
@@ -24,8 +26,6 @@ struct_field = { crab_type ~ ident }
 struct_init = { ident ~ "{" ~ struct_fields_init? ~ "}" }
 struct_fields_init = _{ struct_field_init ~ ("," ~ struct_field_init)* ~ ","? }
 struct_field_init = { ident ~ "=" ~ expression }
-
-impl_block = { "impl" ~ ident ~ ("of " ~ ident)? ~ "{" ~ (function*) ~ "}" }
 
 function = { fn_signature ~ (compiler_provided | code_block) }
 fn_signature = { "fn" ~ ident ~ "(" ~ fn_params? ~ ","?  ~ ")" ~ ("->" ~ crab_type)? }

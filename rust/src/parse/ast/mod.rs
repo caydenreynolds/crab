@@ -37,8 +37,8 @@ pub use primitive::*;
 mod crab_type;
 pub use crab_type::*;
 
-mod struct_impl;
-pub use struct_impl::*;
+mod crab_struct_behavior;
+pub use crab_struct_behavior::*;
 
 mod crab_struct_init;
 pub use crab_struct_init::*;
@@ -60,9 +60,6 @@ pub use fn_param::*;
 
 mod crab_interface;
 pub use crab_interface::*;
-
-mod struct_intr;
-pub use struct_intr::*;
 
 mod do_while_stmt;
 pub use do_while_stmt::*;
