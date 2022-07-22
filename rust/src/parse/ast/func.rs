@@ -142,7 +142,7 @@ struct ReturnType(CrabType);
 try_from_pair!(ReturnType, Rule::return_type);
 impl AstNode for ReturnType {
     fn from_pair(pair: Pair<Rule>) -> Result<Self> where Self: Sized {
-        Ok(Self(match pair.inner().next() {
+        Ok(Self(match pair.into_inner().next() {
             Some(ct) => CrabType::try_from(ct)?,
             None => CrabType::VOID,
         }))
