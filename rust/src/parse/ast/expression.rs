@@ -3,13 +3,13 @@ use crate::parse::ParseError::ExpectedInner;
 use crate::parse::{ParseError, Result, Rule};
 use crate::try_from_pair;
 use crate::util::{bool_struct_name, int_struct_name, primitive_field_name, string_type_name};
-use pest::iterators::Pair;
-use std::convert::TryFrom;
 use crate::util::{
     operator_add_name, operator_div_name, operator_eq_name, operator_gt_name, operator_gte_name,
     operator_lsh_name, operator_lt_name, operator_lte_name, operator_mult_name, operator_rsh_name,
     operator_sub_name,
 };
+use pest::iterators::Pair;
+use std::convert::TryFrom;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Expression {
@@ -173,8 +173,8 @@ pub enum Operator {
 try_from_pair!(Operator, Rule::operator);
 impl AstNode for Operator {
     fn from_pair(pair: Pair<Rule>) -> Result<Self>
-        where
-            Self: Sized,
+    where
+        Self: Sized,
     {
         match pair.as_str() {
             "+" => Ok(Self::ADD),
