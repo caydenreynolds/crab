@@ -27,7 +27,7 @@ impl AstNode for CrabStruct {
 
         let next = inner
             .next()
-            .ok_or(ParseError::NoMatch(String::from("Struct::from_pair")))?;
+            .ok_or(ParseError::NoMatch(String::from(format!("Struct::from_pair, struct name: {}", name))))?;
         let body = match next.clone().as_rule() {
             Rule::compiler_provided => StructBody::COMPILER_PROVIDED,
             Rule::struct_fields => StructBody::FIELDS(StructFields::try_from(next)?.0),
