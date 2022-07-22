@@ -39,6 +39,9 @@ pub enum ParseError {
     #[error("The interface {0} does not exist")]
     InterfaceNotFound(Ident),
 
+    #[error("A match had too many inners")]
+    TooManyInners,
+
     #[error(transparent)]
     Io(#[from] std::io::Error),
 

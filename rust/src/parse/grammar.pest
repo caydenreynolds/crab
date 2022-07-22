@@ -3,6 +3,11 @@ COMMENT = _{ ("#" | "//") ~ (!NEWLINE ~ ANY)* ~ NEWLINE }
 
 // ident.rs
 ident = @{ !(reserved_word) ~ ((ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")*) }
+struct_id = { ident ~ ("<" ~ ident ~ ("," ~ ident)* ~ ","? ~ ">")? }
+crab_type = { tmpl_crab_type | list_crab_type | simple_crab_type }
+simple_crab_type = { ident }
+tmpl_crab_type = { ident ~ "<" ~ crab_type ~ ("," ~ crab_type)* ~ ","? ~ ">" }
+list_crab_type = { "[" ~ crab_type ~ "]" }
 
 // crab_ast.rs
 program = { SOI ~ (function | crab_struct | impl_block | interface | intr_block)+ ~ EOI }
@@ -69,9 +74,6 @@ bool_primitive = { "true" | "false" }
 string_primitive = ${ ("\"" | NEWLINE) ~ string_inner ~ "\"" }
 string_inner = @{ char* }
 char = @{ !("\"" | "\\") ~ ANY | ("\\" ~ ( "n" )) }
-
-// crab_type.rs
-crab_type = { ident | ("[" ~ crab_type ~ "]") }
 
 // Unaffiliated
 compiler_provided = { "{" ~ "(V) '--' (V)" ~ "}" }

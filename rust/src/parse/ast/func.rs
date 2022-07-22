@@ -131,7 +131,7 @@ impl FuncSignature {
         let new_name = mangle_function_name(&self.name, Some(&struct_name));
         let mut new_unnamed_params = vec![PosParam {
             name: Ident::from("self"),
-            crab_type: CrabType::STRUCT(struct_name),
+            crab_type: CrabType::SIMPLE(struct_name),
         }];
         new_unnamed_params.extend(self.pos_params);
         Self {
@@ -144,7 +144,7 @@ impl FuncSignature {
 
     fn verify_main_fn(&self) -> Result<bool> {
         if self.name == main_func_name() {
-            if self.return_type != CrabType::STRUCT(int_struct_name())
+            if self.return_type != CrabType::SIMPLE(int_struct_name())
                 || !self.pos_params.is_empty()
                 || !self.named_params.is_empty()
             {

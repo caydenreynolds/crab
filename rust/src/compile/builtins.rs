@@ -33,11 +33,11 @@ fn init_builtin_fn_map() -> HashMap<Ident, fn(&mut Quill, &mut FnNib) -> Result<
         &[
             PosParam {
                 name: Ident::from("self"),
-                crab_type: CrabType::STRUCT(int_struct_name()),
+                crab_type: CrabType::SIMPLE(int_struct_name()),
             },
             PosParam {
                 name: Ident::from("other"),
-                crab_type: CrabType::STRUCT(int_struct_name()),
+                crab_type: CrabType::SIMPLE(int_struct_name()),
             },
         ],
     );
@@ -48,7 +48,7 @@ fn init_builtin_fn_map() -> HashMap<Ident, fn(&mut Quill, &mut FnNib) -> Result<
         &int_to_str,
         &[PosParam {
             name: Ident::from("self"),
-            crab_type: CrabType::STRUCT(int_struct_name()),
+            crab_type: CrabType::SIMPLE(int_struct_name()),
         }],
     );
     map.insert(int_to_str, format_i);
@@ -58,7 +58,7 @@ fn init_builtin_fn_map() -> HashMap<Ident, fn(&mut Quill, &mut FnNib) -> Result<
         &printf,
         &[PosParam {
             name: Ident::from("str"),
-            crab_type: CrabType::STRUCT(string_type_name()),
+            crab_type: CrabType::SIMPLE(string_type_name()),
         }],
     );
     map.insert(printf, add_printf);

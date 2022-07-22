@@ -154,7 +154,7 @@ impl FnManager {
                 Result::Ok(
                     params.fpush(PosParam {
                         name: param.name.clone(),
-                        crab_type: CrabType::STRUCT(
+                        crab_type: CrabType::SIMPLE(
                             QuillStructType::try_from(
                                 QuillValue::<QuillPointerType>::try_from(value.clone())?
                                     .get_type()
@@ -175,7 +175,7 @@ impl FnManager {
                     Result::Ok(
                         params.fpush(NamedParam {
                             name: param.name.clone(),
-                            crab_type: CrabType::STRUCT(
+                            crab_type: CrabType::SIMPLE(
                                 QuillStructType::try_from(
                                     QuillValue::<QuillPointerType>::try_from(named_value.clone())?
                                         .get_type()
@@ -253,7 +253,7 @@ impl FnManager {
             .iter()
             .zip(signature.pos_params.iter())
             .try_for_each(|(value, param)| {
-                let val_t = CrabType::STRUCT(
+                let val_t = CrabType::SIMPLE(
                     QuillStructType::try_from(
                         QuillValue::<QuillPointerType>::try_from(value.clone())?
                             .get_type()
@@ -275,7 +275,7 @@ impl FnManager {
             let named_value = named_values
                 .get(&param.name)
                 .ok_or(CompileError::ArgumentNotSupplied(param.name.clone()))?;
-            let val_t = CrabType::STRUCT(
+            let val_t = CrabType::SIMPLE(
                 QuillStructType::try_from(
                     QuillValue::<QuillPointerType>::try_from(named_value.clone())?
                         .get_type()
