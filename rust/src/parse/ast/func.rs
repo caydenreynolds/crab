@@ -78,9 +78,16 @@ impl AstNode for FuncSignature {
     fn from_pair(pair: Pair<Rule>) -> Result<Self> {
         let mut inner = pair.into_inner();
         let name = Ident::from(inner.next().ok_or(ParseError::ExpectedInner)?.as_str());
-        let pos_params = PosParams::try_from(inner.next().ok_or(ParseError::ExpectedInner)?)?.0;
-        let named_params = NamedParams::try_from(inner.next().ok_or(ParseError::ExpectedInner)?)?.0;
-        let return_type = ReturnType::try_from(inner.next().ok_or(ParseError::ExpectedInner)?)?.0;
+
+        let (pos_params, named_params, return_type) = inner.try_fold((vec![], vec![], CrabType::VOID),
+        |(pos_params, named_params, return_type), pair| {
+                Ok(match pair.as_rule() {
+                    rule::pos_params => (PosParams::try_from(pair)?.0, named_params, return_type),
+                    rule::named_params => (pos_params, NamedParams::try_from(pair)?.0, return_type),
+                    rule::return_type => (pos_params, named_params, ReturnType::try_from(pair)?.0)
+                })
+            }
+        )?;
 
         let new_fn = Self {
             name,
