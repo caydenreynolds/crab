@@ -1,5 +1,5 @@
 use crate::parse::ast::{AstNode, CrabType, Ident};
-use crate::parse::{ParseError, Rule, Result};
+use crate::parse::{ParseError, Result, Rule};
 use crate::{try_from_pair, util};
 use pest::iterators::Pair;
 use std::convert::TryFrom;
@@ -28,7 +28,9 @@ struct StructFields(Vec<StructField>);
 
 try_from_pair!(CrabStruct, Rule::crab_struct);
 impl AstNode for CrabStruct {
-    fn from_pair(pair: Pair<Rule>) -> Result<Self> where Self: Sized,
+    fn from_pair(pair: Pair<Rule>) -> Result<Self>
+    where
+        Self: Sized,
     {
         let mut inner = pair.into_inner();
         let name = Ident::from(
@@ -53,7 +55,9 @@ impl AstNode for CrabStruct {
 
 try_from_pair!(StructField, Rule::struct_field);
 impl AstNode for StructField {
-    fn from_pair(pair: Pair<Rule>) -> Result<Self> where Self: Sized,
+    fn from_pair(pair: Pair<Rule>) -> Result<Self>
+    where
+        Self: Sized,
     {
         let mut inner = pair.into_inner();
         let crab_type = CrabType::try_from(inner.next().ok_or(ParseError::ExpectedInner)?)?;
@@ -64,9 +68,14 @@ impl AstNode for StructField {
 
 try_from_pair!(StructFields, Rule::struct_fields);
 impl AstNode for StructFields {
-    fn from_pair(pair: Pair<Rule>) -> Result<Self> where Self: Sized {
-        Ok(Self(pair.into_inner().try_fold(vec![], |fields, field| {
-            Result::Ok(fields.fpush(StructField::try_from(field)?))
-        })?))
+    fn from_pair(pair: Pair<Rule>) -> Result<Self>
+    where
+        Self: Sized,
+    {
+        Ok(Self(
+            pair.into_inner().try_fold(vec![], |fields, field| {
+                Result::Ok(fields.fpush(StructField::try_from(field)?))
+            })?,
+        ))
     }
 }

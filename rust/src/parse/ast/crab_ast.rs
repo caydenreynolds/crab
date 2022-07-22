@@ -1,4 +1,4 @@
-use crate::parse::ast::{AstNode, CrabInterface, Func, Ident, CrabStruct, StructImpl, StructIntr};
+use crate::parse::ast::{AstNode, CrabInterface, CrabStruct, Func, Ident, StructImpl, StructIntr};
 use crate::parse::{ParseError, Result, Rule};
 use crate::try_from_pair;
 use crate::util::main_func_name;

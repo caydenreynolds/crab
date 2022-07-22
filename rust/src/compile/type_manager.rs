@@ -1,7 +1,7 @@
 use crate::compile::builtins::get_builtin_strct_definition;
 use crate::compile::{CompileError, Result};
 use crate::parse::ast::{
-    CrabInterface, CrabType, FuncSignature, Ident, StructBody, CrabStruct, StructIntr,
+    CrabInterface, CrabStruct, CrabType, FuncSignature, Ident, StructBody, StructIntr,
 };
 use crate::quill::{
     PolyQuillType, QuillBoolType, QuillFloatType, QuillFnType, QuillIntType, QuillListType,
