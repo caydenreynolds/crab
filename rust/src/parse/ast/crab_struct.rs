@@ -39,13 +39,14 @@ pub enum StructBody {
 try_from_pair!(StructBody, Rule::struct_body);
 impl AstNode for StructBody {
     fn from_pair(pair: Pair<Rule>) -> Result<Self> where Self: Sized {
-        Ok(match pair.as_rule() {
+        let next = pair.into_inner().next().ok_or(ParseError::ExpectedInner)?;
+        Ok(match next.as_rule() {
             Rule::compiler_provided => StructBody::COMPILER_PROVIDED,
-            Rule::struct_fields => StructBody::FIELDS(StructFields::try_from(pair)?.0),
+            Rule::struct_fields => StructBody::FIELDS(StructFields::try_from(next)?.0),
             _ => return Err(ParseError::IncorrectRule(
                 String::from(stringify!(StructBody)),
                 format!("{:?} or {:?}", Rule::compiler_provided, Rule::struct_fields),
-                format!("{:?}", pair.as_rule()),
+                format!("{:?}", next.as_rule()),
             )),
         })
     }
