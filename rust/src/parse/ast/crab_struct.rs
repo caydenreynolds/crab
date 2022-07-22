@@ -66,7 +66,7 @@ try_from_pair!(StructFields, Rule::struct_fields);
 impl AstNode for StructFields {
     fn from_pair(pair: Pair<Rule>) -> Result<Self> where Self: Sized {
         Ok(Self(pair.into_inner().try_fold(vec![], |fields, field| {
-            Ok(fields.finsert(StructField::try_from(field)?))
+            Ok(fields.fpush(StructField::try_from(field)?))
         })?))
     }
 }
