@@ -85,6 +85,11 @@ impl AstNode for FuncSignature {
                     Rule::pos_params => (PosParams::try_from(pair)?.0, named_params, return_type),
                     Rule::named_params => (pos_params, NamedParams::try_from(pair)?.0, return_type),
                     Rule::return_type => (pos_params, named_params, ReturnType::try_from(pair)?.0)
+                    _ => return Err(ParseError::IncorrectRule(
+                        String::from(stringify!(FuncSignature)),
+                        format!("{:?} or {:?} or {:?}", Rule::pos_params, Rule::named_params, Rule::return_type),
+                        format!("{:?}", pair.as_rule()),
+                    )),
                 })
             }
         )?;
