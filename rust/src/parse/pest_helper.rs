@@ -16,6 +16,6 @@ pub fn get_only(pair: Pair<Rule>) -> Result<Pair<Rule>> {
     if inner.count() > 0 {
         Err(ParseError::TooManyInners)
     } else {
-        Ok(next)
+        Ok(next.clone())
     }
 }

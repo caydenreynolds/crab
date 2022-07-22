@@ -180,7 +180,8 @@ impl TypeManager {
             //TODO: This len should be dynamic
             CrabType::LIST(t) => {
                 QuillListType::new_const_length(self.get_quill_type(t)?, 1000).into()
-            }
+            },
+            CrabType::TMPL(_,_) => todo!()
         })
     }
 
