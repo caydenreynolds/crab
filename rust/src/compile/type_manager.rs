@@ -1,7 +1,7 @@
 use crate::compile::builtins::get_builtin_strct_definition;
 use crate::compile::{CompileError, Result};
 use crate::parse::ast::{
-    CrabInterface, CrabType, FuncSignature, Ident, StrctBodyType, Struct, StructIntr,
+    CrabInterface, CrabType, FuncSignature, Ident, StructBody, CrabStruct, StructIntr,
 };
 use crate::quill::{
     PolyQuillType, QuillBoolType, QuillFloatType, QuillFnType, QuillIntType, QuillListType,
@@ -12,7 +12,7 @@ use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Clone)]
 pub(super) enum ManagedType {
-    STRUCT(Struct),
+    STRUCT(CrabStruct),
     INTERFACE(CrabInterface),
 }
 
@@ -45,7 +45,7 @@ impl TypeManager {
     /// Params:
     /// * `strct` - The Struct to add to this TypeManager's structs
     ///
-    pub fn register_struct(&mut self, strct: Struct) -> Result<()> {
+    pub fn register_struct(&mut self, strct: CrabStruct) -> Result<()> {
         return if self
             .registered_types
             .insert(strct.name.clone(), ManagedType::STRUCT(strct.clone()))
@@ -145,7 +145,7 @@ impl TypeManager {
     /// Returns:
     /// The struct with the matching name, or an error if there is no struct with the matching name
     ///
-    pub fn get_struct(&mut self, name: &Ident) -> Result<&Struct> {
+    pub fn get_struct(&mut self, name: &Ident) -> Result<&CrabStruct> {
         match self.get_type(name)? {
             ManagedType::INTERFACE(_) => Err(CompileError::NotAStruct(
                 name.clone(),
@@ -285,8 +285,8 @@ impl TypeManager {
     ///
     pub fn get_fields(&mut self, name: &Ident) -> Result<HashMap<String, PolyQuillType>> {
         Ok(match self.get_struct(name)?.body.clone() {
-            StrctBodyType::COMPILER_PROVIDED => get_builtin_strct_definition(&name)?.clone(),
-            StrctBodyType::FIELDS(fields) => {
+            StructBody::COMPILER_PROVIDED => get_builtin_strct_definition(&name)?.clone(),
+            StructBody::FIELDS(fields) => {
                 fields
                     .into_iter()
                     .try_fold(HashMap::new(), |fields, field| {

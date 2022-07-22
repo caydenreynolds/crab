@@ -4,17 +4,22 @@ COMMENT = _{ ("#" | "//") ~ (!NEWLINE ~ ANY)* ~ NEWLINE }
 reserved_word = { "true" | "false" | "if" | "else" | "while" | "do" | "struct" | "impl" | "fn" }
 ident = @{ !(reserved_word) ~ ((ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")*) }
 
+// crab_ast.rs
 program = { SOI ~ (function | crab_struct | impl_block | interface | intr_block)+ ~ EOI }
 
+// crab_interface.rs
 interface = { "interface" ~ ident ~ "{" ~ interface_fns? ~ "}" }
 interface_fns = _{ fn_signature ~ ("," ~ fn_signature)* ~ ","?}
 
 intr_block = { "intr" ~ ident ~ "{" ~ inter_interfaces? ~ "}" }
 inter_interfaces = _{ ident ~ ("," ~ ident)* ~ ","? }
 
-crab_struct = { "struct" ~ ident ~ ("{" ~ (struct_fields?) ~ "}" | compiler_provided) }
-struct_fields = _{ struct_field ~ ("," ~ struct_field)* ~ ","?}
+// crab_struct.rs
+crab_struct = { "struct" ~ ident ~ struct_body }
+struct_body = { "{" ~ (struct_fields?) ~ "}" | compiler_provided }
+struct_fields = { struct_field ~ ("," ~ struct_field)* ~ ","?}
 struct_field = { crab_type ~ ident }
+
 struct_init = { ident ~ "{" ~ struct_fields_init? ~ "}" }
 struct_fields_init = _{ struct_field_init ~ ("," ~ struct_field_init)* ~ ","? }
 struct_field_init = { ident ~ "=" ~ expression }

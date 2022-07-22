@@ -40,9 +40,6 @@ pub use crab_type::*;
 mod struct_impl;
 pub use struct_impl::*;
 
-mod struct_field;
-pub use struct_field::*;
-
 mod struct_init;
 pub use struct_init::*;
 

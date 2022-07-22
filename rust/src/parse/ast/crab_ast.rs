@@ -1,4 +1,4 @@
-use crate::parse::ast::{AstNode, CrabInterface, Func, Ident, Struct, StructImpl, StructIntr};
+use crate::parse::ast::{AstNode, CrabInterface, Func, Ident, CrabStruct, StructImpl, StructIntr};
 use crate::parse::{ParseError, Result, Rule};
 use crate::try_from_pair;
 use crate::util::main_func_name;
@@ -9,7 +9,7 @@ use std::convert::TryFrom;
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
 pub struct CrabAst {
     pub functions: Vec<Func>,
-    pub structs: Vec<Struct>,
+    pub structs: Vec<CrabStruct>,
     pub interfaces: HashMap<Ident, CrabInterface>,
     pub main: Option<Func>,
     pub intrs: Vec<StructIntr>,
@@ -37,7 +37,7 @@ impl AstNode for CrabAst {
                     }
                     functions.push(func);
                 }
-                Rule::crab_struct => structs.push(Struct::try_from(in_pair)?),
+                Rule::crab_struct => structs.push(CrabStruct::try_from(in_pair)?),
                 Rule::impl_block => impls.push(StructImpl::try_from(in_pair)?),
                 Rule::interface => {
                     let interface = CrabInterface::try_from(in_pair)?;
