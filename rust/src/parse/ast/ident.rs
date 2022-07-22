@@ -69,7 +69,7 @@ struct SimpleCrabType(Ident);
 try_from_pair!(SimpleCrabType, Rule::simple_crab_type);
 impl AstNode for SimpleCrabType {
     fn from_pair(pair: Pair<Rule>) -> parse::Result<Self> where Self: Sized {
-        Ok(Self(Ident::from(pest_helper::get_only(pair)?)))
+        Ok(Self(Ident::from(pest_helper::get_only(pair)?.as_str())))
     }
 }
 
@@ -86,7 +86,7 @@ try_from_pair!(TmplCrabType, Rule::tmpl_crab_type);
 impl AstNode for TmplCrabType {
     fn from_pair(pair: Pair<Rule>) -> parse::Result<Self> where Self: Sized {
         let mut inner = pair.into_inner();
-        let name = Ident::from(pest_helper::get_next(&mut inner)?);
+        let name = Ident::from(pest_helper::get_next(&mut inner)?.as_str());
         let tmpls = inner.try_fold(vec![], |tmpls, tmpl| {
             Ok(tmpls.fpush(CrabType::try_from(tmpl)?))
         })?;
