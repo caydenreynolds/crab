@@ -31,7 +31,7 @@ impl AstNode for StructInit {
                 .as_str(),
         );
         let fields = inner.try_fold(vec![], |fields, field| {
-            Ok(fields.fpush(StructFieldInit::try_from(field)?))
+            Result::Ok(fields.fpush(StructFieldInit::try_from(field)?))
         })?;
         Ok(Self { name, fields })
     }
