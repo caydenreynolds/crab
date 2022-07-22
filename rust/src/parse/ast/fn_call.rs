@@ -35,7 +35,7 @@ impl AstNode for FnCall {
         Ok(Self {
             name,
             named_args,
-            pos_args: unnamed_args,
+            pos_args,
         })
     }
 }
@@ -46,7 +46,7 @@ pub struct NamedArg {
     pub expr: Expression,
 }
 
-try_from_pair!(NamedArg, Rule::named_expression);
+try_from_pair!(NamedArg, Rule::named_arg);
 impl AstNode for NamedArg {
     fn from_pair(pair: Pair<Rule>) -> Result<Self>
         where
@@ -61,7 +61,7 @@ impl AstNode for NamedArg {
 }
 
 struct PosArgs(Vec<Expression>);
-try_from_pair!(PosParams, Rule::pos_args);
+try_from_pair!(PosArgs, Rule::pos_args);
 impl AstNode for PosArgs {
     fn from_pair(pair: Pair<Rule>) -> Result<Self>
         where
