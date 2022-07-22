@@ -168,12 +168,7 @@ impl TypeManager {
     ///
     pub fn get_quill_type(&mut self, ct: &CrabType) -> Result<PolyQuillType> {
         Ok(match ct {
-            CrabType::UINT8 => QuillIntType::new(8).into(),
-            CrabType::UINT64 => QuillIntType::new(64).into(),
-            CrabType::STRING => unimplemented!(),
             CrabType::VOID => QuillVoidType::new().into(),
-            CrabType::FLOAT => QuillFloatType::new().into(),
-            CrabType::BOOL => QuillBoolType::new().into(),
             CrabType::STRUCT(name) => match self.get_type(name)?.clone() {
                 ManagedType::INTERFACE(_) => Err(CompileError::NotAStruct(
                     name.clone(),
