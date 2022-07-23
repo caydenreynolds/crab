@@ -1,4 +1,4 @@
-use crate::parse::ast::{AstNode, CrabInterface, Func, Ident};
+use crate::parse::ast::{AstNode, CrabInterface, Func, Ident, StructId};
 use crate::parse::{ParseError, Result, Rule};
 use crate::try_from_pair;
 use crate::util::ListFunctional;
@@ -7,7 +7,7 @@ use std::convert::TryFrom;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct StructImpl {
-    pub struct_name: Ident,
+    pub struct_id: StructId,
     pub interface_name: Option<Ident>,
     pub fns: Vec<Func>,
 }
@@ -18,7 +18,9 @@ impl AstNode for StructImpl {
         Self: Sized,
     {
         let mut inner = pair.into_inner();
-        let struct_name = Ident::from(inner.next().ok_or(ParseError::ExpectedInner)?.as_str());
+        let struct_name = StructId::try_from(
+            inner.next().ok_or(ParseError::ExpectedInner)?
+        )?;
 
         let next_opt = inner.peek();
         let interface_name = match next_opt {
@@ -44,7 +46,7 @@ impl AstNode for StructImpl {
         })?;
 
         Ok(Self {
-            struct_name,
+            struct_id: struct_name,
             interface_name,
             fns,
         })
@@ -61,7 +63,7 @@ impl StructImpl {
             }
             if !match_found {
                 return Err(ParseError::DoesNotImplement(
-                    self.struct_name.clone(),
+                    self.struct_id.clone(),
                     ifunc.name.clone(),
                     intr.name.clone(),
                 ));
@@ -73,7 +75,7 @@ impl StructImpl {
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct StructIntr {
-    pub struct_name: Ident,
+    pub struct_id: StructId,
     pub inters: Vec<Ident>,
 }
 try_from_pair!(StructIntr, Rule::intr_block);
@@ -83,19 +85,16 @@ impl AstNode for StructIntr {
         Self: Sized,
     {
         let mut inner = pair.into_inner();
-        let struct_name = Ident::from(
-            inner
-                .next()
-                .ok_or(ParseError::NoMatch(String::from("StructIntr::from_pair")))?
-                .as_str(),
-        );
+        let struct_name = StructId::try_from(
+            inner.next().ok_or(ParseError::ExpectedInner)?
+        )?;
 
         let inters = inner.fold(vec![], |inters, inter| {
             inters.fpush(Ident::from(inter.as_str()))
         });
 
         Ok(Self {
-            struct_name,
+            struct_id: struct_name,
             inters,
         })
     }

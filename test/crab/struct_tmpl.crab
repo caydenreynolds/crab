@@ -1,0 +1,50 @@
+struct ThingPrinter<T> {
+    T thing,
+}
+
+impl ThingPrinter<T> {
+    fn printThing() {
+        print("I'm printing my thing: ", newline=false)
+        print(self.thing)
+    }
+
+    fn getThing() -> T {
+        return self.thing
+    }
+
+    fn with(T thing) -> ThingPrinter<T> {
+        return ThingPrinter<T> {thing=thing}
+    }
+
+    fn toString() -> String {
+        return self.thing.toString()
+    }
+}
+
+intr ThingPrinter<T> {
+    Printable,
+}
+
+fn main() -> Int {
+    let string_printer = ThingPrinter<String> { thing = "string thing" }
+    string_printer.printThing()
+    print("String printer returned: ", newline=False)
+    print(string_printer.getThing())
+
+    string_printer = string_printer.with("A new string thing")
+    string_printer.printThing()
+    print("String printer returned: ", newline=False)
+    print(string_printer.getThing())
+
+    let int_printer = ThingPrinter<Int> { thing=69 }
+    int_printer.printThing()
+    print("Int printer returned: ", newline=False)
+    print(int_printer.getThing())
+
+    let thing_printer_printer = ThingPrinter<ThingPrinter<String>> { thing=string_printer }
+    thing_printer_printer.printThing()
+    print("Thing printer printer returned: ", newline=False)
+    print(thing_printer_printer.getThing())
+
+    return 0
+}

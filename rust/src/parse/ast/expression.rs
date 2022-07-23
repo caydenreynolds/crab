@@ -115,7 +115,7 @@ impl TryFrom<Pair<'_, Rule>> for ExpressionType {
                 let prim = Primitive::try_from(pair)?;
                 match &prim {
                     Primitive::UINT(_) => Ok(Self::STRUCT_INIT(StructInit {
-                        name: int_struct_name(),
+                        id: int_struct_name(),
                         fields: vec![StructFieldInit {
                             name: primitive_field_name(),
                             value: Expression {
@@ -125,7 +125,7 @@ impl TryFrom<Pair<'_, Rule>> for ExpressionType {
                         }],
                     })),
                     Primitive::STRING(_) => Ok(Self::STRUCT_INIT(StructInit {
-                        name: string_type_name(),
+                        id: string_type_name(),
                         fields: vec![StructFieldInit {
                             name: primitive_field_name(),
                             value: Expression {
@@ -135,7 +135,7 @@ impl TryFrom<Pair<'_, Rule>> for ExpressionType {
                         }],
                     })),
                     Primitive::BOOL(_) => Ok(Self::STRUCT_INIT(StructInit {
-                        name: bool_struct_name(),
+                        id: bool_struct_name(),
                         fields: vec![StructFieldInit {
                             name: primitive_field_name(),
                             value: Expression {

@@ -51,7 +51,7 @@ impl AstNode for CrabAst {
 
         for struct_impl in &impls {
             for func in &struct_impl.fns {
-                functions.push(func.clone().method(struct_impl.struct_name.clone()));
+                functions.push(func.clone().method(struct_impl.struct_id.clone()));
             }
         }
 
@@ -103,7 +103,7 @@ impl CrabAst {
     fn verify_intrs(&self) -> Result<()> {
         for intr in &self.intrs {
             for si in &self.impls {
-                if si.struct_name == intr.struct_name {
+                if si.struct_id == intr.struct_id {
                     for inter in &intr.inters {
                         si.verify_implements(
                             self.interfaces

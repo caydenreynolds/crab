@@ -1,13 +1,13 @@
-use crate::parse::ast::{AstNode, CrabType, Ident};
+use crate::parse::ast::{AstNode, CrabType, Ident, StructId};
 use crate::parse::{ParseError, Result, Rule};
-use crate::{try_from_pair, util};
+use crate::{compile, try_from_pair, util};
 use pest::iterators::Pair;
 use std::convert::TryFrom;
 use util::ListFunctional;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct CrabStruct {
-    pub name: Ident,
+    pub id: StructId,
     pub body: StructBody,
 }
 
@@ -18,19 +18,28 @@ impl AstNode for CrabStruct {
         Self: Sized,
     {
         let mut inner = pair.into_inner();
-        let name = Ident::from(
+        let name = StructId::try_from(
             inner
                 .next()
                 .ok_or(ParseError::NoMatch(String::from("Struct::from_pair")))?
-                .as_str(),
-        );
+        )?;
         let body = StructBody::try_from(
             inner
                 .next()
                 .ok_or(ParseError::NoMatch(String::from("Struct::from_pair")))?,
         )?;
 
-        Ok(Self { name, body })
+        Ok(Self { id: name, body })
+    }
+}
+impl CrabStruct {
+    /// Consumes self, returning a CrabStruct with the structId types resolved according to the
+    /// given slice of CrabTypes
+    pub fn resolve(self, types: &[CrabType]) -> compile::Result<Self> {
+        Ok(Self {
+            id: self.id.resolve(types)?,
+            ..self
+        })
     }
 }
 

@@ -1,4 +1,4 @@
-use crate::parse::ast::{CrabType, Ident};
+use crate::parse::ast::{CrabType, Ident, StructId};
 use crate::quill::QuillError;
 use thiserror::Error;
 
@@ -6,6 +6,12 @@ pub type Result<T> = std::result::Result<T, CompileError>;
 
 #[derive(Error, Debug)]
 pub enum CompileError {
+    #[error("A template got the wrong number of type arguments. Expected{0} and got {1}")]
+    WrongTemplateTypeCount(usize, usize),
+
+    #[error("Got a void type where one was not expected")]
+    VoidType,
+
     #[error("Could not find function with name {0}")]
     CouldNotFindFunction(Ident),
 
@@ -16,7 +22,7 @@ pub enum CompileError {
     ArgumentType(Ident, Ident, CrabType, CrabType),
 
     #[error("Could not get value with name {0} as a struct type in {1}")]
-    NotAStruct(String, String),
+    NotAStruct(StructId, String),
 
     #[error("Could not get a value as an interface type")]
     NotAnInterface,
@@ -36,7 +42,7 @@ pub enum CompileError {
     InterfaceRedefinition(Ident),
 
     #[error("Struct with name {0} does not exist")]
-    StructDoesNotExist(Ident),
+    StructDoesNotExist(StructId),
 
     #[error("Type with name {0} does not exist")]
     TypeDoesNotExist(Ident),
@@ -48,7 +54,7 @@ pub enum CompileError {
     StructInitFieldName(Ident, Ident),
 
     #[error("Struct {0} does not contain a field with name {1}")]
-    StructFieldName(Ident, Ident),
+    StructFieldName(CrabType, Ident),
 
     #[error("No main function found")]
     NoMain,

@@ -4,6 +4,7 @@
 # Options:
 #    -v --verbose: More output to console
 #    -n --no-display: Don't immediately display generated html file
+# Assumes your cwd is the same directory as this script is located in
 
 # Parse inputs
 verbose="FALSE"
@@ -21,7 +22,6 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-
 # Clean out any old binaries there may have been
 rm -rf target
 mkdir target
@@ -30,7 +30,14 @@ source crab_env/Scripts/activate
 ./../tools/buildall.sh --release
 
 # FIXME: Shell is hardcoded for windows
-declare -A rel_paths=(["CBUILTINS_DIR"]="../c/target" ["CRABC"]="../rust/target/release/crabc.exe" ["CRAB_SRC"]="crab" ["TARGET_DIR"]="target" ["CRAB_STD"]="../std")
+declare -A rel_paths=(
+  ["CBUILTINS_DIR"]="../c/target"
+  ["CRABC"]="../rust/target/release/crabc.exe"
+  ["CRAB_SRC"]="crab"
+  ["TARGET_DIR"]="target"
+  ["CRAB_STD"]="../std"
+  ["RESOURCES"]="resources"
+)
 declare -A actual_paths
 for key in "${!rel_paths[@]}"
     do

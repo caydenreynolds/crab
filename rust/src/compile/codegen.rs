@@ -1,14 +1,8 @@
 use crate::compile::{
     add_builtin_definition, add_main_func, CompileError, FnManager, Result, TypeManager, VarManager,
 };
-use crate::parse::ast::{
-    Assignment, CodeBlock, CrabAst, DoWhileStmt, Expression, ExpressionType, FnBodyType, FnCall,
-    IfStmt, PosParam, Primitive, Statement, StructInit, WhileStmt,
-};
-use crate::quill::{
-    ArtifactType, ChildNib, FnNib, Nib, PolyQuillType, Quill, QuillBoolType, QuillFnType,
-    QuillPointerType, QuillStructType, QuillValue,
-};
+use crate::parse::ast::{Assignment, CodeBlock, CrabAst, CrabType, DoWhileStmt, Expression, ExpressionType, FnBodyType, FnCall, IfStmt, PosParam, Primitive, Statement, StructInit, WhileStmt};
+use crate::quill::{ArtifactType, ChildNib, FnNib, Nib, PolyQuillType, Quill, QuillBoolType, QuillFnType, QuillPointerType, QuillStructType, QuillType, QuillValue};
 use crate::util::{
     mangle_function_name, primitive_field_name, ListFunctional, MapFunctional, SetFunctional,
 };
@@ -367,12 +361,12 @@ impl<NibType: Nib> Codegen<NibType> {
     fn build_expression(
         &mut self,
         expr: Expression,
-        prev: Option<QuillValue<PolyQuillType>>,
-    ) -> Result<QuillValue<PolyQuillType>> {
+        prev: Option<CrabValue>,
+    ) -> Result<CrabValue> {
         trace!("Codegen::build_expression");
         let val = match expr.this {
             ExpressionType::PRIM(prim) => Ok(self.build_primitive(prim)),
-            ExpressionType::STRUCT_INIT(si) => Ok(self.build_struct_init(si)?.into()),
+            ExpressionType::STRUCT_INIT(si) => Ok(self.build_struct_init(si)?),
             ExpressionType::FN_CALL(fc) => self.build_fn_call(fc, prev),
             ExpressionType::VARIABLE(id) => {
                 match prev {
@@ -430,12 +424,12 @@ impl<NibType: Nib> Codegen<NibType> {
     /// Returns:
     /// The new quill value
     ///
-    fn build_primitive(&mut self, prim: Primitive) -> QuillValue<PolyQuillType> {
+    fn build_primitive(&mut self, prim: Primitive) -> CrabValue {
         trace!("Codegen::build_primitive");
         match prim {
-            Primitive::STRING(value) => self.nib.const_string(value).into(),
-            Primitive::BOOL(value) => self.nib.const_bool(value).into(),
-            Primitive::UINT(value) => self.nib.const_int(64, value).into(),
+            Primitive::STRING(value) => CrabValue::new(self.nib.const_string(value), CrabType::PRIM_STR),
+            Primitive::BOOL(value) => CrabValue::new(self.nib.const_bool(value), CrabType::PRIM_BOOL),
+            Primitive::UINT(value) => CrabValue::new(self.nib.const_int(64, value), CrabType::PRIM_INT),
         }
     }
 
@@ -448,13 +442,13 @@ impl<NibType: Nib> Codegen<NibType> {
     /// Returns:
     /// The value of the new struct
     ///
-    fn build_struct_init(&mut self, si: StructInit) -> Result<QuillValue<QuillPointerType>> {
+    fn build_struct_init(&mut self, si: StructInit) -> Result<CrabValue> {
         trace!("Codegen::build_struct_init");
-        let struct_name = si.name;
+        let struct_id = si.id;
         let struct_field_names = self
             .types
             .borrow_mut()
-            .get_fields(&struct_name)?
+            .get_fields(&struct_id)?
             .iter()
             .fold(HashSet::new(), |struct_field_names, (name, _)| {
                 struct_field_names.finsert(name.clone())
@@ -471,7 +465,7 @@ impl<NibType: Nib> Codegen<NibType> {
                             .finsert(field.name, self.build_expression(field.value, None)?))
                     }
                     None => Err(CompileError::StructFieldName(
-                        struct_name.clone(),
+                        struct_id.clone(),
                         field.name,
                     )),
                 })?;
@@ -484,20 +478,20 @@ impl<NibType: Nib> Codegen<NibType> {
             })?;
 
         //TODO: free
-        let struct_t = self.types.borrow_mut().get_quill_struct(&struct_name)?;
+        let struct_t = self.types.borrow_mut().get_quill_struct(&struct_id)?;
         let new_struct_ptr = self.nib.add_malloc(struct_t);
         fields.into_iter().try_for_each(|(name, value)| {
             self.nib.set_value_in_struct(&new_struct_ptr, name, value)
         })?;
 
-        Ok(new_struct_ptr)
+        Ok(CrabValue::new(new_struct_ptr, struct_id))
     }
 
     fn build_fn_call(
         &mut self,
         call: FnCall,
-        caller_opt: Option<QuillValue<PolyQuillType>>,
-    ) -> Result<QuillValue<PolyQuillType>> {
+        caller_opt: Option<CrabValue>,
+    ) -> Result<CrabValue> {
         trace!("Codegen::build_fn_call");
         // Get the original function
         // TODO: Once we have namespaces and stuff, we should only be manging inside fn_manager
@@ -578,13 +572,14 @@ impl<NibType: Nib> Codegen<NibType> {
                         args.fpush(named_args.get(name).unwrap().clone())
                     }
                 });
-        Ok(self.nib.add_fn_call(
+        let qv = self.nib.add_fn_call(
             signature.name,
             args,
             self.types
                 .borrow_mut()
                 .get_quill_type(&signature.return_type)?,
-        ))
+        );
+        Ok(CrabValue::new(qv, ))
     }
 }
 
@@ -617,5 +612,19 @@ impl Codegen<FnNib> {
             fns,
             vars,
         })
+    }
+}
+
+struct CrabValue {
+    quill_value: QuillValue<PolyQuillType>,
+    crab_type: CrabType,
+}
+
+impl CrabValue {
+    fn new<T: QuillType>(qv: QuillValue<T>, ct: CrabType) -> Self {
+        Self {
+            quill_value: qv.into(),
+            crab_type: ct,
+        }
     }
 }

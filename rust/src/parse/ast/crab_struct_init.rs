@@ -1,4 +1,4 @@
-use crate::parse::ast::{AstNode, Expression, Ident};
+use crate::parse::ast::{AstNode, CrabType, Expression, Ident};
 use crate::parse::{ParseError, Result, Rule};
 use crate::try_from_pair;
 use crate::util::ListFunctional;
@@ -7,7 +7,7 @@ use std::convert::TryFrom;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct StructInit {
-    pub name: Ident,
+    pub id: CrabType,
     pub fields: Vec<StructFieldInit>,
 }
 try_from_pair!(StructInit, Rule::struct_init);
@@ -17,16 +17,15 @@ impl AstNode for StructInit {
         Self: Sized,
     {
         let mut inner = pair.into_inner();
-        let name = Ident::from(
+        let name = CrabType::try_from(
             inner
                 .next()
                 .ok_or(ParseError::NoMatch(String::from("Struct::from_pair")))?
-                .as_str(),
-        );
+        )?;
         let fields = inner.try_fold(vec![], |fields, field| {
             Result::Ok(fields.fpush(StructFieldInit::try_from(field)?))
         })?;
-        Ok(Self { name, fields })
+        Ok(Self { id: name, fields })
     }
 }
 

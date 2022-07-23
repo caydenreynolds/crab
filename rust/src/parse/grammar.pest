@@ -17,18 +17,18 @@ interface = { "interface" ~ ident ~ "{" ~ interface_fns? ~ "}" }
 interface_fns = _{ fn_signature ~ ("," ~ fn_signature)* ~ ","?}
 
 // crab_struct_behavior.rs
-intr_block = { "intr" ~ ident ~ "{" ~ inter_interfaces? ~ "}" }
+intr_block = { "intr" ~ struct_id ~ "{" ~ inter_interfaces? ~ "}" }
 inter_interfaces = _{ ident ~ ("," ~ ident)* ~ ","? }
-impl_block = { "impl" ~ ident ~ ("of " ~ ident)? ~ "{" ~ (function*) ~ "}" }
+impl_block = { "impl" ~ struct_id ~ ("of " ~ ident)? ~ "{" ~ (function*) ~ "}" }
 
 // crab_struct.rs
-crab_struct = { "struct" ~ ident ~ struct_body }
+crab_struct = { "struct" ~ struct_id ~ struct_body }
 struct_body = { "{" ~ struct_fields ~ "}" | compiler_provided }
 struct_fields = { (struct_field ~ ("," ~ struct_field)*)? ~ ","?}
 struct_field = { crab_type ~ ident }
 
 // crab_struct_init.rs
-struct_init = { ident ~ "{" ~ struct_fields_init? ~ "}" }
+struct_init = { crab_type ~ "{" ~ struct_fields_init? ~ "}" }
 struct_fields_init = _{ struct_field_init ~ ("," ~ struct_field_init)* ~ ","? }
 struct_field_init = { ident ~ "=" ~ expression }
 
