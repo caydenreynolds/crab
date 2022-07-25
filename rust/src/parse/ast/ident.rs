@@ -70,6 +70,15 @@ impl Display for CrabType {
         }
     }
 }
+impl From<StructId> for CrabType {
+    fn from(si: StructId) -> Self {
+        if si.tmpls.is_empty() {
+            CrabType::SIMPLE(si.name)
+        } else {
+            CrabType::TMPL(si.name, si.tmpls.into_iter().map(|tmpl| tmpl.into()).collect())
+        }
+    }
+}
 
 struct SimpleCrabType(Ident);
 try_from_pair!(SimpleCrabType, Rule::simple_crab_type);
