@@ -109,7 +109,7 @@ impl AstNode for TmplCrabType {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct StructId {
     pub name: Ident,
     pub tmpls: Vec<StructId>,
