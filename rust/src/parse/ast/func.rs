@@ -1,8 +1,9 @@
+use std::collections::BTreeMap;
 use crate::parse::ast::FnBodyType::{CODEBLOCK, COMPILER_PROVIDED};
-use crate::parse::ast::{AstNode, CodeBlock, CrabType, Expression, Ident, Statement};
+use crate::parse::ast::{AstNode, CodeBlock, CrabType, Expression, Ident, Statement, StructId};
 use crate::parse::{ParseError, Result, Rule};
 use crate::try_from_pair;
-use crate::util::{int_struct_name, main_func_name, mangle_function_name, ListFunctional};
+use crate::util::{int_struct_name, main_func_name, mangle_function_name, ListFunctional, magic_main_func_name};
 use pest::iterators::Pair;
 use std::convert::TryFrom;
 
@@ -41,19 +42,11 @@ impl AstNode for Func {
 impl Func {
     ///
     /// Convert this function to a method
-    /// This works by adding an parameter of type struct_name to the beginning of this func's arguments
     ///
-    pub fn method(self, struct_name: Ident) -> Self {
+    pub fn method(self, struct_id: StructId) -> Self {
         Self {
             body: self.body,
-            signature: self.signature.method(struct_name),
-        }
-    }
-
-    pub fn with_mangled_name(self) -> Self {
-        Self {
-            body: self.body,
-            signature: self.signature.with_mangled_name(),
+            signature: self.signature.method(struct_id),
         }
     }
 }
@@ -70,7 +63,8 @@ pub struct FuncSignature {
     pub name: Ident,
     pub return_type: CrabType,
     pub pos_params: Vec<PosParam>,
-    pub named_params: Vec<NamedParam>,
+    pub named_params: BTreeMap<Ident, NamedParam>,
+    pub caller_id: Option<StructId>,
 }
 
 try_from_pair!(FuncSignature, Rule::fn_signature);
@@ -80,7 +74,7 @@ impl AstNode for FuncSignature {
         let name = Ident::from(inner.next().ok_or(ParseError::ExpectedInner)?.as_str());
 
         let (pos_params, named_params, return_type) = inner.try_fold(
-            (vec![], vec![], CrabType::VOID),
+            (vec![], BTreeMap::new(), CrabType::VOID),
             |(pos_params, named_params, return_type), pair| {
                 Result::Ok(match pair.as_rule() {
                     Rule::pos_params => (PosParams::try_from(pair)?.0, named_params, return_type),
@@ -107,38 +101,32 @@ impl AstNode for FuncSignature {
             return_type,
             pos_params,
             named_params,
+            caller_id: None,
         };
 
-        new_fn.verify_main_fn()?;
+        let new_fn = if new_fn.verify_main_fn()? {
+            Self {
+                name: magic_main_func_name(),
+                ..new_fn
+            }
+        } else {
+            new_fn
+        };
+
         Ok(new_fn)
     }
 }
 impl FuncSignature {
-    pub fn with_mangled_name(self) -> Self {
-        Self {
-            named_params: self.named_params,
-            pos_params: self.pos_params,
-            return_type: self.return_type,
-            name: mangle_function_name(&self.name, None),
-        }
-    }
-
     ///
     /// Convert this function signature to a method
-    /// This works by adding an parameter of type struct_name to the beginning of this func's arguments
     ///
-    pub(super) fn method(self, struct_name: Ident) -> Self {
-        let new_name = mangle_function_name(&self.name, Some(&struct_name));
-        let mut new_unnamed_params = vec![PosParam {
-            name: Ident::from("self"),
-            crab_type: CrabType::SIMPLE(struct_name),
-        }];
-        new_unnamed_params.extend(self.pos_params);
+    pub(super) fn method(self, caller_id: StructId) -> Self {
         Self {
             name: new_name,
             return_type: self.return_type,
             named_params: self.named_params,
             pos_params: new_unnamed_params,
+            caller_id: Some(caller_id),
         }
     }
 
@@ -187,7 +175,7 @@ impl AstNode for PosParams {
     }
 }
 
-struct NamedParams(Vec<NamedParam>);
+struct NamedParams(BTreeMap<Ident, NamedParam>);
 try_from_pair!(NamedParams, Rule::named_params);
 impl AstNode for NamedParams {
     fn from_pair(pair: Pair<Rule>) -> Result<Self>
@@ -195,8 +183,9 @@ impl AstNode for NamedParams {
         Self: Sized,
     {
         Ok(Self(
-            pair.into_inner().try_fold(vec![], |params, param| {
-                Result::Ok(params.fpush(NamedParam::try_from(param)?))
+            pair.into_inner().try_fold(BTreeMap::new(), |params, param| {
+                let np = NamedParam::try_from(param)?;
+                Result::Ok(params.finsert(np.name.clone(), np))
             })?,
         ))
     }

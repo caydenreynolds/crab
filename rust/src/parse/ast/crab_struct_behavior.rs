@@ -1,7 +1,8 @@
+use std::collections::HashMap;
 use crate::parse::ast::{AstNode, CrabInterface, Func, Ident, StructId};
 use crate::parse::{ParseError, Result, Rule};
 use crate::try_from_pair;
-use crate::util::ListFunctional;
+use crate::util::{ListFunctional, MapFunctional};
 use pest::iterators::Pair;
 use std::convert::TryFrom;
 
@@ -9,7 +10,7 @@ use std::convert::TryFrom;
 pub struct StructImpl {
     pub struct_id: StructId,
     pub interface_name: Option<Ident>,
-    pub fns: Vec<Func>,
+    pub fns: HashMap<Ident, Func>,
 }
 try_from_pair!(StructImpl, Rule::impl_block);
 impl AstNode for StructImpl {
@@ -18,7 +19,7 @@ impl AstNode for StructImpl {
         Self: Sized,
     {
         let mut inner = pair.into_inner();
-        let struct_name = StructId::try_from(
+        let struct_id = StructId::try_from(
             inner.next().ok_or(ParseError::ExpectedInner)?
         )?;
 
@@ -41,12 +42,13 @@ impl AstNode for StructImpl {
             },
         };
 
-        let fns = inner.try_fold(vec![], |fns, func| {
-            Result::Ok(fns.fpush(Func::try_from(func)?))
+        let fns = inner.try_fold(HashMap::new(), |fns, func| {
+            let f = Func::try_from(func)?.method(struct_id.clone());
+            Result::Ok(fns.finsert(f.signature.name.clone(), f))
         })?;
 
         Ok(Self {
-            struct_id: struct_name,
+            struct_id,
             interface_name,
             fns,
         })

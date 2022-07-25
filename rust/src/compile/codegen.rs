@@ -1,7 +1,7 @@
 use crate::compile::{
     add_builtin_definition, add_main_func, CompileError, FnManager, Result, TypeManager, VarManager,
 };
-use crate::parse::ast::{Assignment, CodeBlock, CrabAst, CrabType, DoWhileStmt, Expression, ExpressionType, FnBodyType, FnCall, IfStmt, PosParam, Primitive, Statement, StructInit, WhileStmt};
+use crate::parse::ast::{Assignment, CodeBlock, CrabAst, CrabType, DoWhileStmt, Expression, ExpressionType, FnBodyType, FnCall, Ident, IfStmt, PosParam, Primitive, Statement, StructId, StructInit, WhileStmt};
 use crate::quill::{ArtifactType, ChildNib, FnNib, Nib, PolyQuillType, Quill, QuillBoolType, QuillFnType, QuillPointerType, QuillStructType, QuillType, QuillValue};
 use crate::util::{
     mangle_function_name, primitive_field_name, ListFunctional, MapFunctional, SetFunctional,
@@ -91,8 +91,9 @@ pub fn compile(
     tm.get_included_type_names()
         .clone()
         .into_iter()
-        .try_for_each(|name| {
-            peter.register_struct_type(name.clone(), tm.get_fields(&name)?);
+        .try_for_each(|crab_struct| {
+            let name = crab_struct.id.name.clone();
+            peter.register_struct_type(name.id.name.clone(), tm.get_fields(&name)?);
             Result::Ok(())
         })?;
     add_main_func(&mut peter)?;
@@ -370,7 +371,7 @@ impl<NibType: Nib> Codegen<NibType> {
             ExpressionType::FN_CALL(fc) => self.build_fn_call(fc, prev),
             ExpressionType::VARIABLE(id) => {
                 match prev {
-                    None => self.vars.get(&id),
+                    None => self.vars.get(&id).clone(),
                     Some(prev) => {
                         // Figure out what type of value we should get from the struct
                         let prev_strct = match prev.get_type() {
@@ -379,7 +380,7 @@ impl<NibType: Nib> Codegen<NibType> {
                             }
                             t => {
                                 return Err(CompileError::NotAStruct(
-                                    format!("{:?}", t),
+                                    StructId::from_name(Ident::from("Some invalid PolyQuillType")),
                                     String::from("Codegen::build_expression"),
                                 ))
                             }
@@ -387,13 +388,13 @@ impl<NibType: Nib> Codegen<NibType> {
                         let expected_type = self
                             .types
                             .borrow_mut()
-                            .get_fields(&prev_strct.get_name())?
+                            .get_fields(&prev.crab_type)?
                             .iter()
                             .filter(|(name, _)| **name == id)
                             .next()
                             .map(|(_, pqt)| pqt.clone())
                             .ok_or(CompileError::StructFieldName(
-                                prev_strct.get_name(),
+                                prev.crab_type.clone(),
                                 prev_strct.get_name(),
                             ))?;
 
@@ -403,7 +404,17 @@ impl<NibType: Nib> Codegen<NibType> {
                             id,
                             expected_type.clone(),
                         )?;
-                        Ok(val)
+                        let expected_ct = self
+                            .types
+                            .borrow_mut()
+                            .get_field_types(&prev.crab_type)?
+                            .iter()
+                            .filter(|(name, _)| name == id)
+                            .next()
+                            .ok_or(CompileError::StructFieldName(prev.crab_type.clone(), id.clone()))?
+                            .1
+                            .clone();
+                        Ok(CrabValue::new(val, expected_ct))
                     }
                 }
             }
@@ -495,31 +506,14 @@ impl<NibType: Nib> Codegen<NibType> {
         trace!("Codegen::build_fn_call");
         // Get the original function
         // TODO: Once we have namespaces and stuff, we should only be manging inside fn_manager
-        let mangled_name = match caller_opt.clone() {
-            None => mangle_function_name(&call.name, None),
-            Some(pqv) => mangle_function_name(
-                &call.name,
-                Some(
-                    &QuillStructType::try_from(
-                        QuillValue::<QuillPointerType>::try_from(pqv)?
-                            .get_type()
-                            .get_inner_type(),
-                    )?
-                    .get_name(),
-                ),
-            ),
-        };
-        let source_signature = self.fns.borrow_mut().get_source_signature(&mangled_name)?;
+        let caller_ct = caller_opt.map(|caller| &caller.crab_type);
+        let source_signature = self.fns.borrow_mut().get_source_signatfure(&call.name, caller_ct)?;
 
         // Handle all of the positional arguments
-        let unnamed_args = match caller_opt.clone() {
-            Some(caller) => vec![caller],
-            None => vec![],
-        };
         let unnamed_args =
             call.pos_args
                 .iter()
-                .try_fold(unnamed_args, |unnamed_args, unnamed_arg| {
+                .try_fold(vec![], |unnamed_args, unnamed_arg| {
                     Result::Ok(
                         unnamed_args.fpush(self.build_expression(unnamed_arg.clone(), None)?),
                     )
@@ -553,7 +547,7 @@ impl<NibType: Nib> Codegen<NibType> {
         let signature =
             self.fns
                 .borrow_mut()
-                .get_signature(&call, &caller_opt, &unnamed_args, &named_args)?;
+                .get_signature(&call, caller_ct, &unnamed_args, &named_args)?;
 
         // Listify the named params in the correct order
         let quill_fn_t = self
@@ -574,12 +568,12 @@ impl<NibType: Nib> Codegen<NibType> {
                 });
         let qv = self.nib.add_fn_call(
             signature.name,
-            args,
+            args.into_iter().map(|cv| cv.quill_value.clone()).collect(),
             self.types
                 .borrow_mut()
                 .get_quill_type(&signature.return_type)?,
         );
-        Ok(CrabValue::new(qv, ))
+        Ok(CrabValue::new(qv, signature.return_type))
     }
 }
 
@@ -615,13 +609,13 @@ impl Codegen<FnNib> {
     }
 }
 
-struct CrabValue {
-    quill_value: QuillValue<PolyQuillType>,
-    crab_type: CrabType,
+pub struct CrabValue {
+    pub quill_value: QuillValue<PolyQuillType>,
+    pub crab_type: CrabType,
 }
 
 impl CrabValue {
-    fn new<T: QuillType>(qv: QuillValue<T>, ct: CrabType) -> Self {
+    pub fn new<T: QuillType>(qv: QuillValue<T>, ct: CrabType) -> Self {
         Self {
             quill_value: qv.into(),
             crab_type: ct,

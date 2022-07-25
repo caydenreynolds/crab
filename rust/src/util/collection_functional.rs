@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::hash::Hash;
 
 pub trait ListFunctional<T> {
@@ -40,6 +40,14 @@ pub trait MapFunctional<K: Eq + Hash, V> {
 }
 
 impl<K: Eq + Hash, V> MapFunctional<K, V> for HashMap<K, V> {
+    fn finsert(self, key: K, value: V) -> Self {
+        let mut map = self;
+        map.insert(key, value);
+        map
+    }
+}
+
+impl<K: Eq + Hash + Ord, V> MapFunctional<K, V> for BTreeMap<K, V> {
     fn finsert(self, key: K, value: V) -> Self {
         let mut map = self;
         map.insert(key, value);

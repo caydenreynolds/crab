@@ -1,5 +1,7 @@
 use crate::parse::ast::{Ident, PosParam};
 
+//TODO: Move all this stuff into func_manager.rs
+
 ///
 /// Mangles a function name based on whether it's a function or a method
 /// This is the first step towards completely mangling a function's name

@@ -6,6 +6,7 @@ use crate::quill::{
 };
 use crate::util::{ListFunctional, MapFunctional};
 use std::collections::{HashMap, HashSet};
+use std::intrinsics::unreachable;
 
 #[derive(Debug, Clone)]
 pub(super) enum ManagedType {
@@ -181,6 +182,7 @@ impl TypeManager {
             CrabType::LIST(t) => {
                 QuillListType::new_const_length(self.get_quill_type(t)?, 1000).into()
             },
+            _ => unreachable!(),
         })
     }
 
@@ -240,9 +242,6 @@ impl TypeManager {
         if lhs == rhs {
             return true;
         } else {
-            // TODO: THis function needs to be revisited
-            // This is the only place try_get_struct_name is used
-            // If you end up removing it, remove the function definition too
             let lhs_name = match lhs.try_get_struct_name() {
                 Ok(id) => id,
                 Err(_) => return false,
@@ -251,6 +250,10 @@ impl TypeManager {
                 Ok(id) => id,
                 Err(_) => return false,
             };
+
+            if lhs_name == rhs_name {
+                return true;
+            }
 
             match self.intrs.get(&lhs_name) {
                 Some(intrs) => {
@@ -289,7 +292,30 @@ impl TypeManager {
         })
     }
 
-    pub fn get_included_type_names(&self) -> &HashSet<Ident> {
+    ///
+    /// Returns the CrabTypes of the fields of a given struct type
+    /// If the struct type's fields are compiler provided, they will be fetched from the ast
+    /// Otherwise, they will be resolved from this type manager's struct definitions
+    ///
+    pub fn get_field_types(&mut self, id: &CrabType) -> Result<HashMap<String, CrabType>> {
+        Ok(match self.get_type(id)?.as_struct()?.body.clone() {
+            StructBody::COMPILER_PROVIDED => todo!(),
+            StructBody::FIELDS(fields) => {
+                fields
+                    .into_iter()
+                    .try_fold(HashMap::new(), |fields, field| {
+                        Result::Ok(
+                            fields.finsert(
+                                field.name.clone(),
+                                field.crab_type.clone(),
+                            ),
+                        )
+                    })?
+            }
+        })
+    }
+
+    pub fn get_included_type_names(&self) -> &HashSet<CrabStruct> {
         &self.included_types
     }
 }

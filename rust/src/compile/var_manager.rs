@@ -1,10 +1,10 @@
-use crate::compile::{CompileError, Result};
+use crate::compile::{CompileError, CrabValue, Result};
 use crate::parse::ast::Ident;
 use crate::quill::{PolyQuillType, QuillValue};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
-pub(super) struct VarManager(HashMap<Ident, QuillValue<PolyQuillType>>);
+pub(super) struct VarManager(HashMap<Ident, CrabValue>);
 
 impl VarManager {
     pub(super) fn new() -> Self {
@@ -19,7 +19,7 @@ impl VarManager {
     /// * `name` - The name of the variable to assign
     /// * `value` - The value of the variable to assign
     ///
-    pub(super) fn assign(&mut self, name: Ident, value: QuillValue<PolyQuillType>) -> Result<()> {
+    pub(super) fn assign(&mut self, name: Ident, value: CrabValue) -> Result<()> {
         match self.0.insert(name.clone(), value) {
             Some(_) => Err(CompileError::VarAlreadyExists(name)),
             None => Ok(()),
@@ -34,7 +34,7 @@ impl VarManager {
     /// * `name` - The name of the variable to assign
     /// * `value` - The value of the variable to assign
     ///
-    pub(super) fn reassign(&mut self, name: Ident, value: QuillValue<PolyQuillType>) -> Result<()> {
+    pub(super) fn reassign(&mut self, name: Ident, value: CrabValue) -> Result<()> {
         match self.0.insert(name.clone(), value) {
             Some(_) => Ok(()),
             None => Err(CompileError::VarDoesNotExist(name)),
@@ -50,10 +50,10 @@ impl VarManager {
     /// Returns:
     /// The QuillValue with the given name
     ///
-    pub(super) fn get(&mut self, name: &Ident) -> Result<QuillValue<PolyQuillType>> {
+    pub(super) fn get(&mut self, name: &Ident) -> Result<&CrabValue> {
         match self.0.get(name) {
             None => Err(CompileError::VarDoesNotExist(name.clone())),
-            Some(val) => Ok(val.clone()),
+            Some(val) => Ok(val),
         }
     }
 }

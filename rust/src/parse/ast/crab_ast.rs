@@ -1,4 +1,4 @@
-use crate::parse::ast::{AstNode, CrabInterface, CrabStruct, Func, Ident, StructImpl, StructIntr};
+use crate::parse::ast::{AstNode, CrabInterface, CrabStruct, Func, Ident, StructId, StructImpl, StructIntr};
 use crate::parse::{ParseError, Result, Rule};
 use crate::try_from_pair;
 use crate::util::main_func_name;
@@ -14,16 +14,16 @@ pub struct CrabAst {
     pub main: Option<Func>,
     pub intrs: Vec<StructIntr>,
 
-    impls: Vec<StructImpl>,
+    impls: HashMap<StructId, StructImpl>,
 }
 
 try_from_pair!(CrabAst, Rule::program);
 impl AstNode for CrabAst {
     fn from_pair(pair: Pair<Rule>) -> Result<Self> {
         let inner = pair.into_inner();
-        let mut functions = vec![];
+        let mut functions = HashMap::new();
         let mut structs = vec![];
-        let mut impls = vec![];
+        let mut impls = HashMap::new();
         let mut interfaces = HashMap::new();
         let mut intrs = vec![];
         let mut main = None;
@@ -31,19 +31,24 @@ impl AstNode for CrabAst {
         for in_pair in inner {
             match in_pair.clone().as_rule() {
                 Rule::function => {
-                    let func = Func::try_from(in_pair)?.with_mangled_name();
+                    let func = Func::try_from(in_pair)?;
                     if func.signature.name == main_func_name() {
                         main = Some(func.clone());
                     }
-                    functions.push(func);
+                    functions.insert(func.signature.name.clone(), func);
                 }
                 Rule::crab_struct => structs.push(CrabStruct::try_from(in_pair)?),
-                Rule::impl_block => impls.push(StructImpl::try_from(in_pair)?),
+                Rule::impl_block => {
+                    let struct_impl = StructImpl::try_from(in_pair)?;
+                    impls.insert(struct_impl.struct_id.clone(), struct_impl);
+                },
                 Rule::interface => {
                     let interface = CrabInterface::try_from(in_pair)?;
                     interfaces.insert(interface.name.clone(), interface);
                 }
-                Rule::intr_block => intrs.push(StructIntr::try_from(in_pair)?),
+                Rule::intr_block => {
+                    intrs.push(StructIntr::try_from(in_pair)?)
+                },
                 Rule::EOI => break, // Nothing should ever show up after EOI
                 _ => return Err(ParseError::NoMatch(String::from("CrabAst::from_pair"))),
             }
