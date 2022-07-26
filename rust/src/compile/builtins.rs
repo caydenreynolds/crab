@@ -7,7 +7,6 @@ use crate::quill::{
 use crate::util::{bool_struct_name, format_i_c_name, int_struct_name, magic_main_func_name, main_func_name, operator_add_name, primitive_field_name, printf_c_name, printf_crab_name, string_type_name, to_string_name};
 use lazy_static::lazy_static;
 use std::collections::HashMap;
-use std::default;
 
 lazy_static! {
     /// A map of the names of each of our function builtins to the function that generates the ir for that builtin
@@ -62,7 +61,7 @@ fn init_builtin_fn_map() -> HashMap<Ident, fn(&mut Quill, &mut FnNib) -> Result<
         pos_params: vec![
             PosParam {
                 name: Ident::from("str"),
-                crab_type: CrabType::SIMPLE(string_struct_name()),
+                crab_type: CrabType::SIMPLE(string_type_name()),
             },
         ],
         named_params: Default::default(),
