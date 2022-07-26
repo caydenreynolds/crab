@@ -221,6 +221,7 @@ impl FnManager {
     }
 }
 
+#[derive(Debug, Clone)]
 struct ImplFuncId {
     func_name: Ident,
     struct_name: Ident,

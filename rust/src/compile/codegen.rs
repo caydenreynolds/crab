@@ -609,6 +609,7 @@ impl Codegen<FnNib> {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct CrabValue {
     pub quill_value: QuillValue<PolyQuillType>,
     pub crab_type: CrabType,
