@@ -3,7 +3,7 @@ use crate::parse::ast::FnBodyType::{CODEBLOCK, COMPILER_PROVIDED};
 use crate::parse::ast::{AstNode, CodeBlock, CrabType, Expression, Ident, Statement, StructId};
 use crate::parse::{ParseError, Result, Rule};
 use crate::try_from_pair;
-use crate::util::{int_struct_name, main_func_name, mangle_function_name, ListFunctional, magic_main_func_name};
+use crate::util::{int_struct_name, main_func_name, ListFunctional, magic_main_func_name};
 use pest::iterators::Pair;
 use std::convert::TryFrom;
 use crate::util::MapFunctional;

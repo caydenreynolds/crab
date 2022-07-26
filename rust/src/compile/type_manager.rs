@@ -6,7 +6,6 @@ use crate::quill::{
 };
 use crate::util::{ListFunctional, MapFunctional};
 use std::collections::{HashMap, HashSet};
-use std::intrinsics::unreachable;
 
 #[derive(Debug, Clone)]
 pub(super) enum ManagedType {
@@ -150,13 +149,13 @@ impl TypeManager {
             ManagedType::STRUCT(strct) => {
                 // Check the ct_tmpls has valid types
                 // Also add any types included in the CrabType to the list of registered types
-                ct_tmpls.iter().try_for_each(|ct| self.get_type(ct)?.as_struct())?;
+                ct_tmpls.iter().try_for_each(|ct| self.get_type(ct)?.as_struct().map(|_| ()))?;
 
                 let resolved_struct = strct.clone().resolve(ct_tmpls.as_slice())?;
                 self.included_types.insert(resolved_struct.clone());
                 &ManagedType::STRUCT(resolved_struct)
             }
-            ManagedType::INTERFACE(_) => { mt.clone() }
+            ManagedType::INTERFACE(_) => mt
         };
         Ok(mt)
     }

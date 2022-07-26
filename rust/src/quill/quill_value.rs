@@ -9,7 +9,7 @@ pub struct QuillValue<T: QuillType> {
     id: usize,
     q_t: T,
 }
-impl From<QuillValue<T>> for QuillValue<PolyQuillType> {
+impl<T: QuillType> From<QuillValue<T>> for QuillValue<PolyQuillType> {
     fn from(_: QuillValue<T>) -> Self {
         unreachable!()
     }

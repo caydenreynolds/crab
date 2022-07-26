@@ -2,9 +2,9 @@ use crate::compile::{
     add_builtin_definition, add_main_func, CompileError, FnManager, Result, TypeManager, VarManager,
 };
 use crate::parse::ast::{Assignment, CodeBlock, CrabAst, CrabType, DoWhileStmt, Expression, ExpressionType, FnBodyType, FnCall, Ident, IfStmt, PosParam, Primitive, Statement, StructId, StructInit, WhileStmt};
-use crate::quill::{ArtifactType, ChildNib, FnNib, Nib, PolyQuillType, Quill, QuillBoolType, QuillFnType, QuillPointerType, QuillStructType, QuillType, QuillValue};
+use crate::quill::{ArtifactType, ChildNib, FnNib, Nib, PolyQuillType, Quill, QuillBoolType, QuillFnType, QuillStructType, QuillType, QuillValue};
 use crate::util::{
-    mangle_function_name, primitive_field_name, ListFunctional, MapFunctional, SetFunctional,
+    primitive_field_name, ListFunctional, MapFunctional, SetFunctional,
 };
 use log::{debug, trace};
 use std::cell::RefCell;

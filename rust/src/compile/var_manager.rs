@@ -1,6 +1,5 @@
 use crate::compile::{CompileError, CrabValue, Result};
 use crate::parse::ast::Ident;
-use crate::quill::{PolyQuillType, QuillValue};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]

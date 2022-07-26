@@ -1,14 +1,10 @@
 use crate::compile::{CompileError, CrabValue, Result, TypeManager};
 use crate::parse::ast::{CrabType, FnCall, Func, FuncSignature, Ident, NamedParam, PosParam, StructId};
-use crate::quill::{PolyQuillType, QuillPointerType, QuillStructType, QuillValue};
-use crate::util::{add_param_mangles, main_func_name, mangle_function_name, ListFunctional, MapFunctional};
+use crate::util::{main_func_name, ListFunctional, MapFunctional};
 use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap, HashSet};
-use std::convert::TryFrom;
-use std::default;
 use std::rc::Rc;
 use inkwell::DLLStorageClass::Default;
-use serde::de::Unexpected::Str;
 
 #[derive(Debug, Clone)]
 pub(super) struct FnManager {

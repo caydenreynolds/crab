@@ -3,7 +3,7 @@ use std::fmt::{Display, Formatter};
 use pest::iterators::Pair;
 use crate::compile::CompileError;
 use crate::{compile, parse, try_from_pair};
-use crate::parse::ast::{AstNode, StructImpl};
+use crate::parse::ast::{AstNode};
 use crate::parse::{ParseError, Rule};
 use crate::util::ListFunctional;
 
