@@ -192,7 +192,7 @@ impl AstNode for NamedParams {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct PosParam {
     pub name: Ident,
     pub crab_type: CrabType,
@@ -219,7 +219,7 @@ impl From<NamedParam> for PosParam {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct NamedParam {
     pub name: Ident,
     pub crab_type: CrabType,

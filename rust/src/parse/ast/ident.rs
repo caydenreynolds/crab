@@ -10,7 +10,7 @@ use crate::util::ListFunctional;
 pub type Ident = String;
 
 #[allow(non_camel_case_types)]
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum CrabType {
     VOID,
     PRIM_INT,
