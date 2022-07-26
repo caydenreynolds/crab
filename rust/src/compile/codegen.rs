@@ -413,7 +413,7 @@ impl<NibType: Nib> Codegen<NibType> {
                             .ok_or(CompileError::StructFieldName(prev.crab_type.clone(), id.clone()))?
                             .1
                             .clone();
-                        Ok(CrabValue::new(val, expected_ct))
+                        Ok(CrabValue::new(val.into(), expected_ct))
                     }
                 }
             }
@@ -437,9 +437,9 @@ impl<NibType: Nib> Codegen<NibType> {
     fn build_primitive(&mut self, prim: Primitive) -> CrabValue {
         trace!("Codegen::build_primitive");
         match prim {
-            Primitive::STRING(value) => CrabValue::new(self.nib.const_string(value), CrabType::PRIM_STR),
-            Primitive::BOOL(value) => CrabValue::new(self.nib.const_bool(value), CrabType::PRIM_BOOL),
-            Primitive::UINT(value) => CrabValue::new(self.nib.const_int(64, value), CrabType::PRIM_INT),
+            Primitive::STRING(value) => CrabValue::new(self.nib.const_string(value).into(), CrabType::PRIM_STR),
+            Primitive::BOOL(value) => CrabValue::new(self.nib.const_bool(value).into(), CrabType::PRIM_BOOL),
+            Primitive::UINT(value) => CrabValue::new(self.nib.const_int(64, value).into(), CrabType::PRIM_INT),
         }
     }
 
@@ -494,7 +494,7 @@ impl<NibType: Nib> Codegen<NibType> {
             self.nib.set_value_in_struct(&new_struct_ptr, name, value.quill_value)
         })?;
 
-        Ok(CrabValue::new(new_struct_ptr, struct_id))
+        Ok(CrabValue::new(new_struct_ptr.into(), struct_id))
     }
 
     fn build_fn_call(
@@ -572,7 +572,7 @@ impl<NibType: Nib> Codegen<NibType> {
                 .borrow_mut()
                 .get_quill_type(&signature.return_type)?,
         );
-        Ok(CrabValue::new(qv, signature.return_type))
+        Ok(CrabValue::new(qv.into(), signature.return_type))
     }
 }
 
@@ -615,9 +615,9 @@ pub struct CrabValue {
 }
 
 impl CrabValue {
-    pub fn new<T: QuillType>(qv: QuillValue<T>, ct: CrabType) -> Self {
+    pub fn new(qv: QuillValue<PolyQuillType>, ct: CrabType) -> Self {
         Self {
-            quill_value: qv.into(),
+            quill_value: qv,
             crab_type: ct,
         }
     }
