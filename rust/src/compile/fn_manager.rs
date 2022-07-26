@@ -56,7 +56,7 @@ impl FnManager {
             Some(si) => {
                 self.impl_sources.insert(
                     ImplFuncId::from_structid(source.signature.name.clone(), si),source
-                )
+                );
             },
         };
     }
@@ -172,7 +172,7 @@ impl FnManager {
                                 NamedParam {
                                     name: param.name.clone(),
                                     crab_type: value.crab_type.clone(),
-                                    expr: param.expression.clone(),
+                                    expr: param.expr.clone(),
                                 },
                             )
                         )

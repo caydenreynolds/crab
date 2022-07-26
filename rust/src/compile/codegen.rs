@@ -371,7 +371,7 @@ impl<NibType: Nib> Codegen<NibType> {
             ExpressionType::FN_CALL(fc) => self.build_fn_call(fc, prev),
             ExpressionType::VARIABLE(id) => {
                 match prev {
-                    None => self.vars.get(&id).clone(),
+                    None => self.vars.get(&id)?.clone(),
                     Some(prev) => {
                         // Figure out what type of value we should get from the struct
                         let prev_strct = match prev.get_type() {
@@ -400,7 +400,7 @@ impl<NibType: Nib> Codegen<NibType> {
 
                         // Get that value from the struct
                         let val = self.nib.get_value_from_struct(
-                            &prev.try_into()?,
+                            &prev.quill_value.try_into()?,
                             id,
                             expected_type.clone(),
                         )?;
@@ -409,7 +409,7 @@ impl<NibType: Nib> Codegen<NibType> {
                             .borrow_mut()
                             .get_field_types(&prev.crab_type)?
                             .iter()
-                            .filter(|(name, _)| name == id)
+                            .filter(|(name, _)| *name == id)
                             .next()
                             .ok_or(CompileError::StructFieldName(prev.crab_type.clone(), id.clone()))?
                             .1
@@ -492,7 +492,7 @@ impl<NibType: Nib> Codegen<NibType> {
         let struct_t = self.types.borrow_mut().get_quill_struct(&struct_id)?;
         let new_struct_ptr = self.nib.add_malloc(struct_t);
         fields.into_iter().try_for_each(|(name, value)| {
-            self.nib.set_value_in_struct(&new_struct_ptr, name, value)
+            self.nib.set_value_in_struct(&new_struct_ptr, name, value.quill_value)
         })?;
 
         Ok(CrabValue::new(new_struct_ptr, struct_id))
@@ -507,7 +507,7 @@ impl<NibType: Nib> Codegen<NibType> {
         // Get the original function
         // TODO: Once we have namespaces and stuff, we should only be manging inside fn_manager
         let caller_ct = caller_opt.map(|caller| &caller.crab_type);
-        let source_signature = self.fns.borrow_mut().get_source_signatfure(&call.name, caller_ct)?;
+        let source_signature = self.fns.borrow_mut().get_source_signature(&call.name, caller_ct)?;
 
         // Handle all of the positional arguments
         let unnamed_args =
@@ -597,7 +597,7 @@ impl Codegen<FnNib> {
                 fn_param.name.clone(),
                 types.borrow_mut().get_quill_type(&fn_param.crab_type)?,
             );
-            vars.assign(fn_param.name, val.into()).unwrap();
+            vars.assign(fn_param.name, CrabValue::new(val.into(), fn_param.crab_type)).unwrap();
             Result::Ok(())
         })?;
         Ok(Self {
