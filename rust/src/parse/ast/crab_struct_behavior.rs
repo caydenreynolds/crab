@@ -56,11 +56,14 @@ impl AstNode for StructImpl {
 }
 impl StructImpl {
     pub fn verify_implements(&self, intr: &CrabInterface) -> Result<()> {
+        println!("intr: {:?}", intr);
+        println!("impl: {:?}", self);
         for ifunc in &intr.fns {
             let mut match_found = false;
             for (_, func) in &self.fns {
                 if func.signature == *ifunc {
                     match_found = true;
+                    break;
                 }
             }
             if !match_found {
