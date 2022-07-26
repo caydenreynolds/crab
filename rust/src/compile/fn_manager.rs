@@ -221,7 +221,7 @@ impl FnManager {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
 struct ImplFuncId {
     func_name: Ident,
     struct_name: Ident,
@@ -236,9 +236,12 @@ impl ImplFuncId {
                     String::from("ImplFuncId::new()")
                 ))
             },
-            CrabType::SIMPLE(name) | CrabType::LIST(name) | CrabType::TMPL(name, _) => {
+            CrabType::SIMPLE(name) | CrabType::TMPL(name, _) => {
                 Ok(name)
-            }
+            },
+            CrabType::LIST(ct ) => {
+                Ok(ct.try_get_struct_name()?)
+            },
         }?.clone();
         Ok(Self {
             func_name,
