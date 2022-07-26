@@ -59,7 +59,7 @@ pub enum FnBodyType {
     COMPILER_PROVIDED,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct FuncSignature {
     pub name: Ident,
     pub return_type: CrabType,

@@ -163,7 +163,7 @@ impl FnManager {
         let named_params = named_values
             .iter()
             .zip(source_fn.signature.named_params.iter())
-            .try_fold(BTreeMap::new(), |named_params, ((_, param), (_, arg))| {
+            .try_fold(BTreeMap::new(), |named_params, ((_, arg), (_, param))| {
                 match self.types.borrow().is_a(&value.crab_type, &param.crab_type) {
                     true => {
                         Result::Ok(
@@ -217,7 +217,7 @@ impl FnManager {
                 .fn_sources
                 .get(name),
         };
-        Ok(&func_opt.ok_or(CompileError::CouldNotFindFunction(name.clone()))?)
+        func_opt.ok_or(CompileError::CouldNotFindFunction(name.clone()))
     }
 }
 
