@@ -506,7 +506,7 @@ impl<NibType: Nib> Codegen<NibType> {
         // Get the original function
         // TODO: Once we have namespaces and stuff, we should only be manging inside fn_manager
         let caller_ct = caller_opt.map(|caller| caller.crab_type);
-        let source_signature = self.fns.borrow_mut().get_source_signature(&call.name, caller_ct)?;
+        let source_signature = self.fns.borrow_mut().get_source_signature(&call.name, caller_ct.clone())?;
 
         // Handle all of the positional arguments
         let unnamed_args =

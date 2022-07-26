@@ -125,7 +125,7 @@ impl FnManager {
         named_values: &BTreeMap<Ident, CrabValue>,
     ) -> Result<FuncSignature> {
 
-        let source_fn = self.get_source(&call.name, caller_opt)?;
+        let source_fn = self.get_source(&call.name, caller_opt.clone())?;
 
         let pos_params = match caller_opt {
             None => vec![],
