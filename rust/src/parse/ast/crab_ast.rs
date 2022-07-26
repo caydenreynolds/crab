@@ -13,8 +13,7 @@ pub struct CrabAst {
     pub interfaces: HashMap<Ident, CrabInterface>,
     pub main: Option<Func>,
     pub intrs: Vec<StructIntr>,
-
-    impls: HashMap<StructId, StructImpl>,
+    pub impls: HashMap<StructId, StructImpl>,
 }
 
 try_from_pair!(CrabAst, Rule::program);

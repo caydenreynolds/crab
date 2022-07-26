@@ -1,3 +1,4 @@
+use std::borrow::BorrowMut;
 use crate::compile::{
     add_builtin_definition, add_main_func, CompileError, FnManager, Result, TypeManager, VarManager,
 };
@@ -47,6 +48,13 @@ pub fn compile(
     ast.functions
         .into_iter()
         .for_each(|(_, func)| fn_manager.borrow_mut().add_source(func));
+    ast.impls
+        .into_iter()
+        .for_each(|(_, simp)| {
+            simp.fns
+                .into_iter()
+                .for_each(|(_, ifunc)| fn_manager.borrow_mut().add_source(ifunc));
+        });
     fn_manager.borrow_mut().add_main_to_queue()?;
 
     while !fn_manager.borrow_mut().build_queue_empty() {
