@@ -123,11 +123,8 @@ impl FuncSignature {
     ///
     pub(super) fn method(self, caller_id: StructId) -> Self {
         Self {
-            name: new_name,
-            return_type: self.return_type,
-            named_params: self.named_params,
-            pos_params: new_unnamed_params,
             caller_id: Some(caller_id),
+            ..self
         }
     }
 

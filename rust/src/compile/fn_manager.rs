@@ -4,7 +4,7 @@ use crate::util::{main_func_name, ListFunctional, MapFunctional};
 use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::rc::Rc;
-use inkwell::DLLStorageClass::Default;
+use std::default::Default;
 
 #[derive(Debug, Clone)]
 pub(super) struct FnManager {
@@ -160,14 +160,14 @@ impl FnManager {
             .iter()
             .zip(source_fn.signature.named_params.iter())
             .try_fold(BTreeMap::new(), |named_params, ((_, arg), (_, param))| {
-                match self.types.borrow().is_a(&value.crab_type, &param.crab_type) {
+                match self.types.borrow().is_a(&arg.crab_type, &param.crab_type) {
                     true => {
                         Result::Ok(
                             named_params.finsert(
                                 param.name.clone(),
                                 NamedParam {
                                     name: param.name.clone(),
-                                    crab_type: value.crab_type.clone(),
+                                    crab_type: arg.crab_type.clone(),
                                     expr: param.expr.clone(),
                                 },
                             )
@@ -178,7 +178,7 @@ impl FnManager {
                             call.name.clone(),
                             param.name.clone(),
                             param.crab_type.clone(),
-                            value.crab_type.clone(),
+                            arg.crab_type.clone(),
                         ))
                     }
                 }

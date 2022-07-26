@@ -151,7 +151,7 @@ impl StructId {
     /// given slice of CrabTypes
     pub fn resolve(self, types: &[CrabType]) -> compile::Result<Self> {
         if types.len() != self.tmpls.len() {
-            return Err(CompileError::WrongTemplateTypeCount(strct.id.tmpls.len(), ct_tmpls.len()))
+            return Err(CompileError::WrongTemplateTypeCount(self.tmpls.len(), types.len()))
         }
         // else
         self.add_tmpls(types)
