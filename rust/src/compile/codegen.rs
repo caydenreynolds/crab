@@ -42,8 +42,8 @@ pub fn compile(
         .into_iter()
         .try_for_each(|crab_intr| type_manager.register_intr(crab_intr))?;
 
-    let type_manager = Rc::new(RefCell::new(type_manager));
-    let fn_manager = Rc::new(RefCell::new(FnManager::new(type_manager.clone())));
+    let mut type_manager = Rc::new(RefCell::new(type_manager));
+    let mut fn_manager = FnManager::new(type_manager.clone());
 
     ast.functions
         .into_iter()
@@ -56,6 +56,7 @@ pub fn compile(
                 .for_each(|(_, ifunc)| fn_manager.borrow_mut().add_source(ifunc));
         });
     fn_manager.borrow_mut().add_main_to_queue()?;
+    let mut fn_manager = Rc::new(RefCell::new(fn_manager));
 
     while !fn_manager.borrow_mut().build_queue_empty() {
         let func = fn_manager.borrow_mut().pop_build_queue().unwrap();
