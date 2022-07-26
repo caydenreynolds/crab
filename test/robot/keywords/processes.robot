@@ -2,7 +2,8 @@
 Documentation     Resources for running processes.
 ...               Results may be checked immediately and/or later
 ...               All stdout and stderr is forwarded to the log file
-Library           Process, OperatingSystem
+Library           Process
+Library           OperatingSystem
 
 
 *** Keywords ***

@@ -1,7 +1,8 @@
 *** Settings ***
 Documentation     A test suite for slightly more complex crabfiles that take no args, always return 0, and print some output on any number of lines.
 Resource          keywords/all.robot
-Library           String, paths
+Library           String
+Library           paths
 
 *** Keywords ***
 The Crabfile "${crabfile}" is built and the results are compared against a file"

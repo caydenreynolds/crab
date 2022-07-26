@@ -128,6 +128,13 @@ impl FuncSignature {
         }
     }
 
+    pub(super) fn implements(&self, other: &FuncSignature) -> bool {
+        self.name == other.name
+            && self.return_type == other.return_type
+            && self.pos_params == other.pos_params
+            && self.named_params == other.named_params
+    }
+
     fn verify_main_fn(&self) -> Result<bool> {
         if self.name == main_func_name() {
             if self.return_type != CrabType::SIMPLE(int_struct_name())

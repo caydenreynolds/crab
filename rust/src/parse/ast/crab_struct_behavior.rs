@@ -61,7 +61,7 @@ impl StructImpl {
         for ifunc in &intr.fns {
             let mut match_found = false;
             for (_, func) in &self.fns {
-                if func.signature == *ifunc {
+                if func.signature.implements(ifunc) {
                     match_found = true;
                     break;
                 }
