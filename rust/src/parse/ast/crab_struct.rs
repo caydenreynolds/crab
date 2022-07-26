@@ -44,7 +44,7 @@ impl CrabStruct {
 }
 
 #[allow(non_camel_case_types)]
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum StructBody {
     FIELDS(Vec<StructField>),
     COMPILER_PROVIDED,
@@ -70,7 +70,7 @@ impl AstNode for StructBody {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct StructField {
     pub name: Ident,
     pub crab_type: CrabType,

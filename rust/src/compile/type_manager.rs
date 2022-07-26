@@ -89,10 +89,10 @@ impl TypeManager {
             ));
         }
         for intfc in &intr.inters {
-            let usi = UnresolvedStructId::from_name(intfc.clone());
+            let si = StructId::from_name(intfc.clone());
             if let ManagedType::STRUCT(_) = self
                 .registered_types
-                .get(&usi)
+                .get(&si.name)
                 .ok_or(CompileError::StructDoesNotExist(usi))?
             {
                 return Err(CompileError::NotAnInterface);
@@ -135,17 +135,17 @@ impl TypeManager {
     /// The ManagedType with the matching name, may be either a struct or an interface
     ///
     fn get_type(&mut self, ct: &CrabType) -> Result<&ManagedType> {
-        let (_, ct_tmpls) = match ct {
-            CrabType::SIMPLE(id) => (id, vec![]),
-            CrabType::LIST(id) => (id.try_get_struct_name()?, vec![]),
+        let (ct_name, ct_tmpls) = match ct {
+            CrabType::SIMPLE(id) => (id, &vec![]),
+            CrabType::LIST(id) => (&id.try_get_struct_name()?, &vec![]),
             CrabType::TMPL(id, tmpls) => (id, tmpls),
             CrabType::VOID => return Err(CompileError::VoidType),
             _ => return Err(CompileError::NotAStruct(StructId::from_name(format!("{}", ct)), String::from("TypeManager::get_type")))
         };
         let mt = self
             .registered_types
-            .get(name)
-            .ok_or(CompileError::TypeDoesNotExist(name.clone()))?;
+            .get(ct_name)
+            .ok_or(CompileError::TypeDoesNotExist(ct_name.clone()))?;
         let mt = match &mt {
             ManagedType::STRUCT(strct) => {
                 // Check the ct_tmpls has valid types
