@@ -47,6 +47,8 @@ for key in "${!rel_paths[@]}"
         actual_paths["$key"]="$win"
     done
 
+export PYTHONPATH="$PYTHONPATH:libraries"
+
 robot \
   -d target/ \
   --variable CBUILTINS_DIR:"${actual_paths[CBUILTINS_DIR]}" \
