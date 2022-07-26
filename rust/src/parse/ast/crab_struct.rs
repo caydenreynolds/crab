@@ -5,7 +5,7 @@ use pest::iterators::Pair;
 use std::convert::TryFrom;
 use util::ListFunctional;
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct CrabStruct {
     pub id: StructId,
     pub body: StructBody,

@@ -18,7 +18,7 @@ impl ManagedType {
     fn as_struct(&self) -> Result<&CrabStruct> {
         match self {
             ManagedType::STRUCT(s) => Ok(s),
-            ManagedType::INTERFACE(i) => Err(CompileError::NotAStruct(StructId::from_name(i.name)), String::from("ManagedType::as_struct")),
+            ManagedType::INTERFACE(i) => Err(CompileError::NotAStruct(StructId::from_name(i.name), String::from("ManagedType::as_struct")),
         }
     }
 }
@@ -135,11 +135,12 @@ impl TypeManager {
     /// The ManagedType with the matching name, may be either a struct or an interface
     ///
     fn get_type(&mut self, ct: &CrabType) -> Result<&ManagedType> {
-        let (ct_name, ct_tmpls) = match ct {
+        let (_, ct_tmpls) = match ct {
             CrabType::SIMPLE(id) => (id, vec![]),
-            CrabType::LIST(id) => (id, vec![]),
+            CrabType::LIST(id) => (id.try_get_struct_name()?, vec![]),
             CrabType::TMPL(id, tmpls) => (id, tmpls),
             CrabType::VOID => return Err(CompileError::VoidType),
+            _ => return Err(CompileError::NotAStruct(StructId::from_name(format!("{}", ct)), String::from("TypeManager::get_type")))
         };
         let mt = self
             .registered_types
