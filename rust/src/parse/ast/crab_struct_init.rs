@@ -5,7 +5,7 @@ use crate::util::ListFunctional;
 use pest::iterators::Pair;
 use std::convert::TryFrom;
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct StructInit {
     pub id: CrabType,
     pub fields: Vec<StructFieldInit>,
@@ -29,7 +29,7 @@ impl AstNode for StructInit {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct StructFieldInit {
     pub name: Ident,
     pub value: Expression,

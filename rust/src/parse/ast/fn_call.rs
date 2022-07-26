@@ -5,7 +5,7 @@ use crate::util::ListFunctional;
 use pest::iterators::Pair;
 use std::convert::TryFrom;
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct FnCall {
     pub name: Ident,
     pub pos_args: Vec<Expression>,
@@ -82,7 +82,7 @@ impl AstNode for PosArg {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct NamedArg {
     pub name: Ident,
     pub expr: Expression,

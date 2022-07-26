@@ -1,5 +1,5 @@
 use crate::compile::{CompileError, Result};
-use crate::parse::ast::{CrabType, Ident, PosParam};
+use crate::parse::ast::{CrabType, Ident, PosParam, StructId};
 use crate::quill::{
     FnNib, Nib, PolyQuillType, Quill, QuillFloatType, QuillFnType, QuillIntType, QuillListType,
     QuillPointerType, QuillStructType, QuillVoidType,
@@ -101,7 +101,7 @@ pub(super) fn get_builtin_strct_definition(name: &str) -> Result<&HashMap<String
     STRCT_BUILTIN_NAME_MAP
         .get(name)
         .ok_or(CompileError::NotAStruct(
-            String::from(name),
+            StructId::from_name(Ident::from(name)),
             String::from("builtins::get_builtin_strct_definition"),
         ))
 }

@@ -58,7 +58,7 @@ impl FnManager {
                     ImplFuncId::from_structid(source.signature.name.clone(), si),source
                 )
             },
-        }
+        };
     }
 
     ///

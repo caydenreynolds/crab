@@ -11,13 +11,13 @@ use crate::util::{
 use pest::iterators::Pair;
 use std::convert::TryFrom;
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct Expression {
     pub this: ExpressionType,
     pub next: Option<Box<Expression>>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 #[allow(non_camel_case_types)]
 pub enum ExpressionType {
     PRIM(Primitive),
