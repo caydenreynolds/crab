@@ -370,7 +370,7 @@ impl<NibType: Nib> Codegen<NibType> {
             ExpressionType::FN_CALL(fc) => self.build_fn_call(fc, prev),
             ExpressionType::VARIABLE(id) => {
                 match prev {
-                    None => self.vars.get(&id)?.clone(),
+                    None => Ok(self.vars.get(&id)?.clone()),
                     Some(prev) => {
                         // Figure out what type of value we should get from the struct
                         let prev_strct = match prev.quill_value.get_type() {
@@ -413,7 +413,7 @@ impl<NibType: Nib> Codegen<NibType> {
                             .ok_or(CompileError::StructFieldName(prev.crab_type.clone(), id.clone()))?
                             .1
                             .clone();
-                        CrabValue::new(val, expected_ct)
+                        Ok(CrabValue::new(val, expected_ct))
                     }
                 }
             }
