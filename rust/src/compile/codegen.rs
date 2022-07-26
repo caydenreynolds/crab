@@ -92,8 +92,7 @@ pub fn compile(
         .clone()
         .into_iter()
         .try_for_each(|crab_struct| {
-            let name = crab_struct.id.name.clone();
-            peter.register_struct_type(name.id.name.clone(), tm.get_fields(&crab_struct)?);
+            peter.register_struct_type(crab_struct.id.mangle(), tm.get_fields(&crab_struct.id.into())?);
             Result::Ok(())
         })?;
     add_main_func(&mut peter)?;
@@ -414,7 +413,7 @@ impl<NibType: Nib> Codegen<NibType> {
                             .ok_or(CompileError::StructFieldName(prev.crab_type.clone(), id.clone()))?
                             .1
                             .clone();
-                        Ok(CrabValue::new(val, expected_ct))
+                        CrabValue::new(val, expected_ct)
                     }
                 }
             }
