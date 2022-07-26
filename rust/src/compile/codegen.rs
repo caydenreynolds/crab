@@ -2,7 +2,7 @@ use crate::compile::{
     add_builtin_definition, add_main_func, CompileError, FnManager, Result, TypeManager, VarManager,
 };
 use crate::parse::ast::{Assignment, CodeBlock, CrabAst, CrabType, DoWhileStmt, Expression, ExpressionType, FnBodyType, FnCall, Ident, IfStmt, PosParam, Primitive, Statement, StructId, StructInit, WhileStmt};
-use crate::quill::{ArtifactType, ChildNib, FnNib, Nib, PolyQuillType, Quill, QuillBoolType, QuillFnType, QuillStructType, QuillType, QuillValue};
+use crate::quill::{ArtifactType, ChildNib, FnNib, Nib, PolyQuillType, Quill, QuillBoolType, QuillFnType, QuillStructType, QuillValue};
 use crate::util::{
     primitive_field_name, ListFunctional, MapFunctional, SetFunctional,
 };
@@ -377,7 +377,7 @@ impl<NibType: Nib> Codegen<NibType> {
                             PolyQuillType::PointerType(pst) => {
                                 QuillStructType::try_from(pst.get_inner_type())?
                             }
-                            t => {
+                            _ => {
                                 return Err(CompileError::NotAStruct(
                                     StructId::from_name(Ident::from("Some invalid PolyQuillType")),
                                     String::from("Codegen::build_expression"),
@@ -408,7 +408,7 @@ impl<NibType: Nib> Codegen<NibType> {
                             .borrow_mut()
                             .get_field_types(&prev.crab_type)?
                             .iter()
-                            .filter(|(name, _)| **name == id)
+                            .filter(|(name, _)| name == &id)
                             .next()
                             .ok_or(CompileError::StructFieldName(prev.crab_type.clone(), id.clone()))?
                             .1
@@ -505,7 +505,7 @@ impl<NibType: Nib> Codegen<NibType> {
         trace!("Codegen::build_fn_call");
         // Get the original function
         // TODO: Once we have namespaces and stuff, we should only be manging inside fn_manager
-        let caller_ct = caller_opt.map(|caller| &caller.crab_type);
+        let caller_ct = caller_opt.map(|caller| caller.crab_type);
         let source_signature = self.fns.borrow_mut().get_source_signature(&call.name, caller_ct)?;
 
         // Handle all of the positional arguments

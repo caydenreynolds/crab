@@ -102,7 +102,7 @@ impl FnManager {
     /// Returns:
     /// A copy of the requested signature
     ///
-    pub fn get_source_signature(&self, name: &Ident, caller_opt: Option<&CrabType>) -> Result<&FuncSignature> {
+    pub fn get_source_signature(&self, name: &Ident, caller_opt: Option<CrabType>) -> Result<&FuncSignature> {
         Ok(&self.get_source(&name, caller_opt)?.signature)
     }
 
@@ -120,7 +120,7 @@ impl FnManager {
     pub fn get_signature(
         &mut self,
         call: &FnCall,
-        caller_opt: Option<&CrabType>,
+        caller_opt: Option<CrabType>,
         pos_values: &[CrabValue],
         named_values: &BTreeMap<Ident, CrabValue>,
     ) -> Result<FuncSignature> {
@@ -204,11 +204,11 @@ impl FnManager {
         Ok(generated_signature)
     }
 
-    fn get_source(&self, name: &Ident, caller_opt: Option<&CrabType>) -> Result<&Func> {
+    fn get_source(&self, name: &Ident, caller_opt: Option<CrabType>) -> Result<&Func> {
         let func_opt = match caller_opt {
             Some(caller) => self
                 .impl_sources
-                .get(&ImplFuncId::from_crabtype(name.clone(), caller)?),
+                .get(&ImplFuncId::from_crabtype(name.clone(), &caller)?),
             None => self
                 .fn_sources
                 .get(name),
