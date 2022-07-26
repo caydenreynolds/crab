@@ -1,6 +1,6 @@
 use crate::compile::{CompileError, CrabValue, Result, TypeManager};
 use crate::parse::ast::{CrabType, FnCall, Func, FuncSignature, Ident, NamedParam, PosParam, StructId};
-use crate::util::{main_func_name, ListFunctional, MapFunctional};
+use crate::util::{main_func_name, ListFunctional, MapFunctional, magic_main_func_name};
 use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::rc::Rc;
@@ -66,7 +66,7 @@ impl FnManager {
     pub fn add_main_to_queue(&mut self) -> Result<()> {
         let main = self
             .fn_sources
-            .get(&main_func_name())
+            .get(&magic_main_func_name())
             .ok_or(CompileError::NoMain)?;
         self.fn_build_queue.push(main.clone());
         self.registered_fns.insert(main.signature.clone());
