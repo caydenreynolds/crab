@@ -512,14 +512,18 @@ impl<NibType: Nib> Codegen<NibType> {
         trace!("Codegen::build_fn_call");
         // Get the original function
         // TODO: Once we have namespaces and stuff, we should only be manging inside fn_manager
-        let caller_ct = caller_opt.map(|caller| caller.crab_type);
+        let caller_ct = caller_opt.map(|caller| caller.crab_type.clone());
         let source_signature = self.fns.borrow_mut().get_source_signature(&call.name, caller_ct.clone())?;
 
         // Handle all of the positional arguments
+        let unnamed_args = match caller_opt {
+            Some(cv) => vec![cv],
+            None => vec![],
+        };
         let unnamed_args =
             call.pos_args
                 .iter()
-                .try_fold(vec![], |unnamed_args, unnamed_arg| {
+                .try_fold(unnamed_args, |unnamed_args, unnamed_arg| {
                     Result::Ok(
                         unnamed_args.fpush(self.build_expression(unnamed_arg.clone(), None)?),
                     )

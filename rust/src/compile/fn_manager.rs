@@ -1,6 +1,6 @@
 use crate::compile::{CompileError, CrabValue, Result, TypeManager};
 use crate::parse::ast::{CrabType, FnCall, Func, FuncSignature, Ident, NamedParam, PosParam, StructId};
-use crate::util::{main_func_name, ListFunctional, MapFunctional, magic_main_func_name};
+use crate::util::{ListFunctional, MapFunctional, magic_main_func_name};
 use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::rc::Rc;
