@@ -1,16 +1,18 @@
 use crate::compile::{CompileError, Result};
-use crate::parse::ast::{CrabType, Ident, PosParam, StructId};
+use crate::parse::ast::{CrabType, FuncSignature, Ident, PosParam, StructId};
 use crate::quill::{
     FnNib, Nib, PolyQuillType, Quill, QuillFloatType, QuillFnType, QuillIntType, QuillListType,
     QuillPointerType, QuillStructType, QuillVoidType,
 };
 use crate::util::{
-    add_param_mangles, bool_struct_name, format_i_c_name, int_struct_name, main_func_name,
-    mangle_function_name, operator_add_name, primitive_field_name, printf_c_name, printf_crab_name,
+    bool_struct_name, format_i_c_name, int_struct_name, main_func_name,
+    operator_add_name, primitive_field_name, printf_c_name, printf_crab_name,
     string_type_name, to_string_name,
 };
 use lazy_static::lazy_static;
 use std::collections::HashMap;
+use std::default;
+use serde::de::Unexpected::Str;
 
 lazy_static! {
     /// A map of the names of each of our function builtins to the function that generates the ir for that builtin
@@ -27,10 +29,10 @@ lazy_static! {
 fn init_builtin_fn_map() -> HashMap<Ident, fn(&mut Quill, &mut FnNib) -> Result<()>> {
     let mut map: HashMap<Ident, fn(&mut Quill, &mut FnNib) -> Result<()>> = HashMap::new();
 
-    let int_add = mangle_function_name(&operator_add_name(), Some(&int_struct_name()));
-    let int_add = add_param_mangles(
-        &int_add,
-        &[
+    let int_add = FuncSignature {
+        name: operator_add_name(),
+        return_type: CrabType::SIMPLE(int_struct_name()),
+        pos_params: vec![
             PosParam {
                 name: Ident::from("self"),
                 crab_type: CrabType::SIMPLE(int_struct_name()),
@@ -40,28 +42,38 @@ fn init_builtin_fn_map() -> HashMap<Ident, fn(&mut Quill, &mut FnNib) -> Result<
                 crab_type: CrabType::SIMPLE(int_struct_name()),
             },
         ],
-    );
-    map.insert(int_add, add_int);
+        named_params: default::Default(),
+        caller_id: Some(StructId::from_name(int_struct_name()))
+    }.mangled();
+    map.insert(int_add.name, add_int);
 
-    let int_to_str = mangle_function_name(&to_string_name(), Some(&int_struct_name()));
-    let int_to_str = add_param_mangles(
-        &int_to_str,
-        &[PosParam {
-            name: Ident::from("self"),
-            crab_type: CrabType::SIMPLE(int_struct_name()),
-        }],
-    );
-    map.insert(int_to_str, format_i);
+    let int_to_str = FuncSignature {
+        name: to_string_name(),
+        return_type: CrabType::SIMPLE(string_type_name()),
+        pos_params: vec![
+            PosParam {
+                name: Ident::from("self"),
+                crab_type: CrabType::SIMPLE(int_struct_name()),
+            },
+        ],
+        named_params: default::Default(),
+        caller_id: Some(StructId::from_name(int_struct_name())),
+    }.mangled();
+    map.insert(int_to_str.name, format_i);
 
-    let printf = mangle_function_name(&printf_crab_name(), None);
-    let printf = add_param_mangles(
-        &printf,
-        &[PosParam {
-            name: Ident::from("str"),
-            crab_type: CrabType::SIMPLE(string_type_name()),
-        }],
-    );
-    map.insert(printf, add_printf);
+    let printf = FuncSignature {
+        name: printf_crab_name(),
+        return_type: CrabType::VOID,
+        pos_params: vec![
+            PosParam {
+                name: Ident::from("str"),
+                crab_type: CrabType::SIMPLE(string_struct_name()),
+            },
+        ],
+        named_params: default::Default(),
+        caller_id: None,
+    }.mangled();
+    map.insert(printf.name, add_printf);
 
     map
 }

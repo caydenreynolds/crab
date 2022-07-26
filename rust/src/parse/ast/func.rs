@@ -6,6 +6,7 @@ use crate::try_from_pair;
 use crate::util::{int_struct_name, main_func_name, ListFunctional, magic_main_func_name};
 use pest::iterators::Pair;
 use std::convert::TryFrom;
+use std::fmt::{Display, Formatter};
 use crate::util::MapFunctional;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -48,6 +49,13 @@ impl Func {
         Self {
             body: self.body,
             signature: self.signature.method(struct_id),
+        }
+    }
+
+    pub fn mangled(self) -> Self {
+        Self {
+            signature: self.signature.mangled(),
+            ..self
         }
     }
 }
@@ -148,6 +156,23 @@ impl FuncSignature {
         } else {
             Ok(false)
         }
+    }
+
+    pub fn mangled(self) -> Self {
+        Self {
+            name: format!("{}", self),
+            ..self
+        }
+    }
+}
+impl Display for FuncSignature {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match &self.caller_id {
+            None => write!(f, "_FN_{}", self.name),
+            Some(ci) => write!(f, "_MD_{}_{}", self.name, ci)
+        }?;
+        self.pos_params.iter().try_for_each(|param| write!(f, "_{}", param.crab_type))?;
+        self.named_params.iter().try_for_each(|(_, param)| write!(f, "_{}", param.crab_type))
     }
 }
 

@@ -564,9 +564,6 @@ impl<NibType: Nib> Codegen<NibType> {
             .types
             .borrow_mut()
             .get_quill_fn_type(signature.clone())?;
-        println!("qft: {:?}", quill_fn_t);
-        println!("unnamed_args: {:?}", unnamed_args);
-        println!("named_args: {:?}", named_args);
         let args =
             quill_fn_t
                 .get_params()

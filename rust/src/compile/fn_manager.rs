@@ -80,7 +80,7 @@ impl FnManager {
     /// The function signature removed from the queue
     ///
     pub fn pop_build_queue(&mut self) -> Option<Func> {
-        self.fn_build_queue.pop()
+        self.fn_build_queue.pop().map(|func| func.mangled())
     }
 
     ///
@@ -201,7 +201,7 @@ impl FnManager {
             });
         }
 
-        Ok(generated_signature)
+        Ok(generated_signature.mangled())
     }
 
     fn get_source(&self, name: &Ident, caller_opt: Option<CrabType>) -> Result<Func> {
