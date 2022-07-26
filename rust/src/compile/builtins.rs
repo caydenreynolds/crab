@@ -4,15 +4,10 @@ use crate::quill::{
     FnNib, Nib, PolyQuillType, Quill, QuillFloatType, QuillFnType, QuillIntType, QuillListType,
     QuillPointerType, QuillStructType, QuillVoidType,
 };
-use crate::util::{
-    bool_struct_name, format_i_c_name, int_struct_name, main_func_name,
-    operator_add_name, primitive_field_name, printf_c_name, printf_crab_name,
-    string_type_name, to_string_name,
-};
+use crate::util::{bool_struct_name, format_i_c_name, int_struct_name, magic_main_func_name, main_func_name, operator_add_name, primitive_field_name, printf_c_name, printf_crab_name, string_type_name, to_string_name};
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 use std::default;
-use serde::de::Unexpected::Str;
 
 lazy_static! {
     /// A map of the names of each of our function builtins to the function that generates the ir for that builtin
@@ -42,7 +37,7 @@ fn init_builtin_fn_map() -> HashMap<Ident, fn(&mut Quill, &mut FnNib) -> Result<
                 crab_type: CrabType::SIMPLE(int_struct_name()),
             },
         ],
-        named_params: default::Default(),
+        named_params: Default::default(),
         caller_id: Some(StructId::from_name(int_struct_name()))
     }.mangled();
     map.insert(int_add.name, add_int);
@@ -56,7 +51,7 @@ fn init_builtin_fn_map() -> HashMap<Ident, fn(&mut Quill, &mut FnNib) -> Result<
                 crab_type: CrabType::SIMPLE(int_struct_name()),
             },
         ],
-        named_params: default::Default(),
+        named_params: Default::default(),
         caller_id: Some(StructId::from_name(int_struct_name())),
     }.mangled();
     map.insert(int_to_str.name, format_i);
@@ -70,7 +65,7 @@ fn init_builtin_fn_map() -> HashMap<Ident, fn(&mut Quill, &mut FnNib) -> Result<
                 crab_type: CrabType::SIMPLE(string_struct_name()),
             },
         ],
-        named_params: default::Default(),
+        named_params: Default::default(),
         caller_id: None,
     }.mangled();
     map.insert(printf.name, add_printf);
@@ -215,8 +210,15 @@ pub(super) fn add_main_func(peter: &mut Quill) -> Result<()> {
         QuillFnType::new(Some(QuillIntType::new(64)), vec![]),
     );
 
+    let magic_main_func = FuncSignature {
+        name: magic_main_func_name(),
+        return_type: CrabType::SIMPLE(int_struct_name()),
+        pos_params: Default::default(),
+        named_params: Default::default(),
+        caller_id: None,
+    }.mangled();
     let result = nib.add_fn_call(
-        mangle_function_name(&main_func_name(), None),
+        magic_main_func.name,
         vec![],
         QuillPointerType::new(QuillStructType::new(int_struct_name())),
     );
