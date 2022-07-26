@@ -8,7 +8,7 @@ use std::convert::TryFrom;
 
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
 pub struct CrabAst {
-    pub functions: Vec<Func>,
+    pub functions: HashMap<Ident, Func>,
     pub structs: Vec<CrabStruct>,
     pub interfaces: HashMap<Ident, CrabInterface>,
     pub main: Option<Func>,
@@ -51,12 +51,6 @@ impl AstNode for CrabAst {
                 },
                 Rule::EOI => break, // Nothing should ever show up after EOI
                 _ => return Err(ParseError::NoMatch(String::from("CrabAst::from_pair"))),
-            }
-        }
-
-        for struct_impl in &impls {
-            for func in &struct_impl.fns {
-                functions.push(func.clone().method(struct_impl.struct_id.clone()));
             }
         }
 
@@ -108,7 +102,7 @@ impl CrabAst {
     fn verify_intrs(&self) -> Result<()> {
         for intr in &self.intrs {
             for (sid, simp) in &self.impls {
-                if sid == intr.struct_id {
+                if *sid == intr.struct_id {
                     for inter in &intr.inters {
                         simp.verify_implements(
                             self.interfaces
