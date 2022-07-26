@@ -8,7 +8,7 @@ use crate::util::{
 };
 use log::{debug, trace};
 use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::convert::{TryFrom, TryInto};
 use std::path::Path;
 use std::rc::Rc;
@@ -93,7 +93,7 @@ pub fn compile(
         .into_iter()
         .try_for_each(|crab_struct| {
             let name = crab_struct.id.name.clone();
-            peter.register_struct_type(name.id.name.clone(), tm.get_fields(&name)?);
+            peter.register_struct_type(name.id.name.clone(), tm.get_fields(&crab_struct)?);
             Result::Ok(())
         })?;
     add_main_func(&mut peter)?;
@@ -187,7 +187,7 @@ impl<NibType: Nib> Codegen<NibType> {
             None => self.nib.add_return(QuillFnType::void_return_value()),
             Some(expr) => {
                 let expr_res = self.build_expression(expr, None)?;
-                self.nib.add_return(Some(&expr_res));
+                self.nib.add_return(Some(&expr_res.quill_value));
             }
         }
         Ok(true)
@@ -258,7 +258,7 @@ impl<NibType: Nib> Codegen<NibType> {
         // Build the branch statement
         let value = self.build_expression(is.expr, None)?;
         let value_value = self.nib.get_value_from_struct(
-            &value.try_into()?,
+            &value.quill_value.try_into()?,
             primitive_field_name(),
             QuillBoolType::new(),
         )?;
@@ -295,7 +295,7 @@ impl<NibType: Nib> Codegen<NibType> {
         let while_returns = while_codegen.build_codeblock(ws.then)?;
         let value = while_codegen.build_expression(ws.expr.clone(), None)?;
         let value_value = while_codegen.nib.get_value_from_struct(
-            &value.try_into()?,
+            &value.quill_value.try_into()?,
             primitive_field_name(),
             QuillBoolType::new(),
         )?;
@@ -305,7 +305,7 @@ impl<NibType: Nib> Codegen<NibType> {
         // Build our entrypoint into the while codeblock
         let value = self.build_expression(ws.expr, None)?;
         let value_value = self.nib.get_value_from_struct(
-            &value.try_into()?,
+            &value.quill_value.try_into()?,
             primitive_field_name(),
             QuillBoolType::new(),
         )?;
@@ -333,7 +333,7 @@ impl<NibType: Nib> Codegen<NibType> {
         let do_while_returns = do_while_codegen.build_codeblock(dws.then)?;
         let value = do_while_codegen.build_expression(dws.expr, None)?;
         let value_value = do_while_codegen.nib.get_value_from_struct(
-            &value.try_into()?,
+            &value.quill_value.try_into()?,
             primitive_field_name(),
             QuillBoolType::new(),
         )?;
@@ -374,7 +374,7 @@ impl<NibType: Nib> Codegen<NibType> {
                     None => self.vars.get(&id)?.clone(),
                     Some(prev) => {
                         // Figure out what type of value we should get from the struct
-                        let prev_strct = match prev.get_type() {
+                        let prev_strct = match prev.quill_value.get_type() {
                             PolyQuillType::PointerType(pst) => {
                                 QuillStructType::try_from(pst.get_inner_type())?
                             }
@@ -409,7 +409,7 @@ impl<NibType: Nib> Codegen<NibType> {
                             .borrow_mut()
                             .get_field_types(&prev.crab_type)?
                             .iter()
-                            .filter(|(name, _)| *name == id)
+                            .filter(|(name, _)| **name == id)
                             .next()
                             .ok_or(CompileError::StructFieldName(prev.crab_type.clone(), id.clone()))?
                             .1
@@ -525,7 +525,7 @@ impl<NibType: Nib> Codegen<NibType> {
         let named_args =
             call.named_args
                 .iter()
-                .try_fold(HashMap::new(), |named_args, named_arg| {
+                .try_fold(BTreeMap::new(), |named_args, named_arg| {
                     Result::Ok(named_args.finsert(
                         named_arg.name.clone(),
                         self.build_expression(named_arg.expr.clone(), None)?,
@@ -533,7 +533,7 @@ impl<NibType: Nib> Codegen<NibType> {
                 })?;
         let named_args = source_signature.named_params.into_iter().try_fold(
             named_args,
-            |named_args, named_param| match named_args.get(&named_param.name) {
+            |named_args, (_, named_param)| match named_args.get(&named_param.name) {
                 Some(_) => Result::Ok(named_args),
                 None => Result::Ok(named_args.finsert(
                     named_param.name,
