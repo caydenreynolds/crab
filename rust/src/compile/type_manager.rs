@@ -216,7 +216,7 @@ impl TypeManager {
         let params = fs.pos_params.into_iter().try_fold(vec![], |params, up| {
             Result::Ok(params.fpush((up.name, self.get_quill_type(&up.crab_type)?)))
         })?;
-        let params = fs.named_params.into_iter().try_fold(params, |params, np| {
+        let params = fs.named_params.into_iter().try_fold(params, |params, (_, np)| {
             Result::Ok(params.fpush((np.name, self.get_quill_type(&np.crab_type)?)))
         })?;
         let ret_t = match self.get_quill_type(&fs.return_type)? {

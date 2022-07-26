@@ -46,7 +46,7 @@ pub fn compile(
 
     ast.functions
         .into_iter()
-        .for_each(|func| fn_manager.borrow_mut().add_source(func));
+        .for_each(|(_, func)| fn_manager.borrow_mut().add_source(func));
     fn_manager.borrow_mut().add_main_to_queue()?;
 
     while !fn_manager.borrow_mut().build_queue_empty() {
@@ -63,7 +63,7 @@ pub fn compile(
                     func.signature
                         .pos_params
                         .into_iter()
-                        .chain(func.signature.named_params.into_iter().map(|named_param| {
+                        .chain(func.signature.named_params.into_iter().map(|(_, named_param)| {
                             PosParam {
                                 name: named_param.name,
                                 crab_type: named_param.crab_type,
