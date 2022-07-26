@@ -47,7 +47,7 @@ for key in "${!rel_paths[@]}"
         actual_paths["$key"]="$win"
     done
 
-export PYTHONPATH="$PYTHONPATH:libraries"
+export PYTHONPATH="robot/libraries"
 
 robot \
   -d target/ \
