@@ -27,10 +27,10 @@ fn init_builtin_fn_map() -> HashMap<Ident, fn(&mut Quill, &mut FnNib) -> Result<
         name: operator_add_name(),
         return_type: CrabType::SIMPLE(int_struct_name()),
         pos_params: vec![
-            PosParam {
-                name: Ident::from("self"),
-                crab_type: CrabType::SIMPLE(int_struct_name()),
-            },
+            // PosParam {
+            //     name: Ident::from("self"),
+            //     crab_type: CrabType::SIMPLE(int_struct_name()),
+            // },
             PosParam {
                 name: Ident::from("other"),
                 crab_type: CrabType::SIMPLE(int_struct_name()),
@@ -45,10 +45,10 @@ fn init_builtin_fn_map() -> HashMap<Ident, fn(&mut Quill, &mut FnNib) -> Result<
         name: to_string_name(),
         return_type: CrabType::SIMPLE(string_type_name()),
         pos_params: vec![
-            PosParam {
-                name: Ident::from("self"),
-                crab_type: CrabType::SIMPLE(int_struct_name()),
-            },
+            // PosParam {
+            //     name: Ident::from("self"),
+            //     crab_type: CrabType::SIMPLE(int_struct_name()),
+            // },
         ],
         named_params: Default::default(),
         caller_id: Some(StructId::from_name(int_struct_name())),
