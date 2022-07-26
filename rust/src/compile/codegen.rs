@@ -49,7 +49,7 @@ pub fn compile(
         .for_each(|(_, func)| fn_manager.borrow_mut().add_source(func));
     ast.impls
         .into_iter()
-        .for_each(|(sid, simp)| {
+        .for_each(|(_, simp)| {
             simp.fns
                 .into_iter()
                 .for_each(|(_, ifunc)| fn_manager.borrow_mut().add_source(ifunc))
