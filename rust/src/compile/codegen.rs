@@ -400,7 +400,7 @@ impl<NibType: Nib> Codegen<NibType> {
                         // Get that value from the struct
                         let val = self.nib.get_value_from_struct(
                             &prev.quill_value.try_into()?,
-                            id,
+                            id.clone(),
                             expected_type.clone(),
                         )?;
                         let expected_ct = self

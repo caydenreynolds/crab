@@ -102,8 +102,8 @@ impl FnManager {
     /// Returns:
     /// A copy of the requested signature
     ///
-    pub fn get_source_signature(&self, name: &Ident, caller_opt: Option<CrabType>) -> Result<&FuncSignature> {
-        Ok(&self.get_source(&name, caller_opt)?.signature)
+    pub fn get_source_signature(&self, name: &Ident, caller_opt: Option<CrabType>) -> Result<FuncSignature> {
+        Ok(self.get_source(&name, caller_opt)?.signature)
     }
 
     ///
@@ -204,7 +204,7 @@ impl FnManager {
         Ok(generated_signature)
     }
 
-    fn get_source(&self, name: &Ident, caller_opt: Option<CrabType>) -> Result<&Func> {
+    fn get_source(&self, name: &Ident, caller_opt: Option<CrabType>) -> Result<Func> {
         let func_opt = match caller_opt {
             Some(caller) => self
                 .impl_sources
@@ -213,7 +213,7 @@ impl FnManager {
                 .fn_sources
                 .get(name),
         };
-        func_opt.ok_or(CompileError::CouldNotFindFunction(name.clone()))
+        func_opt.ok_or(CompileError::CouldNotFindFunction(name.clone())).cloned()
     }
 }
 
@@ -233,12 +233,12 @@ impl ImplFuncId {
                 ))
             },
             CrabType::SIMPLE(name) | CrabType::TMPL(name, _) => {
-                Ok(name)
+                Ok(name.clone())
             },
             CrabType::LIST(ct ) => {
-                Ok(&ct.try_get_struct_name()?)
+                Ok(ct.try_get_struct_name()?.clone())
             },
-        }?.clone();
+        }?;
         Ok(Self {
             func_name,
             struct_name,
