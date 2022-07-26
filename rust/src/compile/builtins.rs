@@ -27,10 +27,10 @@ fn init_builtin_fn_map() -> HashMap<Ident, fn(&mut Quill, &mut FnNib) -> Result<
         name: operator_add_name(),
         return_type: CrabType::SIMPLE(int_struct_name()),
         pos_params: vec![
-            // PosParam {
-            //     name: Ident::from("self"),
-            //     crab_type: CrabType::SIMPLE(int_struct_name()),
-            // },
+            PosParam {
+                name: Ident::from("self"),
+                crab_type: CrabType::SIMPLE(int_struct_name()),
+            },
             PosParam {
                 name: Ident::from("other"),
                 crab_type: CrabType::SIMPLE(int_struct_name()),
@@ -45,10 +45,10 @@ fn init_builtin_fn_map() -> HashMap<Ident, fn(&mut Quill, &mut FnNib) -> Result<
         name: to_string_name(),
         return_type: CrabType::SIMPLE(string_type_name()),
         pos_params: vec![
-            // PosParam {
-            //     name: Ident::from("self"),
-            //     crab_type: CrabType::SIMPLE(int_struct_name()),
-            // },
+            PosParam {
+                name: Ident::from("self"),
+                crab_type: CrabType::SIMPLE(int_struct_name()),
+            },
         ],
         named_params: Default::default(),
         caller_id: Some(StructId::from_name(int_struct_name())),
@@ -184,13 +184,13 @@ fn format_i(peter: &mut Quill, nib: &mut FnNib) -> Result<()> {
 
     let self_arg = nib.get_fn_param(
         String::from("self"),
-        QuillPointerType::new(QuillStructType::new(int_struct_name())),
+        QuillPointerType::new(QuillStructType::new(int_name_mangled())),
     );
     let self_int =
         nib.get_value_from_struct(&self_arg, primitive_field_name(), QuillIntType::new(64))?;
 
     let char_star = nib.add_malloc(QuillListType::new_const_length(QuillIntType::new(8), 50));
-    let ret_val = nib.add_malloc(QuillStructType::new(string_type_name()));
+    let ret_val = nib.add_malloc(QuillStructType::new(string_name_mangled()));
     nib.add_fn_call(
         format_i_c_name(),
         vec![char_star.clone().into(), self_int.into()],
@@ -228,4 +228,12 @@ pub(super) fn add_main_func(peter: &mut Quill) -> Result<()> {
     peter.add_fn(nib);
 
     Ok(())
+}
+
+fn int_name_mangled() -> String {
+    StructId::from_name(int_struct_name()).mangle()
+}
+
+fn string_name_mangled() -> String {
+    StructId::from_name(string_type_name()).mangle()
 }

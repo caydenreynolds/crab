@@ -188,9 +188,7 @@ impl FnManager {
         let generated_signature = FuncSignature {
             pos_params,
             named_params,
-            name: source_fn.signature.name.clone(),
-            return_type: source_fn.signature.return_type.clone(),
-            caller_id: None,
+            ..source_fn.signature.clone()
         };
 
         // Always register, only add to build_queue if this func wasn't already registered
