@@ -17,7 +17,7 @@ impl ManagedType {
     fn as_struct(&self) -> Result<&CrabStruct> {
         match self {
             ManagedType::STRUCT(s) => Ok(s),
-            ManagedType::INTERFACE(i) => Err(CompileError::NotAStruct(StructId::from_name(i.name), String::from("ManagedType::as_struct")),
+            ManagedType::INTERFACE(i) => Err(CompileError::NotAStruct(StructId::from_name(i.name), String::from("ManagedType::as_struct"))),
         }
     }
 }
@@ -92,7 +92,7 @@ impl TypeManager {
             if let ManagedType::STRUCT(_) = self
                 .registered_types
                 .get(&si.name)
-                .ok_or(CompileError::StructDoesNotExist(usi))?
+                .ok_or(CompileError::StructDoesNotExist(si.clone()))?
             {
                 return Err(CompileError::NotAnInterface);
             }
@@ -276,7 +276,7 @@ impl TypeManager {
     ///
     pub fn get_fields(&mut self, id: &CrabType) -> Result<HashMap<String, PolyQuillType>> {
         Ok(match self.get_type(id)?.as_struct()?.body.clone() {
-            StructBody::COMPILER_PROVIDED => get_builtin_strct_definition(&name)?.clone(),
+            StructBody::COMPILER_PROVIDED => get_builtin_strct_definition(&id.try_get_struct_name()?)?.clone(),
             StructBody::FIELDS(fields) => {
                 fields
                     .into_iter()

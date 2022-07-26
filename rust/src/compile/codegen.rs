@@ -484,7 +484,7 @@ impl<NibType: Nib> Codegen<NibType> {
             .into_iter()
             .try_for_each(|name| match fields.contains_key(&name) {
                 true => Ok(()),
-                false => Err(CompileError::StructInitFieldName(struct_name.clone(), name)),
+                false => Err(CompileError::StructInitFieldName(struct_id.try_get_struct_name()?.clone(), name)),
             })?;
 
         //TODO: free
