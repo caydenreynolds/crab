@@ -240,7 +240,7 @@ impl ImplFuncId {
                 Ok(name)
             },
             CrabType::LIST(ct ) => {
-                Ok(ct.try_get_struct_name()?)
+                Ok(&ct.try_get_struct_name()?)
             },
         }?.clone();
         Ok(Self {
