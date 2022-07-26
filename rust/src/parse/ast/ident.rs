@@ -184,9 +184,9 @@ impl StructId {
 }
 impl Display for StructId {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!("STRUCT_{}", self.name)?;
+        write!(f, "STRUCT_{}", self.name)?;
         self.tmpls.iter().try_for_each(|tmpl| {
-            write!("_{}", tmpl)?
+            write!(f, "_{}", tmpl)
         })
     }
 }

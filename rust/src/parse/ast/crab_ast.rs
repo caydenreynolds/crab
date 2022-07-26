@@ -107,10 +107,10 @@ impl CrabAst {
 
     fn verify_intrs(&self) -> Result<()> {
         for intr in &self.intrs {
-            for si in &self.impls {
-                if si.struct_id == intr.struct_id {
+            for (sid, simp) in &self.impls {
+                if sid == intr.struct_id {
                     for inter in &intr.inters {
-                        si.verify_implements(
+                        simp.verify_implements(
                             self.interfaces
                                 .get(inter)
                                 .ok_or(ParseError::InterfaceNotFound(inter.clone()))?,

@@ -6,6 +6,7 @@ use crate::try_from_pair;
 use crate::util::{int_struct_name, main_func_name, mangle_function_name, ListFunctional, magic_main_func_name};
 use pest::iterators::Pair;
 use std::convert::TryFrom;
+use crate::util::MapFunctional;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Func {
