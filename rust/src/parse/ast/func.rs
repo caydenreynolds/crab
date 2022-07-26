@@ -170,7 +170,7 @@ impl Display for FuncSignature {
         let fn_or_md = match &self.caller_id {
             None => "FN",
             Some(ci) => "MD"
-        }?;
+        };
         write!(f, "_{}_{}", fn_or_md, self.name)?;
         self.pos_params.iter().try_for_each(|param| write!(f, "_{}", param.crab_type))?;
         self.named_params.iter().try_for_each(|(_, param)| write!(f, "_{}", param.crab_type))
