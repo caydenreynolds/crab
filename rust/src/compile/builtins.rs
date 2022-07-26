@@ -148,11 +148,11 @@ fn add_printf(peter: &mut Quill, nib: &mut FnNib) -> Result<()> {
 fn add_int(_: &mut Quill, nib: &mut FnNib) -> Result<()> {
     let self_arg = nib.get_fn_param(
         String::from("self"),
-        QuillPointerType::new(QuillStructType::new(int_struct_name())),
+        QuillPointerType::new(QuillStructType::new(int_name_mangled())),
     );
     let other_arg = nib.get_fn_param(
         String::from("other"),
-        QuillPointerType::new(QuillStructType::new(int_struct_name())),
+        QuillPointerType::new(QuillStructType::new(int_name_mangled())),
     );
 
     let self_int =
@@ -162,7 +162,7 @@ fn add_int(_: &mut Quill, nib: &mut FnNib) -> Result<()> {
 
     let result_int = nib.int_add(self_int, other_int)?;
 
-    let ret_val = nib.add_malloc(QuillStructType::new(int_struct_name()));
+    let ret_val = nib.add_malloc(QuillStructType::new(int_name_mangled()));
     nib.set_value_in_struct(&ret_val, primitive_field_name(), result_int)?;
     nib.add_return(Some(&ret_val));
 

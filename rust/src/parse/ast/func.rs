@@ -169,7 +169,7 @@ impl Display for FuncSignature {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let fn_or_md = match &self.caller_id {
             None => "FN",
-            Some(ci) => "MD"
+            Some(_) => "MD"
         };
         write!(f, "_{}_{}", fn_or_md, self.name)?;
         self.pos_params.iter().try_for_each(|param| write!(f, "_{}", param.crab_type))?;
