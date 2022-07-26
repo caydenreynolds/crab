@@ -389,7 +389,7 @@ impl<NibType: Nib> Codegen<NibType> {
                             .borrow_mut()
                             .get_fields(&prev.crab_type)?
                             .iter()
-                            .filter(|(name, _)| **name == id)
+                            .filter(|(name, _)| name == &&id)
                             .next()
                             .map(|(_, pqt)| pqt.clone())
                             .ok_or(CompileError::StructFieldName(
@@ -408,7 +408,7 @@ impl<NibType: Nib> Codegen<NibType> {
                             .borrow_mut()
                             .get_field_types(&prev.crab_type)?
                             .iter()
-                            .filter(|(name, _)| name == &id)
+                            .filter(|(name, _)| name == &&id)
                             .next()
                             .ok_or(CompileError::StructFieldName(prev.crab_type.clone(), id.clone()))?
                             .1
