@@ -1,4 +1,3 @@
-use std::borrow::BorrowMut;
 use crate::compile::{
     add_builtin_definition, add_main_func, CompileError, FnManager, Result, TypeManager, VarManager,
 };
@@ -42,21 +41,20 @@ pub fn compile(
         .into_iter()
         .try_for_each(|crab_intr| type_manager.register_intr(crab_intr))?;
 
-    let mut type_manager = Rc::new(RefCell::new(type_manager));
-    let mut fn_manager = FnManager::new(type_manager.clone());
+    let type_manager = Rc::new(RefCell::new(type_manager));
+    let fn_manager = Rc::new(RefCell::new(FnManager::new(type_manager.clone())));
 
     ast.functions
         .into_iter()
         .for_each(|(_, func)| fn_manager.borrow_mut().add_source(func));
     ast.impls
         .into_iter()
-        .for_each(|(_, simp)| {
+        .for_each(|(sid, simp)| {
             simp.fns
                 .into_iter()
-                .for_each(|(_, ifunc)| fn_manager.borrow_mut().add_source(ifunc));
+                .for_each(|(_, ifunc)| fn_manager.borrow_mut().add_source(ifunc))
         });
     fn_manager.borrow_mut().add_main_to_queue()?;
-    let mut fn_manager = Rc::new(RefCell::new(fn_manager));
 
     while !fn_manager.borrow_mut().build_queue_empty() {
         let func = fn_manager.borrow_mut().pop_build_queue().unwrap();
