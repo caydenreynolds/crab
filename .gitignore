@@ -18,3 +18,4 @@ crab_env/
 *.ll
 *.bc
 *.exe
+*.qir
