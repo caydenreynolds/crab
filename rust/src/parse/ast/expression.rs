@@ -19,7 +19,7 @@ pub struct Expression {
 impl Expression {
     pub(super) fn resolve(self, caller: CrabType, caller_id: &StructId) -> compile::Result<Self> {
         Ok(Self {
-            this: self.this.resolve(caller.clone())?,
+            this: self.this.resolve(caller.clone(), caller_id)?,
             next: match self.next {
                 None => None,
                 Some(bexpr) => Some(Box::new(bexpr.resolve(caller, caller_id)?)),

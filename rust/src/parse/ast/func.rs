@@ -65,7 +65,7 @@ impl Func {
             .signature
             .caller_id
             .clone()
-            .ok_or(CompileError::NoCallerId(self.name.clone()))?;
+            .ok_or(CompileError::NoCallerId(self.signature.name.clone()))?;
         match caller_opt {
             None => Ok(self),
             Some(caller) => {
@@ -85,9 +85,9 @@ pub enum FnBodyType {
     COMPILER_PROVIDED,
 }
 impl FnBodyType {
-    fn resolve(self, caller: CrabType) -> compile::Result<Self> {
+    fn resolve(self, caller: CrabType, caller_id: &StructId) -> compile::Result<Self> {
         Ok(match self {
-            CODEBLOCK(cb) => CODEBLOCK(cb.resolve(caller)?),
+            CODEBLOCK(cb) => CODEBLOCK(cb.resolve(caller, caller_id)?),
             COMPILER_PROVIDED => COMPILER_PROVIDED,
         })
     }
