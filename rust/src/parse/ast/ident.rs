@@ -173,8 +173,8 @@ impl StructId {
                         Ok(tmpls.fpush(StructId::from_name(n.clone())))
                     },
                     CrabType::LIST(_) => todo!(),
-                    CrabType::TMPL(n, _) => {
-                        Ok(tmpls.fpush(StructId::from_name(n.clone()).add_tmpls(types)?))
+                    CrabType::TMPL(n, ct_tmpls) => {
+                        Ok(tmpls.fpush(StructId::from_name(n.clone()).add_tmpls(ct_tmpls)?))
                     },
                 }
             })?,

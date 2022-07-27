@@ -460,7 +460,6 @@ impl<NibType: Nib> Codegen<NibType> {
     /// The value of the new struct
     ///
     fn build_struct_init(&mut self, si: StructInit) -> Result<CrabValue> {
-        trace!("Codegen::build_struct_init");
         let struct_id = si.id;
         let struct_field_names = self
             .types
@@ -470,7 +469,6 @@ impl<NibType: Nib> Codegen<NibType> {
             .fold(HashSet::new(), |struct_field_names, (name, _)| {
                 struct_field_names.finsert(name.clone())
             });
-        debug!("UwU");
         let fields =
             si.fields
                 .into_iter()
@@ -486,21 +484,18 @@ impl<NibType: Nib> Codegen<NibType> {
                         field.name,
                     )),
                 })?;
-        debug!("Based");
         struct_field_names
             .into_iter()
             .try_for_each(|name| match fields.contains_key(&name) {
                 true => Ok(()),
                 false => Err(CompileError::StructInitFieldName(struct_id.try_get_struct_name()?.clone(), name)),
             })?;
-        debug!("Struct-pilled");
         //TODO: free
         let struct_t = self.types.borrow_mut().get_quill_struct(&struct_id)?;
         let new_struct_ptr = self.nib.add_malloc(struct_t);
         fields.into_iter().try_for_each(|(name, value)| {
             self.nib.set_value_in_struct(&new_struct_ptr, name, value.quill_value)
         })?;
-        debug!("Goku");
         Ok(CrabValue::new(new_struct_ptr.into(), struct_id))
     }
 
