@@ -3,7 +3,7 @@ use crate::parse::ast::{AstNode, CrabType, Ident, StructId};
 use crate::parse::{ParseError, Result, Rule};
 use crate::{compile, try_from_pair, util};
 use pest::iterators::Pair;
-use std::convert::TryFrom;
+use std::convert::{TryFrom, TryInto};
 use util::ListFunctional;
 use crate::compile::CompileError;
 
@@ -47,7 +47,7 @@ impl CrabStruct {
                 .zip(resolved.tmpls.clone().into_iter())
                 .collect()
         );
-        let resolved_body = self.body.resolve(resolution_map);
+        let resolved_body = self.body.resolve(resolution_map)?;
         Ok(Self {
             id: resolved,
             body: resolved_body,
@@ -82,18 +82,18 @@ impl AstNode for StructBody {
     }
 }
 impl StructBody {
-    fn resolve(self, resolution_map: HashMap<StructId, StructId>) -> Self {
+    fn resolve(self, resolution_map: HashMap<StructId, StructId>) -> Result<Self> {
         match self {
-            StructBody::COMPILER_PROVIDED => StructBody::COMPILER_PROVIDED,
+            StructBody::COMPILER_PROVIDED => Ok(StructBody::COMPILER_PROVIDED),
             StructBody::FIELDS(fields) => {
-                StructBody::FIELDS(
+                Ok(StructBody::FIELDS(
                     fields.into_iter().map(|field| {
-                        match resolution_map.get(&field.crab_type.into()) {
+                        match resolution_map.get(&field.crab_type.try_into()?) {
                             Some(si) => si.into(),
                             None => field,
                         }
                     }).collect()
-                )
+                ))
             }
         }
     }
