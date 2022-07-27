@@ -86,14 +86,14 @@ impl StructBody {
         match self {
             StructBody::COMPILER_PROVIDED => StructBody::COMPILER_PROVIDED,
             StructBody::FIELDS(fields) => {
-                Ok(StructBody::FIELDS(
+                StructBody::FIELDS(
                     fields.into_iter().map(|field| {
                         match resolution_map.get(&field.crab_type.into()) {
                             Some(si) => si.into(),
                             None => field,
                         }
                     }).collect()
-                ))
+                )
             }
         }
     }
