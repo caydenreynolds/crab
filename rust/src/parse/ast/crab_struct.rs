@@ -5,6 +5,7 @@ use crate::{compile, try_from_pair, util};
 use pest::iterators::Pair;
 use std::convert::{TryFrom, TryInto};
 use util::ListFunctional;
+use crate::util::MapFunctional;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct CrabStruct {
@@ -39,13 +40,13 @@ impl CrabStruct {
     pub fn resolve(self, types: &[CrabType]) -> compile::Result<Self> {
         let unresolved = self.id.clone();
         let resolved = self.id.resolve(types)?;
-        let resolution_map = HashMap::from(
-            unresolved
-                .tmpls
-                .into_iter()
-                .zip(resolved.tmpls.clone().into_iter())
-                .collect()
-        );
+        let resolution_map = unresolved
+            .tmpls
+            .into_iter()
+            .zip(resolved.tmpls.clone().into_iter())
+            .fold(HashMap::new(), |resolution_map, (unresolved, resolved)| {
+                resolution_map.finsert(unresolved, resolved)
+            });
         let resolved_body = self.body.resolve(resolution_map)?;
         Ok(Self {
             id: resolved,
