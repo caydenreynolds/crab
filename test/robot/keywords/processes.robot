@@ -34,9 +34,9 @@ The last process printed "${output}"
 
 The last process output "${output}" matches the file "${expected_file}"
     ${file_contents} =  Get File  ${RESOURCES}/${expected_file}
-    IF  "${output} == "stdout"
+    IF  ${output} == "stdout"
         ${output_contents} =  ${last_process_result.stdout}
-    ELSE IF  "${output} == "stderr"
+    ELSE IF  ${output} == "stderr"
         ${output_contents} =  ${last_process_result.stderr}
     END
     Should be Equal As Strings  ${file_contents}  ${last_process_result.stdout}
