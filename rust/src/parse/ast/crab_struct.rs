@@ -89,7 +89,7 @@ impl StructBody {
                 Ok(StructBody::FIELDS(
                     fields.into_iter().try_fold(vec![], |fields, field| {
                        compile::Result::Ok(fields.fpush(
-                           match resolution_map.get(&field.crab_type.try_into()?) {
+                           match resolution_map.get(&field.crab_type.clone().try_into()?) {
                                 Some(si) => StructField { crab_type: si.clone().into(), ..field },
                                 None => field,
                             }
