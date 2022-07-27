@@ -56,6 +56,7 @@ robot \
   --variable CRAB_SRC:"${actual_paths[CRAB_SRC]}" \
   --variable TARGET_DIR:"${actual_paths[TARGET_DIR]}" \
   --variable CRAB_STD:"${actual_paths[CRAB_STD]}" \
+  --variable RESOURCES:"${actual_paths[RESOURCES]}" \
   --variable VERBOSE:"$verbose" \
   robot
 
