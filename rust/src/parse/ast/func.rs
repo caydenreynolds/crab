@@ -197,7 +197,7 @@ impl FuncSignature {
                                 ))
                             })?;
                         Ok(Self {
-                            caller_id: Some(StructId::try_from(caller)?),
+                            caller_id: Some(StructId::try_from(caller.clone())?),
                             pos_params,
                             named_params,
                             return_type: self.return_type.resolve(&unresolved_caller_id, &tmpls)?,
