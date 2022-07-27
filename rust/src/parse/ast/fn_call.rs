@@ -1,4 +1,4 @@
-use crate::parse::ast::{AstNode, CrabType, Expression, Ident};
+use crate::parse::ast::{AstNode, CrabType, Expression, Ident, StructId};
 use crate::parse::{ParseError, Result, Rule};
 use crate::{compile, try_from_pair};
 use crate::util::ListFunctional;
@@ -42,19 +42,19 @@ impl AstNode for FnCall {
     }
 }
 impl FnCall {
-    pub(super) fn resolve(self, caller: CrabType) -> compile::Result<Self> {
+    pub(super) fn resolve(self, caller: CrabType, caller_id: &StructId) -> compile::Result<Self> {
         Ok(Self {
             pos_args: self
                 .pos_args
                 .into_iter()
                 .try_fold(vec![], |pos_args, pos_arg| {
-                    compile::Result::Ok(pos_args.fpush(pos_arg.resolve(caller.clone())?))
+                    compile::Result::Ok(pos_args.fpush(pos_arg.resolve(caller.clone(), caller_id)?))
                 })?,
             named_args: self
                 .named_args
                 .into_iter()
                 .try_fold(vec![], |named_args, named_arg| {
-                    compile::Result::Ok(named_args.fpush(named_arg.resolve(caller.clone())?))
+                    compile::Result::Ok(named_args.fpush(named_arg.resolve(caller.clone(), caller_id)?))
                 })?,
             ..self
         })
@@ -119,9 +119,9 @@ impl AstNode for NamedArg {
     }
 }
 impl NamedArg {
-    pub(super) fn resolve(self, caller: CrabType) -> compile::Result<Self> {
+    pub(super) fn resolve(self, caller: CrabType, caller_id: &StructId) -> compile::Result<Self> {
         Ok(Self {
-            expr: self.expr.resolve(caller)?,
+            expr: self.expr.resolve(caller, caller_id)?,
             ..self
         })
     }

@@ -29,15 +29,15 @@ impl AstNode for StructInit {
     }
 }
 impl StructInit {
-    pub(super) fn resolve(self, caller: CrabType) -> compile::Result<Self> {
+    pub(super) fn resolve(self, caller: CrabType, caller_id: &StructId) -> compile::Result<Self> {
         Ok(match &caller {
             CrabType::TMPL(_, tmpls) => Self {
-                id: self.id.resolve(&StructId::try_from(caller.clone())?, &tmpls)?,
+                id: self.id.resolve(caller_id, &tmpls)?,
                 fields: self
                     .fields
                     .into_iter()
                     .try_fold(vec![], |fields, field| {
-                        compile::Result::Ok(fields.fpush(field.resolve(caller.clone())?))
+                        compile::Result::Ok(fields.fpush(field.resolve(caller.clone(), caller_id)?))
                     })?,
             },
             _ => self,
@@ -64,7 +64,7 @@ impl AstNode for StructFieldInit {
     }
 }
 impl StructFieldInit {
-    pub(super) fn resolve(self, caller: CrabType) -> compile::Result<Self> {
+    pub(super) fn resolve(self, caller: CrabType, caller_id: &StructId) -> compile::Result<Self>) {
         Ok(Self {
             value: self.value.resolve(caller)?,
             ..self

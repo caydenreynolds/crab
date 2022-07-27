@@ -1,4 +1,4 @@
-use crate::parse::ast::{AstNode, CodeBlock, CrabType, Expression, Ident};
+use crate::parse::ast::{AstNode, CodeBlock, CrabType, Expression, Ident, StructId};
 use crate::parse::{ParseError, Result, Rule};
 use crate::{compile, try_from_pair};
 use pest::iterators::Pair;
@@ -54,20 +54,20 @@ impl AstNode for Statement {
     }
 }
 impl Statement {
-    pub(super) fn resolve(self, caller: CrabType) -> compile::Result<Self> {
+    pub(super) fn resolve(self, caller: CrabType, caller_id: &StructId) -> compile::Result<Self> {
         Ok(match self {
             Statement::RETURN(expr) => Statement::RETURN(
                 match expr {
                     None => None,
-                    Some(expr) => Some(expr.resolve(caller)?),
+                    Some(expr) => Some(expr.resolve(caller, caller_id)?),
                 }
             ),
-            Statement::ASSIGNMENT(ass) => Statement::ASSIGNMENT(ass.resolve(caller)?),
-            Statement::REASSIGNMENT(reass) => Statement::REASSIGNMENT(reass.resolve(caller)?),
-            Statement::EXPRESSION(expr) => Statement::EXPRESSION(expr.resolve(caller)?),
-            Statement::IF_STATEMENT(if_stmt) => Statement::IF_STATEMENT(if_stmt.resolve(caller)?),
-            Statement::WHILE_STATEMENT(wh_stmt) => Statement::WHILE_STATEMENT(wh_stmt.resolve(caller)?),
-            Statement::DO_WHILE_STATEMENT(dw_stmt) => Statement::DO_WHILE_STATEMENT(dw_stmt.resolve(caller)?),
+            Statement::ASSIGNMENT(ass) => Statement::ASSIGNMENT(ass.resolve(caller, caller_id)?),
+            Statement::REASSIGNMENT(reass) => Statement::REASSIGNMENT(reass.resolve(caller, caller_id)?),
+            Statement::EXPRESSION(expr) => Statement::EXPRESSION(expr.resolve(caller, caller_id)?),
+            Statement::IF_STATEMENT(if_stmt) => Statement::IF_STATEMENT(if_stmt.resolve(caller, caller_id)?),
+            Statement::WHILE_STATEMENT(wh_stmt) => Statement::WHILE_STATEMENT(wh_stmt.resolve(caller, caller_id)?),
+            Statement::DO_WHILE_STATEMENT(dw_stmt) => Statement::DO_WHILE_STATEMENT(dw_stmt.resolve(caller, caller_id)?),
         })
     }
 }
@@ -106,9 +106,9 @@ impl AstNode for Assignment {
     }
 }
 impl Assignment {
-    pub(super) fn resolve(self, caller: CrabType) -> compile::Result<Self> {
+    pub(super) fn resolve(self, caller: CrabType, caller_id: &StructId) -> compile::Result<Self> {
         Ok(Self {
-            expr: self.expr.resolve(caller)?,
+            expr: self.expr.resolve(caller, caller_id)?,
             ..self
         })
     }
@@ -154,13 +154,13 @@ impl AstNode for IfStmt {
     }
 }
 impl IfStmt {
-    pub(super) fn resolve(self, caller: CrabType) -> compile::Result<Self> {
+    pub(super) fn resolve(self, caller: CrabType, caller_id: &StructId) -> compile::Result<Self> {
         Ok(Self {
-            expr: self.expr.resolve(caller.clone())?,
-            then: self.then.resolve(caller.clone())?,
+            expr: self.expr.resolve(caller.clone(), caller_id)?,
+            then: self.then.resolve(caller.clone(), caller_id)?,
             else_stmt: match self.else_stmt {
                 None => None,
-                Some(es) => Some(es.resolve(caller)?),
+                Some(es) => Some(es.resolve(caller, caller_id)?),
             },
         })
     }
@@ -185,10 +185,10 @@ impl AstNode for WhileStmt {
     }
 }
 impl WhileStmt {
-    pub(super) fn resolve(self, caller: CrabType) -> compile::Result<Self> {
+    pub(super) fn resolve(self, caller: CrabType, caller_id: &StructId) -> compile::Result<Self> {
         Ok(Self {
-            expr: self.expr.resolve(caller.clone())?,
-            then: self.then.resolve(caller)?,
+            expr: self.expr.resolve(caller.clone(), caller_id)?,
+            then: self.then.resolve(caller, caller_id)?,
         })
     }
 }
@@ -212,10 +212,10 @@ impl AstNode for DoWhileStmt {
     }
 }
 impl DoWhileStmt {
-    pub(super) fn resolve(self, caller: CrabType) -> compile::Result<Self> {
+    pub(super) fn resolve(self, caller: CrabType, caller_id: &StructId) -> compile::Result<Self> {
         Ok(Self {
-            expr: self.expr.resolve(caller.clone())?,
-            then: self.then.resolve(caller)?,
+            expr: self.expr.resolve(caller.clone(), caller_id)?,
+            then: self.then.resolve(caller, caller_id)?,
         })
     }
 }

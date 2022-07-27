@@ -1,4 +1,4 @@
-use crate::parse::ast::{AstNode, CrabType, FnCall, Ident, Primitive, StructFieldInit, StructInit};
+use crate::parse::ast::{AstNode, CrabType, FnCall, Ident, Primitive, StructFieldInit, StructId, StructInit};
 use crate::parse::ParseError::ExpectedInner;
 use crate::parse::{ParseError, Result, Rule};
 use crate::{compile, try_from_pair};
@@ -17,12 +17,12 @@ pub struct Expression {
     pub next: Option<Box<Expression>>,
 }
 impl Expression {
-    pub(super) fn resolve(self, caller: CrabType) -> compile::Result<Self> {
+    pub(super) fn resolve(self, caller: CrabType, caller_id: &StructId) -> compile::Result<Self> {
         Ok(Self {
             this: self.this.resolve(caller.clone())?,
             next: match self.next {
                 None => None,
-                Some(bexpr) => Some(Box::new(bexpr.resolve(caller)?)),
+                Some(bexpr) => Some(Box::new(bexpr.resolve(caller, caller_id)?)),
             }
         })
     }
@@ -37,10 +37,10 @@ pub enum ExpressionType {
     VARIABLE(Ident),
 }
 impl ExpressionType {
-    pub(super) fn resolve(self, caller: CrabType) -> compile::Result<Self> {
+    pub(super) fn resolve(self, caller: CrabType, caller_id: &StructId) -> compile::Result<Self> {
         Ok(match self {
-            ExpressionType::STRUCT_INIT(si) => ExpressionType::STRUCT_INIT(si.resolve(caller)?),
-            ExpressionType::FN_CALL(fc) => ExpressionType::FN_CALL(fc.resolve(caller)?),
+            ExpressionType::STRUCT_INIT(si) => ExpressionType::STRUCT_INIT(si.resolve(caller, caller_id)?),
+            ExpressionType::FN_CALL(fc) => ExpressionType::FN_CALL(fc.resolve(caller, caller_id)?),
             _ => self,
         })
     }

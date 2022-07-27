@@ -61,12 +61,17 @@ impl Func {
     }
 
     pub fn resolve(self, caller_opt: Option<CrabType>) -> compile::Result<Self> {
+        let caller_id = self
+            .signature
+            .caller_id
+            .clone()
+            .ok_or(CompileError::NoCallerId(self.name.clone()))?;
         match caller_opt {
             None => Ok(self),
             Some(caller) => {
                 Ok(Self {
-                    signature: self.signature.resolve(caller.clone())?,
-                    body: self.body.resolve(caller)?,
+                    signature: self.signature.resolve(caller.clone(), &caller_id)?,
+                    body: self.body.resolve(caller, &caller_id)?,
                 })
             }
         }
@@ -186,12 +191,9 @@ impl FuncSignature {
         }
     }
 
-    pub fn resolve(self, caller: CrabType) -> compile::Result<Self> {
+    pub fn resolve(self, caller: CrabType, caller_id: &StructId) -> compile::Result<Self> {
         match &caller {
             CrabType::TMPL(_, tmpls) => {
-                let unresolved_caller_id = self
-                    .caller_id
-                    .ok_or(CompileError::NoCallerId(self.name.clone()))?;
                 let pos_params =
                     self.pos_params
                         .into_iter()
@@ -200,7 +202,7 @@ impl FuncSignature {
                                 pos_params.fpush(PosParam {
                                     crab_type: pos_param
                                         .crab_type
-                                        .resolve(&unresolved_caller_id, &tmpls)?,
+                                        .resolve(caller_id, &tmpls)?,
                                     ..pos_param
                                 }),
                             )
@@ -214,7 +216,7 @@ impl FuncSignature {
                                 NamedParam {
                                     crab_type: named_param
                                         .crab_type
-                                        .resolve(&unresolved_caller_id, &tmpls)?,
+                                        .resolve(caller_id, &tmpls)?,
                                     ..named_param
                                 },
                             ),
@@ -225,7 +227,7 @@ impl FuncSignature {
                     caller_id: Some(StructId::try_from(caller.clone())?),
                     pos_params,
                     named_params,
-                    return_type: self.return_type.resolve(&unresolved_caller_id, &tmpls)?,
+                    return_type: self.return_type.resolve(caller_id, &tmpls)?,
                     ..self
                 })
             }
