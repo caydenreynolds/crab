@@ -201,7 +201,7 @@ impl TryFrom<CrabType> for StructId {
                 Ok(Self {
                     name,
                     tmpls: tmpls.into_iter().try_fold(vec![], |tmpls, tmpl| {
-                        std::result::Result::Ok(tmpls.fpush(tmpl.try_into()?))
+                        compile::Result::Ok(tmpls.fpush(StructId::try_from(tmpl)?))
                     })?
                 })
             }
