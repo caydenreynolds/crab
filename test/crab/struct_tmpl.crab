@@ -41,9 +41,9 @@ fn main() -> Int {
     print("Int printer returned: ", newline=false)
     //print(int_printer.getThing())
 
-    //let thing_printer_printer = ThingPrinter<ThingPrinter<String>> { thing=string_printer }
-    //thing_printer_printer.printThing()
-    //print("Thing printer printer returned: ", newline=false)
+    let thing_printer_printer = ThingPrinter<ThingPrinter<String>> { thing=string_printer }
+    thing_printer_printer.printThing()
+    print("Thing printer printer returned: ", newline=false)
     //print(thing_printer_printer.getThing())
 
     return 0
