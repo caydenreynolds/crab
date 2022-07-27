@@ -9,14 +9,14 @@ The Crabfile "${crabfile}" is built and the results are compared against a file"
         The Crabfile "${crabfile}" is built
         ${crabfile_name} =  Fetch From Left  ${crabfile}  .
         The "${crabfile_name}" Crab application is run successfully
-        ${at_least_one_checked} =  "false"
+        ${at_least_one_checked} =  Set Variable  ${FALSE}
         FOR  ${output}  IN  stdout  stderr
             IF  File Exists  "${RESOURCSE}/multiline/${crabfile_name}.${output}"
                 The last process output "${output}" matches the file "multiline/${crabfile_name}.${output}"
-                ${at_least_one_checked} =  "true"
+                ${at_least_one_checked} =  Set Variable  ${TRUE}
             END
         END
-        hould Be Equal As StringsS  ${at_least_one_checked}  "true"
+        hould Be True  ${at_least_one_checked}
 
 *** Test Cases ***
 Run Multiline Crabfiles
