@@ -35,7 +35,7 @@ impl CodeBlock {
                 .statements
                 .into_iter()
                 .try_fold(vec![], |statements, statement| {
-                    compile::Result::Ok(statements.fpush(statement.resolve(caller)?))
+                    compile::Result::Ok(statements.fpush(statement.resolve(caller.clone())?))
                 })?
         })
     }
