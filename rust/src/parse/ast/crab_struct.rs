@@ -87,12 +87,12 @@ impl StructBody {
             StructBody::COMPILER_PROVIDED => Ok(StructBody::COMPILER_PROVIDED),
             StructBody::FIELDS(fields) => {
                 Ok(StructBody::FIELDS(
-                    fields.into_iter().map(|field| {
+                    fields.into_iter().try_map(|field| {
                         match resolution_map.get(&field.crab_type.try_into()?) {
                             Some(si) => si.into(),
                             None => field,
                         }
-                    }).collect()
+                    })?
                 ))
             }
         }
