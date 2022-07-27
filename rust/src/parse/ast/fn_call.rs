@@ -1,6 +1,6 @@
-use crate::parse::ast::{AstNode, Expression, Ident};
+use crate::parse::ast::{AstNode, CrabType, Expression, Ident};
 use crate::parse::{ParseError, Result, Rule};
-use crate::try_from_pair;
+use crate::{compile, try_from_pair};
 use crate::util::ListFunctional;
 use pest::iterators::Pair;
 use std::convert::TryFrom;
@@ -11,7 +11,6 @@ pub struct FnCall {
     pub pos_args: Vec<Expression>,
     pub named_args: Vec<NamedArg>,
 }
-
 try_from_pair!(FnCall, Rule::fn_call);
 impl AstNode for FnCall {
     fn from_pair(pair: Pair<Rule>) -> Result<Self>
@@ -39,6 +38,25 @@ impl AstNode for FnCall {
             name,
             named_args,
             pos_args,
+        })
+    }
+}
+impl FnCall {
+    pub(super) fn resolve(self, caller: CrabType) -> compile::Result<Self> {
+        Ok(Self {
+            pos_args: self
+                .pos_args
+                .into_iter()
+                .try_fold(vec![], |pos_args, pos_arg| {
+                    Ok(pos_args.fpush(pos_arg.resolve(caller.clone())?))
+                })?,
+            named_args: self
+                .named_args
+                .into_iter()
+                .try_fold(vec![], |named_args, named_arg| {
+                    Ok(named_args.fpush(named_arg.resolve(caller.clone())?))
+                })?,
+            ..self
         })
     }
 }
@@ -87,7 +105,6 @@ pub struct NamedArg {
     pub name: Ident,
     pub expr: Expression,
 }
-
 try_from_pair!(NamedArg, Rule::named_arg);
 impl AstNode for NamedArg {
     fn from_pair(pair: Pair<Rule>) -> Result<Self>
@@ -99,5 +116,13 @@ impl AstNode for NamedArg {
         let expr = Expression::try_from(inner.next().ok_or(ParseError::ExpectedInner)?)?;
 
         Ok(Self { name, expr })
+    }
+}
+impl NamedArg {
+    pub(super) fn resolve(self, caller: CrabType) -> compile::Result<Self> {
+        Ok(Self {
+            expr: self.expr.resolve(caller)?,
+            ..self
+        })
     }
 }

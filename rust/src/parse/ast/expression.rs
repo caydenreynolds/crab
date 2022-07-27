@@ -1,7 +1,7 @@
 use crate::parse::ast::{AstNode, CrabType, FnCall, Ident, Primitive, StructFieldInit, StructInit};
 use crate::parse::ParseError::ExpectedInner;
 use crate::parse::{ParseError, Result, Rule};
-use crate::try_from_pair;
+use crate::{compile, try_from_pair};
 use crate::util::{bool_struct_name, int_struct_name, primitive_field_name, string_type_name};
 use crate::util::{
     operator_add_name, operator_div_name, operator_eq_name, operator_gt_name, operator_gte_name,
@@ -16,6 +16,17 @@ pub struct Expression {
     pub this: ExpressionType,
     pub next: Option<Box<Expression>>,
 }
+impl Expression {
+    pub(super) fn resolve(self, caller: CrabType) -> compile::Result<Self> {
+        Ok(Self {
+            this: self.this.resolve()?,
+            next: match self.next {
+                None => None,
+                Some(bexpr) => Box::new(bexpr.resolve(caller)?),
+            }
+        })
+    }
+}
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 #[allow(non_camel_case_types)]
@@ -24,6 +35,15 @@ pub enum ExpressionType {
     STRUCT_INIT(StructInit),
     FN_CALL(FnCall),
     VARIABLE(Ident),
+}
+impl ExpressionType {
+    pub(super) fn resolve(self, caller: CrabType) -> compile::Result<Self> {
+        Ok(match self {
+            ExpressionType::STRUCT_INIT(si) => ExpressionType::STRUCT_INIT(si.resolve(caller)?),
+            ExpressionType::FN_CALL(fc) => ExpressionType::FN_CALL(fc.resolve()?),
+            _ => self,
+        })
+    }
 }
 
 try_from_pair!(Expression, Rule::expression);

@@ -1,6 +1,6 @@
-use crate::parse::ast::{AstNode, CodeBlock, Expression, Ident};
+use crate::parse::ast::{AstNode, CodeBlock, CrabType, Expression, Ident};
 use crate::parse::{ParseError, Result, Rule};
-use crate::try_from_pair;
+use crate::{compile, try_from_pair};
 use pest::iterators::Pair;
 use std::convert::TryFrom;
 
@@ -53,13 +53,30 @@ impl AstNode for Statement {
         };
     }
 }
+impl Statement {
+    pub(super) fn resolve(self, caller: CrabType) -> compile::Result<Self> {
+        Ok(match self {
+            Statement::RETURN(expr) => Statement::RETURN(
+                match expr {
+                    None => None,
+                    Some(expr) => expr.resolve()?,
+                }
+            ),
+            Statement::ASSIGNMENT(ass) => Statement::ASSIGNMENT(ass.resolve()?),
+            Statement::REASSIGNMENT(reass) => Statement::REASSIGNMENT(reass.resolve()?),
+            Statement::EXPRESSION(expr) => Statement::EXPRESSION(expr.resolve()?),
+            Statement::IF_STATEMENT(if_stmt) => Statement::IF_STATEMENT(if_stmt.resolve()?),
+            Statement::WHILE_STATEMENT(wh_stmt) => Statement::WHILE_STATEMENT(wh_stmt.resolve()?),
+            Statement::DO_WHILE_STATEMENT(dw_stmt) => Statement::DO_WHILE_STATEMENT(dw_stmt.resolve()?),
+        })
+    }
+}
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Assignment {
     pub var_name: Ident,
     pub expr: Expression,
 }
-
 /// Assignment requires a custom TryFrom implementation because it can be built from two different rules
 impl TryFrom<Pair<'_, Rule>> for Assignment {
     type Error = ParseError;
@@ -88,6 +105,14 @@ impl AstNode for Assignment {
         Ok(Self { var_name, expr })
     }
 }
+impl Assignment {
+    pub(super) fn resolve(self, caller: CrabType) -> compile::Result<Self> {
+        Ok(Self {
+            expr: self.expr.resolve(caller)?,
+            ..self
+        })
+    }
+}
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct IfStmt {
@@ -95,7 +120,6 @@ pub struct IfStmt {
     pub then: CodeBlock,
     pub else_stmt: Option<CodeBlock>,
 }
-
 try_from_pair!(IfStmt, Rule::if_stmt);
 impl AstNode for IfStmt {
     fn from_pair(pair: Pair<Rule>) -> Result<Self>
@@ -129,13 +153,24 @@ impl AstNode for IfStmt {
         });
     }
 }
+impl IfStmt {
+    pub(super) fn resolve(self, caller: CrabType) -> compile::Result<Self> {
+        Ok(Self {
+            expr: self.expr.resolve(caller.clone())?,
+            then: self.then.resolve(caller.clone())?,
+            else_stmt: match self.else_stmt {
+                None => None,
+                Some(es) => Some(es.resolve(caller)?),
+            },
+        })
+    }
+}
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct WhileStmt {
     pub expr: Expression,
     pub then: CodeBlock,
 }
-
 try_from_pair!(WhileStmt, Rule::while_stmt);
 impl AstNode for WhileStmt {
     fn from_pair(pair: Pair<Rule>) -> Result<Self>
@@ -149,13 +184,20 @@ impl AstNode for WhileStmt {
         return Ok(Self { expr, then });
     }
 }
+impl WhileStmt {
+    pub(super) fn resolve(self, caller: CrabType) -> compile::Result<Self> {
+        Ok(Self {
+            expr: self.expr.resolve(caller.clone())?,
+            then: self.then.resolve(caller)?,
+        })
+    }
+}
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct DoWhileStmt {
     pub expr: Expression,
     pub then: CodeBlock,
 }
-
 try_from_pair!(DoWhileStmt, Rule::do_while_stmt);
 impl AstNode for DoWhileStmt {
     fn from_pair(pair: Pair<Rule>) -> Result<Self>
@@ -167,5 +209,13 @@ impl AstNode for DoWhileStmt {
         let expr = Expression::try_from(inner.next().ok_or(ParseError::ExpectedInner)?)?;
 
         return Ok(Self { expr, then });
+    }
+}
+impl DoWhileStmt {
+    pub(super) fn resolve(self, caller: CrabType) -> compile::Result<Self> {
+        Ok(Self {
+            expr: self.expr.resolve(caller.clone())?,
+            then: self.then.resolve(caller)?,
+        })
     }
 }

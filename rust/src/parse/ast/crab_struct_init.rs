@@ -1,6 +1,6 @@
-use crate::parse::ast::{AstNode, CrabType, Expression, Ident};
+use crate::parse::ast::{AstNode, CrabType, Expression, Ident, StructId};
 use crate::parse::{ParseError, Result, Rule};
-use crate::try_from_pair;
+use crate::{compile, try_from_pair};
 use crate::util::ListFunctional;
 use pest::iterators::Pair;
 use std::convert::TryFrom;
@@ -28,6 +28,22 @@ impl AstNode for StructInit {
         Ok(Self { id: name, fields })
     }
 }
+impl StructInit {
+    pub(super) fn resolve(self, caller: CrabType) -> compile::Result<Self> {
+        Ok(match &caller {
+            CrabType::TMPL(_, tmpls) => Self {
+                id: self.id.resolve(&StructId::try_from(caller.clone())?, &tmpls)?,
+                fields: self
+                    .fields
+                    .into_iter()
+                    .try_fold(vec![], |fields, field| {
+                        Ok(fields.fpush(field.resolve(caller.clone())?))
+                    })?,
+            },
+            _ => self,
+        })
+    }
+}
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct StructFieldInit {
@@ -45,5 +61,13 @@ impl AstNode for StructFieldInit {
         let value = Expression::try_from(inner.next().ok_or(ParseError::ExpectedInner)?)?;
 
         Ok(Self { name, value })
+    }
+}
+impl StructFieldInit {
+    pub(super) fn resolve(self, caller: CrabType) -> compile::Result<Self> {
+        Ok(Self {
+            value: self.value.resolve(caller)?,
+            ..self
+        })
     }
 }

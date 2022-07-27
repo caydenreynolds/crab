@@ -1,8 +1,9 @@
-use crate::parse::ast::{AstNode, Statement};
+use crate::parse::ast::{AstNode, CrabType, Statement};
 use crate::parse::{ParseError, Result, Rule};
-use crate::try_from_pair;
+use crate::{compile, try_from_pair};
 use pest::iterators::Pair;
 use std::convert::TryFrom;
+use crate::util::ListFunctional;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct CodeBlock {
@@ -25,5 +26,17 @@ impl AstNode for CodeBlock {
             }
         }
         Ok(CodeBlock { statements })
+    }
+}
+impl CodeBlock {
+    pub(super) fn resolve(self, caller: CrabType) -> compile::Result<Self> {
+        Ok(Self {
+            statements: self
+                .statements
+                .into_iter()
+                .try_fold(vec![], |statements, statement| {
+                    compile::Result::Ok(statements.fpush(statement.resolve(caller)?))
+                })?
+        })
     }
 }

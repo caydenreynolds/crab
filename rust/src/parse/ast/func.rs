@@ -61,10 +61,15 @@ impl Func {
     }
 
     pub fn resolve(self, caller_opt: Option<CrabType>) -> compile::Result<Self> {
-        Ok(Self {
-            signature: self.signature.resolve(caller_opt)?,
-            ..self
-        })
+        match caller_opt {
+            None => Ok(self),
+            Some(caller) => {
+                Ok(Self {
+                    signature: self.signature.resolve(caller.clone())?,
+                    body: self.body.resolve(caller)?,
+                })
+            }
+        }
     }
 }
 
@@ -73,6 +78,14 @@ impl Func {
 pub enum FnBodyType {
     CODEBLOCK(CodeBlock),
     COMPILER_PROVIDED,
+}
+impl FnBodyType {
+    fn resolve(self, caller: CrabType) -> compile::Result<Self> {
+        Ok(match self {
+            CODEBLOCK(cb) => CODEBLOCK(cb.resolve(caller)?),
+            COMPILER_PROVIDED => COMPILER_PROVIDED,
+        })
+    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
@@ -173,53 +186,50 @@ impl FuncSignature {
         }
     }
 
-    pub fn resolve(self, caller_opt: Option<CrabType>) -> compile::Result<Self> {
-        match caller_opt {
-            None => Ok(self),
-            Some(caller) => match &caller {
-                CrabType::TMPL(_, tmpls) => {
-                    let unresolved_caller_id = self
-                        .caller_id
-                        .ok_or(CompileError::NoCallerId(self.name.clone()))?;
-                    let pos_params =
-                        self.pos_params
-                            .into_iter()
-                            .try_fold(vec![], |pos_params, pos_param| {
-                                compile::Result::Ok(
-                                    pos_params.fpush(PosParam {
-                                        crab_type: pos_param
-                                            .crab_type
-                                            .resolve(&unresolved_caller_id, &tmpls)?,
-                                        ..pos_param
-                                    }),
-                                )
-                            })?;
-                    let named_params = self.named_params.into_iter().try_fold(
-                        BTreeMap::new(),
-                        |named_params, (name, named_param)| {
+    pub fn resolve(self, caller: CrabType) -> compile::Result<Self> {
+        match &caller {
+            CrabType::TMPL(_, tmpls) => {
+                let unresolved_caller_id = self
+                    .caller_id
+                    .ok_or(CompileError::NoCallerId(self.name.clone()))?;
+                let pos_params =
+                    self.pos_params
+                        .into_iter()
+                        .try_fold(vec![], |pos_params, pos_param| {
                             compile::Result::Ok(
-                                named_params.finsert(
-                                    name,
-                                    NamedParam {
-                                        crab_type: named_param
-                                            .crab_type
-                                            .resolve(&unresolved_caller_id, &tmpls)?,
-                                        ..named_param
-                                    },
-                                ),
+                                pos_params.fpush(PosParam {
+                                    crab_type: pos_param
+                                        .crab_type
+                                        .resolve(&unresolved_caller_id, &tmpls)?,
+                                    ..pos_param
+                                }),
                             )
-                        },
-                    )?;
-                    Ok(Self {
-                        caller_id: Some(StructId::try_from(caller.clone())?),
-                        pos_params,
-                        named_params,
-                        return_type: self.return_type.resolve(&unresolved_caller_id, &tmpls)?,
-                        ..self
-                    })
-                }
-                _ => Ok(self),
-            },
+                        })?;
+                let named_params = self.named_params.into_iter().try_fold(
+                    BTreeMap::new(),
+                    |named_params, (name, named_param)| {
+                        compile::Result::Ok(
+                            named_params.finsert(
+                                name,
+                                NamedParam {
+                                    crab_type: named_param
+                                        .crab_type
+                                        .resolve(&unresolved_caller_id, &tmpls)?,
+                                    ..named_param
+                                },
+                            ),
+                        )
+                    },
+                )?;
+                Ok(Self {
+                    caller_id: Some(StructId::try_from(caller.clone())?),
+                    pos_params,
+                    named_params,
+                    return_type: self.return_type.resolve(&unresolved_caller_id, &tmpls)?,
+                    ..self
+                })
+            }
+            _ => Ok(self),
         }
     }
 }

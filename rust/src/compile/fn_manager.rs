@@ -144,6 +144,7 @@ impl FnManager {
         };
         let pos_params = pos_values
             .iter()
+            .skip(pos_params.len())
             .zip(source_fn.signature.pos_params.iter())
             .try_fold(pos_params, |pos_params, (value, param)| {
                 match self.types.borrow().is_a(&value.crab_type, &param.crab_type) {
@@ -192,7 +193,6 @@ impl FnManager {
             named_params,
             ..source_fn.signature.clone()
         };
-        //.resolve(caller_opt)?;
 
         // Always register, only add to build_queue if this func wasn't already registered
         if self.registered_fns.insert(generated_signature.clone()) {
