@@ -8,13 +8,13 @@ impl ThingPrinter<T> {
         print(self.thing)
     }
 
-    //fn getThing() -> T {
-    //    return self.thing
-    //}
+    fn getThing() -> T {
+        return self.thing
+    }
 
-    //fn with(T thing) -> ThingPrinter<T> {
-    //    return ThingPrinter<T> {thing=thing}
-    //}
+    fn with(T thing) -> ThingPrinter<T> {
+        return ThingPrinter<T> {thing=thing}
+    }
 
     fn toString() -> String {
         return self.thing.toString()
@@ -29,22 +29,22 @@ fn main() -> Int {
     let string_printer = ThingPrinter<String> { thing = "string thing" }
     string_printer.printThing()
     print("String printer returned: ", newline=false)
-    //print(string_printer.getThing())
+    print(string_printer.getThing())
 
-    //string_printer = string_printer.with("A new string thing")
-    //string_printer.printThing()
-    //print("String printer returned: ", newline=false)
-    //print(string_printer.getThing())
+    string_printer = string_printer.with("A new string thing")
+    string_printer.printThing()
+    print("String printer returned: ", newline=false)
+    print(string_printer.getThing())
 
     let int_printer = ThingPrinter<Int> { thing=69 }
     int_printer.printThing()
     print("Int printer returned: ", newline=false)
-    //print(int_printer.getThing())
+    print(int_printer.getThing())
 
     let thing_printer_printer = ThingPrinter<ThingPrinter<String>> { thing=string_printer }
     thing_printer_printer.printThing()
     print("Thing printer printer returned: ", newline=false)
-    //print(thing_printer_printer.getThing())
+    print(thing_printer_printer.getThing())
 
     return 0
 }
