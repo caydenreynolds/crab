@@ -127,7 +127,7 @@ impl FnManager {
 
         let source_fn = self.get_source(&call.name, caller_opt.clone())?;
 
-        let pos_params = match caller_opt {
+        let pos_params = match &caller_opt {
             None => vec![],
             Some(caller) => {
                 vec![PosParam { name: String::from("self"), crab_type: caller.clone() }]
@@ -189,7 +189,7 @@ impl FnManager {
             pos_params,
             named_params,
             ..source_fn.signature.clone()
-        };
+        }.resolve(caller_opt)?;
 
         // Always register, only add to build_queue if this func wasn't already registered
         if self.registered_fns.insert(generated_signature.clone()) {

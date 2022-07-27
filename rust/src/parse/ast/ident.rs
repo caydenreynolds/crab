@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::fmt::{Display, Formatter};
 use pest::iterators::Pair;
@@ -5,7 +6,7 @@ use crate::compile::CompileError;
 use crate::{compile, parse, try_from_pair};
 use crate::parse::ast::{AstNode};
 use crate::parse::{ParseError, Rule};
-use crate::util::ListFunctional;
+use crate::util::{ListFunctional, MapFunctional};
 
 pub type Ident = String;
 
@@ -48,6 +49,38 @@ impl CrabType {
                 StructId::from_name(Ident::from("unknown")),
                 String::from("CrabType::try_get_struct_name"),
             )),
+        }
+    }
+
+    pub(super) fn resolve(self, caller_id: StructId, tmpls: &[CrabType]) -> compile::Result<Self> {
+        let resolution_map = caller_id
+            .tmpls
+            .iter()
+            .zip(tmpls.iter())
+            .fold(HashMap::new(), |resolution_map, (caller_tmpl, real_tmpl)| {
+                resolution_map.finsert(caller_tmpl.clone(), real_tmpl.clone())
+            });
+        match self {
+            CrabType::SIMPLE(name) => {
+                match resolution_map.get(&StructId::from_name(name)) {
+                    None => Ok(Self),
+                    Some(ct) => Ok(ct.clone()),
+                }
+            }
+            CrabType::LIST(ct) => Ok(CrabType::LIST(Box::new(ct.resolve(caller_id, tmpls)?))),
+            CrabType::TMPL(name, inner_tmpls) => {
+                let name = match resolution_map.get(&StructId::from_name(name.clone())) {
+                    None => name,
+                    Some(ct) => ct.try_get_struct_name()?,
+                };
+                let resolved_tmpls = inner_tmpls
+                    .into_iter()
+                    .try_fold(vec![], |resolved_tmpls, inner_tmpl| {
+                        Ok(resolved_tmpls.fpush(inner_tmpl.resolve(caller_id, tmpls)?))
+                    })?;
+                Ok(CrabType::TMPL(name, resolved_tmpls))
+            }
+            _ => Ok(Self),
         }
     }
 }

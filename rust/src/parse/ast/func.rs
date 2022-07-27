@@ -2,11 +2,12 @@ use std::collections::BTreeMap;
 use crate::parse::ast::FnBodyType::{CODEBLOCK, COMPILER_PROVIDED};
 use crate::parse::ast::{AstNode, CodeBlock, CrabType, Expression, Ident, Statement, StructId};
 use crate::parse::{ParseError, Result, Rule};
-use crate::try_from_pair;
+use crate::{compile, try_from_pair};
 use crate::util::{int_struct_name, main_func_name, ListFunctional, magic_main_func_name};
 use pest::iterators::Pair;
 use std::convert::TryFrom;
 use std::fmt::{Display, Formatter};
+use crate::compile::CompileError;
 use crate::util::MapFunctional;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -162,6 +163,27 @@ impl FuncSignature {
         Self {
             name: format!("{}", self),
             ..self
+        }
+    }
+
+    pub fn resolve(self, caller_opt: Option<CrabType>) -> compile::Result<Self> {
+        match caller_opt {
+            None => Ok(self),
+            Some(caller) => {
+                match caller {
+                    CrabType::TMPL(name, tmpls) => {
+                        let unresolved_caller_id = self.caller_id.ok_or(CompileError::NoCallerId(self.name.clone()))?;
+                        Ok(Self {
+                            caller_id: Some(StructId::try_from(caller.clone())?),
+                            pos_params,
+                            named_params,
+                            return_type: self.return_type.resolve(unresolved_caller_id, &tmpls),
+                            ..self
+                        })
+                    },
+                    _ => Ok(self)
+                }
+            }
         }
     }
 }
