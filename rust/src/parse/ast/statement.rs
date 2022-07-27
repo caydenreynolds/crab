@@ -59,7 +59,7 @@ impl Statement {
             Statement::RETURN(expr) => Statement::RETURN(
                 match expr {
                     None => None,
-                    Some(expr) => expr.resolve(caller)?,
+                    Some(expr) => Some(expr.resolve(caller)?),
                 }
             ),
             Statement::ASSIGNMENT(ass) => Statement::ASSIGNMENT(ass.resolve(caller)?),

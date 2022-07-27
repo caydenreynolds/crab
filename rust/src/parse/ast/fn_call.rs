@@ -48,13 +48,13 @@ impl FnCall {
                 .pos_args
                 .into_iter()
                 .try_fold(vec![], |pos_args, pos_arg| {
-                    Ok(pos_args.fpush(pos_arg.resolve(caller.clone())?))
+                    compile::Result::Ok(pos_args.fpush(pos_arg.resolve(caller.clone())?))
                 })?,
             named_args: self
                 .named_args
                 .into_iter()
                 .try_fold(vec![], |named_args, named_arg| {
-                    Ok(named_args.fpush(named_arg.resolve(caller.clone())?))
+                    compile::Result::Ok(named_args.fpush(named_arg.resolve(caller.clone())?))
                 })?,
             ..self
         })

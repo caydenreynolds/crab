@@ -37,7 +37,7 @@ impl StructInit {
                     .fields
                     .into_iter()
                     .try_fold(vec![], |fields, field| {
-                        Ok(fields.fpush(field.resolve(caller.clone())?))
+                        compile::Result::Ok(fields.fpush(field.resolve(caller.clone())?))
                     })?,
             },
             _ => self,

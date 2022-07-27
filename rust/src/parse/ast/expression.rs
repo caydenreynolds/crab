@@ -19,10 +19,10 @@ pub struct Expression {
 impl Expression {
     pub(super) fn resolve(self, caller: CrabType) -> compile::Result<Self> {
         Ok(Self {
-            this: self.this.resolve()?,
+            this: self.this.resolve(caller.clone())?,
             next: match self.next {
                 None => None,
-                Some(bexpr) => Box::new(bexpr.resolve(caller)?),
+                Some(bexpr) => Some(Box::new(bexpr.resolve(caller)?)),
             }
         })
     }
