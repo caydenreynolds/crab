@@ -1,11 +1,11 @@
-use std::collections::HashMap;
 use crate::parse::ast::{AstNode, CrabType, Ident, StructId};
 use crate::parse::{ParseError, Result, Rule};
+use crate::util::MapFunctional;
 use crate::{compile, try_from_pair, util};
 use pest::iterators::Pair;
+use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use util::ListFunctional;
-use crate::util::MapFunctional;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct CrabStruct {
@@ -23,7 +23,7 @@ impl AstNode for CrabStruct {
         let name = StructId::try_from(
             inner
                 .next()
-                .ok_or(ParseError::NoMatch(String::from("Struct::from_pair")))?
+                .ok_or(ParseError::NoMatch(String::from("Struct::from_pair")))?,
         )?;
         let body = StructBody::try_from(
             inner
@@ -85,18 +85,20 @@ impl StructBody {
     fn resolve(self, resolution_map: HashMap<StructId, StructId>) -> compile::Result<Self> {
         match self {
             StructBody::COMPILER_PROVIDED => Ok(StructBody::COMPILER_PROVIDED),
-            StructBody::FIELDS(fields) => {
-                Ok(StructBody::FIELDS(
-                    fields.into_iter().try_fold(vec![], |fields, field| {
-                       compile::Result::Ok(fields.fpush(
-                           match resolution_map.get(&field.crab_type.clone().try_into()?) {
-                                Some(si) => StructField { crab_type: si.clone().into(), ..field },
-                                None => field,
-                            }
-                       ))
-                    })?
-                ))
-            }
+            StructBody::FIELDS(fields) => Ok(StructBody::FIELDS(fields.into_iter().try_fold(
+                vec![],
+                |fields, field| {
+                    compile::Result::Ok(fields.fpush(
+                        match resolution_map.get(&field.crab_type.clone().try_into()?) {
+                            Some(si) => StructField {
+                                crab_type: si.clone().into(),
+                                ..field
+                            },
+                            None => field,
+                        },
+                    ))
+                },
+            )?)),
         }
     }
 }

@@ -1,14 +1,14 @@
-use std::collections::BTreeMap;
+use crate::compile::CompileError;
 use crate::parse::ast::FnBodyType::{CODEBLOCK, COMPILER_PROVIDED};
 use crate::parse::ast::{AstNode, CodeBlock, CrabType, Expression, Ident, Statement, StructId};
 use crate::parse::{ParseError, Result, Rule};
+use crate::util::MapFunctional;
+use crate::util::{int_struct_name, magic_main_func_name, main_func_name, ListFunctional};
 use crate::{compile, try_from_pair};
-use crate::util::{int_struct_name, main_func_name, ListFunctional, magic_main_func_name};
 use pest::iterators::Pair;
+use std::collections::BTreeMap;
 use std::convert::TryFrom;
 use std::fmt::{Display, Formatter};
-use crate::compile::CompileError;
-use crate::util::MapFunctional;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Func {
@@ -58,6 +58,13 @@ impl Func {
             signature: self.signature.mangled(),
             ..self
         }
+    }
+
+    pub fn resolve(self, caller_opt: Option<CrabType>) -> compile::Result<Self> {
+        Ok(Self {
+            signature: self.signature.resolve(caller_opt)?,
+            ..self
+        })
     }
 }
 
@@ -169,44 +176,50 @@ impl FuncSignature {
     pub fn resolve(self, caller_opt: Option<CrabType>) -> compile::Result<Self> {
         match caller_opt {
             None => Ok(self),
-            Some(caller) => {
-                match &caller {
-                    CrabType::TMPL(_, tmpls) => {
-                        let unresolved_caller_id = self.caller_id.ok_or(CompileError::NoCallerId(self.name.clone()))?;
-                        let pos_params = self
-                            .pos_params
+            Some(caller) => match &caller {
+                CrabType::TMPL(_, tmpls) => {
+                    let unresolved_caller_id = self
+                        .caller_id
+                        .ok_or(CompileError::NoCallerId(self.name.clone()))?;
+                    let pos_params =
+                        self.pos_params
                             .into_iter()
                             .try_fold(vec![], |pos_params, pos_param| {
-                                compile::Result::Ok(pos_params.fpush (
-                                    PosParam {
-                                        crab_type: pos_param.crab_type.resolve(&unresolved_caller_id, &tmpls)?,
+                                compile::Result::Ok(
+                                    pos_params.fpush(PosParam {
+                                        crab_type: pos_param
+                                            .crab_type
+                                            .resolve(&unresolved_caller_id, &tmpls)?,
                                         ..pos_param
-                                    }
-                                ))
+                                    }),
+                                )
                             })?;
-                        let named_params = self
-                            .named_params
-                            .into_iter()
-                            .try_fold(BTreeMap::new(), |named_params, (name, named_param)| {
-                                compile::Result::Ok(named_params.finsert (
+                    let named_params = self.named_params.into_iter().try_fold(
+                        BTreeMap::new(),
+                        |named_params, (name, named_param)| {
+                            compile::Result::Ok(
+                                named_params.finsert(
                                     name,
                                     NamedParam {
-                                        crab_type: named_param.crab_type.resolve(&unresolved_caller_id, &tmpls)?,
+                                        crab_type: named_param
+                                            .crab_type
+                                            .resolve(&unresolved_caller_id, &tmpls)?,
                                         ..named_param
-                                    }
-                                ))
-                            })?;
-                        Ok(Self {
-                            caller_id: Some(StructId::try_from(caller.clone())?),
-                            pos_params,
-                            named_params,
-                            return_type: self.return_type.resolve(&unresolved_caller_id, &tmpls)?,
-                            ..self
-                        })
-                    },
-                    _ => Ok(self)
+                                    },
+                                ),
+                            )
+                        },
+                    )?;
+                    Ok(Self {
+                        caller_id: Some(StructId::try_from(caller.clone())?),
+                        pos_params,
+                        named_params,
+                        return_type: self.return_type.resolve(&unresolved_caller_id, &tmpls)?,
+                        ..self
+                    })
                 }
-            }
+                _ => Ok(self),
+            },
         }
     }
 }
@@ -214,11 +227,15 @@ impl Display for FuncSignature {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let fn_or_md = match &self.caller_id {
             None => "FN",
-            Some(_) => "MD"
+            Some(_) => "MD",
         };
         write!(f, "_{}_{}", fn_or_md, self.name)?;
-        self.pos_params.iter().try_for_each(|param| write!(f, "_{}", param.crab_type))?;
-        self.named_params.iter().try_for_each(|(_, param)| write!(f, "_{}", param.crab_type))
+        self.pos_params
+            .iter()
+            .try_for_each(|param| write!(f, "_{}", param.crab_type))?;
+        self.named_params
+            .iter()
+            .try_for_each(|(_, param)| write!(f, "_{}", param.crab_type))
     }
 }
 
@@ -258,12 +275,13 @@ impl AstNode for NamedParams {
     where
         Self: Sized,
     {
-        Ok(Self(
-            pair.into_inner().try_fold(BTreeMap::new(), |params, param| {
+        Ok(Self(pair.into_inner().try_fold(
+            BTreeMap::new(),
+            |params, param| {
                 let np = NamedParam::try_from(param)?;
                 Result::Ok(params.finsert(np.name.clone(), np))
-            })?,
-        ))
+            },
+        )?))
     }
 }
 

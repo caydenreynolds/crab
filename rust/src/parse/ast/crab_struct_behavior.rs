@@ -1,9 +1,9 @@
-use std::collections::HashMap;
 use crate::parse::ast::{AstNode, CrabInterface, Func, Ident, StructId};
 use crate::parse::{ParseError, Result, Rule};
 use crate::try_from_pair;
 use crate::util::{ListFunctional, MapFunctional};
 use pest::iterators::Pair;
+use std::collections::HashMap;
 use std::convert::TryFrom;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -19,9 +19,7 @@ impl AstNode for StructImpl {
         Self: Sized,
     {
         let mut inner = pair.into_inner();
-        let struct_id = StructId::try_from(
-            inner.next().ok_or(ParseError::ExpectedInner)?
-        )?;
+        let struct_id = StructId::try_from(inner.next().ok_or(ParseError::ExpectedInner)?)?;
 
         let next_opt = inner.peek();
         let interface_name = match next_opt {
@@ -88,9 +86,7 @@ impl AstNode for StructIntr {
         Self: Sized,
     {
         let mut inner = pair.into_inner();
-        let struct_name = StructId::try_from(
-            inner.next().ok_or(ParseError::ExpectedInner)?
-        )?;
+        let struct_name = StructId::try_from(inner.next().ok_or(ParseError::ExpectedInner)?)?;
 
         let inters = inner.fold(vec![], |inters, inter| {
             inters.fpush(Ident::from(inter.as_str()))

@@ -1,11 +1,15 @@
 use crate::compile::{
     add_builtin_definition, add_main_func, CompileError, FnManager, Result, TypeManager, VarManager,
 };
-use crate::parse::ast::{Assignment, CodeBlock, CrabAst, CrabType, DoWhileStmt, Expression, ExpressionType, FnBodyType, FnCall, Ident, IfStmt, PosParam, Primitive, Statement, StructId, StructInit, WhileStmt};
-use crate::quill::{ArtifactType, ChildNib, FnNib, Nib, PolyQuillType, Quill, QuillBoolType, QuillFnType, QuillStructType, QuillValue};
-use crate::util::{
-    primitive_field_name, ListFunctional, MapFunctional, SetFunctional,
+use crate::parse::ast::{
+    Assignment, CodeBlock, CrabAst, CrabType, DoWhileStmt, Expression, ExpressionType, FnBodyType,
+    FnCall, Ident, IfStmt, PosParam, Primitive, Statement, StructId, StructInit, WhileStmt,
 };
+use crate::quill::{
+    ArtifactType, ChildNib, FnNib, Nib, PolyQuillType, Quill, QuillBoolType, QuillFnType,
+    QuillStructType, QuillValue,
+};
+use crate::util::{primitive_field_name, ListFunctional, MapFunctional, SetFunctional};
 use log::{debug, trace};
 use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -47,13 +51,11 @@ pub fn compile(
     ast.functions
         .into_iter()
         .for_each(|(_, func)| fn_manager.borrow_mut().add_source(func));
-    ast.impls
-        .into_iter()
-        .for_each(|(_, simp)| {
-            simp.fns
-                .into_iter()
-                .for_each(|(_, ifunc)| fn_manager.borrow_mut().add_source(ifunc))
-        });
+    ast.impls.into_iter().for_each(|(_, simp)| {
+        simp.fns
+            .into_iter()
+            .for_each(|(_, ifunc)| fn_manager.borrow_mut().add_source(ifunc))
+    });
     fn_manager.borrow_mut().add_main_to_queue()?;
 
     while !fn_manager.borrow_mut().build_queue_empty() {
@@ -64,29 +66,30 @@ pub fn compile(
             .borrow_mut()
             .get_quill_fn_type(func.signature.clone())?;
         let mut nib = FnNib::new(name.clone(), fn_t);
-        let (nib, returns) = match func.body {
-            FnBodyType::CODEBLOCK(cb) => {
-                let all_params =
-                    func.signature
-                        .pos_params
-                        .into_iter()
-                        .chain(func.signature.named_params.into_iter().map(|(_, named_param)| {
-                            PosParam {
-                                name: named_param.name,
-                                crab_type: named_param.crab_type,
-                            }
-                        }))
-                        .collect();
-                let mut codegen =
-                    Codegen::new(nib, type_manager.clone(), fn_manager.clone(), all_params)?;
-                let returns = codegen.build_codeblock(cb)?;
-                (codegen.into_nib(), returns)
-            }
-            FnBodyType::COMPILER_PROVIDED => {
-                add_builtin_definition(&mut peter, &mut nib)?;
-                (nib, true) // Just assume it's all good for now
-            }
-        };
+        let (nib, returns) =
+            match func.body {
+                FnBodyType::CODEBLOCK(cb) => {
+                    let all_params =
+                        func.signature
+                            .pos_params
+                            .into_iter()
+                            .chain(func.signature.named_params.into_iter().map(
+                                |(_, named_param)| PosParam {
+                                    name: named_param.name,
+                                    crab_type: named_param.crab_type,
+                                },
+                            ))
+                            .collect();
+                    let mut codegen =
+                        Codegen::new(nib, type_manager.clone(), fn_manager.clone(), all_params)?;
+                    let returns = codegen.build_codeblock(cb)?;
+                    (codegen.into_nib(), returns)
+                }
+                FnBodyType::COMPILER_PROVIDED => {
+                    add_builtin_definition(&mut peter, &mut nib)?;
+                    (nib, true) // Just assume it's all good for now
+                }
+            };
 
         match returns {
             true => peter.add_fn(nib),
@@ -99,7 +102,10 @@ pub fn compile(
         .clone()
         .into_iter()
         .try_for_each(|crab_struct| {
-            peter.register_struct_type(crab_struct.id.mangle(), tm.get_fields(&crab_struct.id.into())?);
+            peter.register_struct_type(
+                crab_struct.id.mangle(),
+                tm.get_fields(&crab_struct.id.into())?,
+            );
             Result::Ok(())
         })?;
     add_main_func(&mut peter)?;
@@ -365,11 +371,7 @@ impl<NibType: Nib> Codegen<NibType> {
     /// Returns:
     /// The resultant value of the expression
     ///
-    fn build_expression(
-        &mut self,
-        expr: Expression,
-        prev: Option<CrabValue>,
-    ) -> Result<CrabValue> {
+    fn build_expression(&mut self, expr: Expression, prev: Option<CrabValue>) -> Result<CrabValue> {
         trace!("Codegen::build_expression");
         let val = match expr.this {
             ExpressionType::PRIM(prim) => Ok(self.build_primitive(prim)),
@@ -417,7 +419,10 @@ impl<NibType: Nib> Codegen<NibType> {
                             .iter()
                             .filter(|(name, _)| name == &&id)
                             .next()
-                            .ok_or(CompileError::StructFieldName(prev.crab_type.clone(), id.clone()))?
+                            .ok_or(CompileError::StructFieldName(
+                                prev.crab_type.clone(),
+                                id.clone(),
+                            ))?
                             .1
                             .clone();
                         Ok(CrabValue::new(val.into(), expected_ct))
@@ -444,9 +449,15 @@ impl<NibType: Nib> Codegen<NibType> {
     fn build_primitive(&mut self, prim: Primitive) -> CrabValue {
         trace!("Codegen::build_primitive");
         match prim {
-            Primitive::STRING(value) => CrabValue::new(self.nib.const_string(value).into(), CrabType::PRIM_STR),
-            Primitive::BOOL(value) => CrabValue::new(self.nib.const_bool(value).into(), CrabType::PRIM_BOOL),
-            Primitive::UINT(value) => CrabValue::new(self.nib.const_int(64, value).into(), CrabType::PRIM_INT),
+            Primitive::STRING(value) => {
+                CrabValue::new(self.nib.const_string(value).into(), CrabType::PRIM_STR)
+            }
+            Primitive::BOOL(value) => {
+                CrabValue::new(self.nib.const_bool(value).into(), CrabType::PRIM_BOOL)
+            }
+            Primitive::UINT(value) => {
+                CrabValue::new(self.nib.const_int(64, value).into(), CrabType::PRIM_INT)
+            }
         }
     }
 
@@ -479,36 +490,36 @@ impl<NibType: Nib> Codegen<NibType> {
                         Ok(field_vals
                             .finsert(field.name, self.build_expression(field.value, None)?))
                     }
-                    None => Err(CompileError::StructFieldName(
-                        struct_id.clone(),
-                        field.name,
-                    )),
+                    None => Err(CompileError::StructFieldName(struct_id.clone(), field.name)),
                 })?;
         struct_field_names
             .into_iter()
             .try_for_each(|name| match fields.contains_key(&name) {
                 true => Ok(()),
-                false => Err(CompileError::StructInitFieldName(struct_id.try_get_struct_name()?.clone(), name)),
+                false => Err(CompileError::StructInitFieldName(
+                    struct_id.try_get_struct_name()?.clone(),
+                    name,
+                )),
             })?;
         //TODO: free
         let struct_t = self.types.borrow_mut().get_quill_struct(&struct_id)?;
         let new_struct_ptr = self.nib.add_malloc(struct_t);
         fields.into_iter().try_for_each(|(name, value)| {
-            self.nib.set_value_in_struct(&new_struct_ptr, name, value.quill_value)
+            self.nib
+                .set_value_in_struct(&new_struct_ptr, name, value.quill_value)
         })?;
         Ok(CrabValue::new(new_struct_ptr.into(), struct_id))
     }
 
-    fn build_fn_call(
-        &mut self,
-        call: FnCall,
-        caller_opt: Option<CrabValue>,
-    ) -> Result<CrabValue> {
+    fn build_fn_call(&mut self, call: FnCall, caller_opt: Option<CrabValue>) -> Result<CrabValue> {
         trace!("Codegen::build_fn_call");
         // Get the original function
         // TODO: Once we have namespaces and stuff, we should only be manging inside fn_manager
         let caller_ct = caller_opt.clone().map(|caller| caller.crab_type);
-        let source_signature = self.fns.borrow_mut().get_source_signature(&call.name, caller_ct.clone())?;
+        let source_signature = self
+            .fns
+            .borrow_mut()
+            .get_source_signature(&call.name, caller_ct.clone())?;
 
         // Handle all of the positional arguments
         let unnamed_args = match caller_opt {
@@ -602,7 +613,11 @@ impl Codegen<FnNib> {
                 fn_param.name.clone(),
                 types.borrow_mut().get_quill_type(&fn_param.crab_type)?,
             );
-            vars.assign(fn_param.name, CrabValue::new(val.into(), fn_param.crab_type)).unwrap();
+            vars.assign(
+                fn_param.name,
+                CrabValue::new(val.into(), fn_param.crab_type),
+            )
+            .unwrap();
             Result::Ok(())
         })?;
         Ok(Self {

@@ -4,7 +4,11 @@ use crate::quill::{
     FnNib, Nib, PolyQuillType, Quill, QuillFloatType, QuillFnType, QuillIntType, QuillListType,
     QuillPointerType, QuillStructType, QuillVoidType,
 };
-use crate::util::{bool_struct_name, format_i_c_name, int_struct_name, magic_main_func_name, main_func_name, operator_add_name, primitive_field_name, printf_c_name, printf_crab_name, string_type_name, to_string_name};
+use crate::util::{
+    bool_struct_name, format_i_c_name, int_struct_name, magic_main_func_name, main_func_name,
+    operator_add_name, primitive_field_name, printf_c_name, printf_crab_name, string_type_name,
+    to_string_name,
+};
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 
@@ -37,36 +41,35 @@ fn init_builtin_fn_map() -> HashMap<Ident, fn(&mut Quill, &mut FnNib) -> Result<
             },
         ],
         named_params: Default::default(),
-        caller_id: Some(StructId::from_name(int_struct_name()))
-    }.mangled();
+        caller_id: Some(StructId::from_name(int_struct_name())),
+    }
+    .mangled();
     map.insert(int_add.name, add_int);
 
     let int_to_str = FuncSignature {
         name: to_string_name(),
         return_type: CrabType::SIMPLE(string_type_name()),
-        pos_params: vec![
-            PosParam {
-                name: Ident::from("self"),
-                crab_type: CrabType::SIMPLE(int_struct_name()),
-            },
-        ],
+        pos_params: vec![PosParam {
+            name: Ident::from("self"),
+            crab_type: CrabType::SIMPLE(int_struct_name()),
+        }],
         named_params: Default::default(),
         caller_id: Some(StructId::from_name(int_struct_name())),
-    }.mangled();
+    }
+    .mangled();
     map.insert(int_to_str.name, format_i);
 
     let printf = FuncSignature {
         name: printf_crab_name(),
         return_type: CrabType::VOID,
-        pos_params: vec![
-            PosParam {
-                name: Ident::from("str"),
-                crab_type: CrabType::SIMPLE(string_type_name()),
-            },
-        ],
+        pos_params: vec![PosParam {
+            name: Ident::from("str"),
+            crab_type: CrabType::SIMPLE(string_type_name()),
+        }],
         named_params: Default::default(),
         caller_id: None,
-    }.mangled();
+    }
+    .mangled();
     map.insert(printf.name, add_printf);
 
     map
@@ -215,7 +218,8 @@ pub(super) fn add_main_func(peter: &mut Quill) -> Result<()> {
         pos_params: Default::default(),
         named_params: Default::default(),
         caller_id: None,
-    }.mangled();
+    }
+    .mangled();
     let result = nib.add_fn_call(
         magic_main_func.name,
         vec![],

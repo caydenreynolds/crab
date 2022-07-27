@@ -1,10 +1,12 @@
 use crate::compile::{CompileError, CrabValue, Result, TypeManager};
-use crate::parse::ast::{CrabType, FnCall, Func, FuncSignature, Ident, NamedParam, PosParam, StructId};
-use crate::util::{ListFunctional, MapFunctional, magic_main_func_name};
+use crate::parse::ast::{
+    CrabType, FnCall, Func, FuncSignature, Ident, NamedParam, PosParam, StructId,
+};
+use crate::util::{magic_main_func_name, ListFunctional, MapFunctional};
 use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap, HashSet};
-use std::rc::Rc;
 use std::default::Default;
+use std::rc::Rc;
 
 #[derive(Debug, Clone)]
 pub(super) struct FnManager {
@@ -48,12 +50,13 @@ impl FnManager {
             None => {
                 self.fn_sources
                     .insert(source.signature.name.clone(), source);
-            },
+            }
             Some(si) => {
                 self.impl_sources.insert(
-                    ImplFuncId::from_structid(source.signature.name.clone(), si),source
+                    ImplFuncId::from_structid(source.signature.name.clone(), si),
+                    source,
                 );
-            },
+            }
         };
     }
 
@@ -102,7 +105,11 @@ impl FnManager {
     /// Returns:
     /// A copy of the requested signature
     ///
-    pub fn get_source_signature(&self, name: &Ident, caller_opt: Option<CrabType>) -> Result<FuncSignature> {
+    pub fn get_source_signature(
+        &self,
+        name: &Ident,
+        caller_opt: Option<CrabType>,
+    ) -> Result<FuncSignature> {
         Ok(self.get_source(&name, caller_opt)?.signature)
     }
 
@@ -124,13 +131,15 @@ impl FnManager {
         pos_values: &[CrabValue],
         named_values: &BTreeMap<Ident, CrabValue>,
     ) -> Result<FuncSignature> {
-
-        let source_fn = self.get_source(&call.name, caller_opt.clone())?;
+        let source_fn = self.get_source(&call.name, caller_opt.clone())?.resolve(caller_opt);
 
         let pos_params = match &caller_opt {
             None => vec![],
             Some(caller) => {
-                vec![PosParam { name: String::from("self"), crab_type: caller.clone() }]
+                vec![PosParam {
+                    name: String::from("self"),
+                    crab_type: caller.clone(),
+                }]
             }
         };
         let pos_params = pos_values
@@ -138,64 +147,58 @@ impl FnManager {
             .zip(source_fn.signature.pos_params.iter())
             .try_fold(pos_params, |pos_params, (value, param)| {
                 match self.types.borrow().is_a(&value.crab_type, &param.crab_type) {
-                    true => {
-                        Result::Ok(
-                            pos_params.fpush(PosParam {
-                                name: param.name.clone(),
-                                crab_type: value.crab_type.clone(),
-                            })
-                        )
-                    },
-                    false => {
-                        Result::Err(CompileError::ArgumentType(
-                            call.name.clone(),
-                            param.name.clone(),
-                            param.crab_type.clone(),
-                            value.crab_type.clone(),
-                        ))
-                    }
+                    true => Result::Ok(pos_params.fpush(PosParam {
+                        name: param.name.clone(),
+                        crab_type: value.crab_type.clone(),
+                    })),
+                    false => Result::Err(CompileError::ArgumentType(
+                        call.name.clone(),
+                        param.name.clone(),
+                        param.crab_type.clone(),
+                        value.crab_type.clone(),
+                    )),
                 }
             })?;
         let named_params = named_values
             .iter()
             .zip(source_fn.signature.named_params.iter())
-            .try_fold(BTreeMap::new(), |named_params, ((_, arg), (_, param))| {
-                match self.types.borrow().is_a(&arg.crab_type, &param.crab_type) {
-                    true => {
-                        Result::Ok(
-                            named_params.finsert(
-                                param.name.clone(),
-                                NamedParam {
-                                    name: param.name.clone(),
-                                    crab_type: arg.crab_type.clone(),
-                                    expr: param.expr.clone(),
-                                },
-                            )
-                        )
-                    },
-                    false => {
-                        Result::Err(CompileError::ArgumentType(
-                            call.name.clone(),
-                            param.name.clone(),
-                            param.crab_type.clone(),
-                            arg.crab_type.clone(),
-                        ))
-                    }
-                }
-            })?;
+            .try_fold(
+                BTreeMap::new(),
+                |named_params, ((_, arg), (_, param))| match self
+                    .types
+                    .borrow()
+                    .is_a(&arg.crab_type, &param.crab_type)
+                {
+                    true => Result::Ok(named_params.finsert(
+                        param.name.clone(),
+                        NamedParam {
+                            name: param.name.clone(),
+                            crab_type: arg.crab_type.clone(),
+                            expr: param.expr.clone(),
+                        },
+                    )),
+                    false => Result::Err(CompileError::ArgumentType(
+                        call.name.clone(),
+                        param.name.clone(),
+                        param.crab_type.clone(),
+                        arg.crab_type.clone(),
+                    )),
+                },
+            )?;
 
         // Build proper Signature
         let generated_signature = FuncSignature {
             pos_params,
             named_params,
             ..source_fn.signature.clone()
-        }.resolve(caller_opt)?;
+        };
+        //.resolve(caller_opt)?;
 
         // Always register, only add to build_queue if this func wasn't already registered
         if self.registered_fns.insert(generated_signature.clone()) {
             self.fn_build_queue.push(Func {
                 body: source_fn.body.clone(),
-                signature: generated_signature.clone()
+                signature: generated_signature.clone(),
             });
         }
 
@@ -207,11 +210,11 @@ impl FnManager {
             Some(caller) => self
                 .impl_sources
                 .get(&ImplFuncId::from_crabtype(name.clone(), &caller)?),
-            None => self
-                .fn_sources
-                .get(name),
+            None => self.fn_sources.get(name),
         };
-        func_opt.ok_or(CompileError::CouldNotFindFunction(name.clone())).cloned()
+        func_opt
+            .ok_or(CompileError::CouldNotFindFunction(name.clone()))
+            .cloned()
     }
 }
 
@@ -227,15 +230,11 @@ impl ImplFuncId {
             CrabType::VOID | CrabType::PRIM_INT | CrabType::PRIM_STR | CrabType::PRIM_BOOL => {
                 Err(CompileError::NotAStruct(
                     StructId::from_name(format!("{}", ct)),
-                    String::from("ImplFuncId::new()")
+                    String::from("ImplFuncId::new()"),
                 ))
-            },
-            CrabType::SIMPLE(name) | CrabType::TMPL(name, _) => {
-                Ok(name.clone())
-            },
-            CrabType::LIST(ct ) => {
-                Ok(ct.try_get_struct_name()?.clone())
-            },
+            }
+            CrabType::SIMPLE(name) | CrabType::TMPL(name, _) => Ok(name.clone()),
+            CrabType::LIST(ct) => Ok(ct.try_get_struct_name()?.clone()),
         }?;
         Ok(Self {
             func_name,

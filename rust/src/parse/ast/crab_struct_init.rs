@@ -20,7 +20,7 @@ impl AstNode for StructInit {
         let name = CrabType::try_from(
             inner
                 .next()
-                .ok_or(ParseError::NoMatch(String::from("Struct::from_pair")))?
+                .ok_or(ParseError::NoMatch(String::from("Struct::from_pair")))?,
         )?;
         let fields = inner.try_fold(vec![], |fields, field| {
             Result::Ok(fields.fpush(StructFieldInit::try_from(field)?))

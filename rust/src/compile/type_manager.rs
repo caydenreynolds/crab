@@ -1,6 +1,8 @@
 use crate::compile::builtins::get_builtin_strct_definition;
 use crate::compile::{CompileError, Result};
-use crate::parse::ast::{CrabInterface, CrabStruct, CrabType, FuncSignature, Ident, StructBody, StructId, StructIntr};
+use crate::parse::ast::{
+    CrabInterface, CrabStruct, CrabType, FuncSignature, Ident, StructBody, StructId, StructIntr,
+};
 use crate::quill::{
     PolyQuillType, QuillFnType, QuillListType, QuillPointerType, QuillStructType, QuillVoidType,
 };
@@ -17,7 +19,10 @@ impl ManagedType {
     fn as_struct(&self) -> Result<&CrabStruct> {
         match self {
             ManagedType::STRUCT(s) => Ok(s),
-            ManagedType::INTERFACE(i) => Err(CompileError::NotAStruct(StructId::from_name(i.name.clone()), String::from("ManagedType::as_struct"))),
+            ManagedType::INTERFACE(i) => Err(CompileError::NotAStruct(
+                StructId::from_name(i.name.clone()),
+                String::from("ManagedType::as_struct"),
+            )),
         }
     }
 }
@@ -139,7 +144,12 @@ impl TypeManager {
             CrabType::LIST(id) => (id.try_get_struct_name()?, vec![]),
             CrabType::TMPL(id, tmpls) => (id.clone(), tmpls.clone()),
             CrabType::VOID => return Err(CompileError::VoidType),
-            _ => return Err(CompileError::NotAStruct(StructId::from_name(format!("{}", ct)), String::from("TypeManager::get_type")))
+            _ => {
+                return Err(CompileError::NotAStruct(
+                    StructId::from_name(format!("{}", ct)),
+                    String::from("TypeManager::get_type"),
+                ))
+            }
         };
         let mt = self
             .registered_types
@@ -150,13 +160,15 @@ impl TypeManager {
             ManagedType::STRUCT(strct) => {
                 // Check the ct_tmpls has valid types
                 // Also add any types included in the CrabType to the list of registered types
-                ct_tmpls.iter().try_for_each(|ct| self.get_type(ct)?.as_struct().map(|_| ()))?;
+                ct_tmpls
+                    .iter()
+                    .try_for_each(|ct| self.get_type(ct)?.as_struct().map(|_| ()))?;
 
                 let resolved_struct = strct.clone().resolve(ct_tmpls.as_slice())?;
                 self.included_types.insert(resolved_struct.clone());
                 ManagedType::STRUCT(resolved_struct)
             }
-            ManagedType::INTERFACE(_) => mt.clone()
+            ManagedType::INTERFACE(_) => mt.clone(),
         };
         Ok(mt)
     }
@@ -175,14 +187,14 @@ impl TypeManager {
     pub fn get_quill_type(&mut self, ct: &CrabType) -> Result<PolyQuillType> {
         Ok(match ct {
             CrabType::VOID => QuillVoidType::new().into(),
-            CrabType::SIMPLE(_) | CrabType::TMPL(_,_) => {
+            CrabType::SIMPLE(_) | CrabType::TMPL(_, _) => {
                 let name = self.get_type(ct)?.as_struct()?.id.mangle();
                 QuillPointerType::new(QuillStructType::new(name)).into()
-            },
+            }
             //TODO: This len should be dynamic
             CrabType::LIST(t) => {
                 QuillListType::new_const_length(self.get_quill_type(t)?, 1000).into()
-            },
+            }
             _ => unreachable!(),
         })
     }
@@ -199,7 +211,9 @@ impl TypeManager {
     /// A QuillStructType that has the given name
     ///
     pub fn get_quill_struct(&mut self, id: &CrabType) -> Result<QuillStructType> {
-        Ok(QuillStructType::new(self.get_type(id)?.as_struct()?.id.mangle()))
+        Ok(QuillStructType::new(
+            self.get_type(id)?.as_struct()?.id.mangle(),
+        ))
     }
 
     ///
@@ -217,9 +231,12 @@ impl TypeManager {
         let params = fs.pos_params.into_iter().try_fold(vec![], |params, up| {
             Result::Ok(params.fpush((up.name, self.get_quill_type(&up.crab_type)?)))
         })?;
-        let params = fs.named_params.into_iter().try_fold(params, |params, (_, np)| {
-            Result::Ok(params.fpush((np.name, self.get_quill_type(&np.crab_type)?)))
-        })?;
+        let params = fs
+            .named_params
+            .into_iter()
+            .try_fold(params, |params, (_, np)| {
+                Result::Ok(params.fpush((np.name, self.get_quill_type(&np.crab_type)?)))
+            })?;
         let ret_t = match self.get_quill_type(&fs.return_type)? {
             PolyQuillType::VoidType(_) => None,
             t => Some(t),
@@ -277,7 +294,9 @@ impl TypeManager {
     ///
     pub fn get_fields(&mut self, id: &CrabType) -> Result<HashMap<String, PolyQuillType>> {
         Ok(match self.get_type(id)?.as_struct()?.body.clone() {
-            StructBody::COMPILER_PROVIDED => get_builtin_strct_definition(&id.try_get_struct_name()?)?.clone(),
+            StructBody::COMPILER_PROVIDED => {
+                get_builtin_strct_definition(&id.try_get_struct_name()?)?.clone()
+            }
             StructBody::FIELDS(fields) => {
                 fields
                     .into_iter()
@@ -305,12 +324,7 @@ impl TypeManager {
                 fields
                     .into_iter()
                     .try_fold(HashMap::new(), |fields, field| {
-                        Result::Ok(
-                            fields.finsert(
-                                field.name.clone(),
-                                field.crab_type.clone(),
-                            ),
-                        )
+                        Result::Ok(fields.finsert(field.name.clone(), field.crab_type.clone()))
                     })?
             }
         })

@@ -1,4 +1,6 @@
-use crate::parse::ast::{AstNode, CrabInterface, CrabStruct, Func, Ident, StructId, StructImpl, StructIntr};
+use crate::parse::ast::{
+    AstNode, CrabInterface, CrabStruct, Func, Ident, StructId, StructImpl, StructIntr,
+};
 use crate::parse::{ParseError, Result, Rule};
 use crate::try_from_pair;
 use crate::util::main_func_name;
@@ -40,14 +42,12 @@ impl AstNode for CrabAst {
                 Rule::impl_block => {
                     let struct_impl = StructImpl::try_from(in_pair)?;
                     impls.insert(struct_impl.struct_id.clone(), struct_impl);
-                },
+                }
                 Rule::interface => {
                     let interface = CrabInterface::try_from(in_pair)?;
                     interfaces.insert(interface.name.clone(), interface);
                 }
-                Rule::intr_block => {
-                    intrs.push(StructIntr::try_from(in_pair)?)
-                },
+                Rule::intr_block => intrs.push(StructIntr::try_from(in_pair)?),
                 Rule::EOI => break, // Nothing should ever show up after EOI
                 _ => return Err(ParseError::NoMatch(String::from("CrabAst::from_pair"))),
             }

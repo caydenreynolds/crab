@@ -23,7 +23,7 @@ struct Args {
     verbose: u8,
 
     /// The name of the output file to write
-    #[structopt(short, long, default_value="out.exe")]
+    #[structopt(short, long, default_value = "out.exe")]
     output: PathBuf,
 
     /// Perform an optimized build
@@ -47,7 +47,7 @@ struct Args {
     ///     qir -- Builds a quill ir file. Aliases: q {n}
     ///     bitcode -- Builds llvm bitcode. Aliases: bit, bc {n}
     ///     llvmir -- Builds llvm ir. Aliases: llvm_ir, llvm, ll, ir {n}
-    #[structopt(short="t", long, default_value="executable")]
+    #[structopt(short = "t", long, default_value = "executable")]
     output_type: OutputType,
 
     // Use debug_assertions to tell whether this is a debug or release build
@@ -75,7 +75,7 @@ impl FromStr for OutputType {
             "qir" | "q" => Ok(Self::QIR),
             "bitcode" | "bit" | "bc" => Ok(Self::BITCODE),
             "llvmir" | "llvm_ir" | "llvm" | "ll" | "ir" => Ok(Self::LLVMIR),
-            _ => Err(String::from("Could not parse string as OutputType"))
+            _ => Err(String::from("Could not parse string as OutputType")),
         }
     }
 }
@@ -174,21 +174,21 @@ fn _main() -> Result<()> {
         .parent()
         .ok_or(anyhow!("Failed to get parent of {:?}", args.output))?;
     #[cfg(debug_assertions)]
-        let artifact_path = target_dir.join(artifact_name.with_extension("ll"));
+    let artifact_path = target_dir.join(artifact_name.with_extension("ll"));
     #[cfg(not(debug_assertions))]
-        let artifact_path = target_dir.join(artifact_name.with_extension("bc"));
+    let artifact_path = target_dir.join(artifact_name.with_extension("bc"));
 
     let lvl_filter = match args.verbose {
         0 => Ok(LevelFilter::Info),
         1 => Ok(LevelFilter::Debug),
         2 => Ok(LevelFilter::Trace),
-        _ => Err(anyhow!("Invalid number of verbose flags. Expected 0-2, instead got {}",args.verbose)),
+        _ => Err(anyhow!(
+            "Invalid number of verbose flags. Expected 0-2, instead got {}",
+            args.verbose
+        )),
     };
 
-    SimpleLogger::new()
-        .with_level(lvl_filter?)
-        .init()
-        .unwrap();
+    SimpleLogger::new().with_level(lvl_filter?).init().unwrap();
 
     info!("Compiling {:#?}", args.paths);
 
@@ -198,9 +198,9 @@ fn _main() -> Result<()> {
     // If it is a debug build, enable verify by default, but override with the no_verify flag
     // If iti s a release build, disable verify by default, but override with the verify flag
     #[cfg(debug_assertions)]
-        let verify = !args.no_verify;
+    let verify = !args.no_verify;
     #[cfg(not(debug_assertions))]
-        let verify = args.verify;
+    let verify = args.verify;
 
     let artifact_type = match &args.output_type {
         OutputType::QIR => ArtifactType::QIR,
@@ -221,7 +221,9 @@ fn _main() -> Result<()> {
     handle_crabfile(&paths, verify, &artifact_path, &artifact_type)?;
 
     match args.output_type {
-        OutputType::EXECUTABLE => clang_compile(&artifact_path, &args.output, &args.c_builtins, args.release)?,
+        OutputType::EXECUTABLE => {
+            clang_compile(&artifact_path, &args.output, &args.c_builtins, args.release)?
+        }
         _ => {} // Do nothing
     }
 
