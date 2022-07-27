@@ -63,7 +63,7 @@ impl CrabType {
         match self {
             CrabType::SIMPLE(name) => {
                 match resolution_map.get(&StructId::from_name(name)) {
-                    None => Ok(Self),
+                    None => Ok(self),
                     Some(ct) => Ok(ct.clone()),
                 }
             }
@@ -80,7 +80,7 @@ impl CrabType {
                     })?;
                 Ok(CrabType::TMPL(name, resolved_tmpls))
             }
-            _ => Ok(Self),
+            _ => Ok(self),
         }
     }
 }

@@ -177,24 +177,24 @@ impl FuncSignature {
                             .pos_params
                             .into_iter()
                             .try_fold(vec![], |pos_params, pos_param| {
-                                pos_params.fpush (
+                                compile::Result::Ok(pos_params.fpush (
                                     PosParam {
                                         crab_type: pos_param.crab_type.resolve(&unresolved_caller_id, &tmpls)?,
                                         ..pos_param
                                     }
-                                )
+                                ))
                             })?;
                         let named_params = self
                             .named_params
                             .into_iter()
-                            .try_fold(HashMap::new(), |named_params, (name, named_param)| {
-                                named_params.finsert (
+                            .try_fold(BTreeMap::new(), |named_params, (name, named_param)| {
+                                compile::Result::Ok(named_params.finsert (
                                     name,
                                     NamedParam {
                                         crab_type: named_param.crab_type.resolve(&unresolved_caller_id, &tmpls)?,
                                         ..named_param
                                     }
-                                )
+                                ))
                             })?;
                         Ok(Self {
                             caller_id: Some(StructId::try_from(caller.clone())?),
