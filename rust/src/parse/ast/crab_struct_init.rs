@@ -64,9 +64,9 @@ impl AstNode for StructFieldInit {
     }
 }
 impl StructFieldInit {
-    pub(super) fn resolve(self, caller: CrabType, caller_id: &StructId) -> compile::Result<Self>) {
+    pub(super) fn resolve(self, caller: CrabType, caller_id: &StructId) -> compile::Result<Self> {
         Ok(Self {
-            value: self.value.resolve(caller)?,
+            value: self.value.resolve(caller, caller_id)?,
             ..self
         })
     }
