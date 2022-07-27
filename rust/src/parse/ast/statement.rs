@@ -59,15 +59,15 @@ impl Statement {
             Statement::RETURN(expr) => Statement::RETURN(
                 match expr {
                     None => None,
-                    Some(expr) => expr.resolve()?,
+                    Some(expr) => expr.resolve(caller)?,
                 }
             ),
-            Statement::ASSIGNMENT(ass) => Statement::ASSIGNMENT(ass.resolve()?),
-            Statement::REASSIGNMENT(reass) => Statement::REASSIGNMENT(reass.resolve()?),
-            Statement::EXPRESSION(expr) => Statement::EXPRESSION(expr.resolve()?),
-            Statement::IF_STATEMENT(if_stmt) => Statement::IF_STATEMENT(if_stmt.resolve()?),
-            Statement::WHILE_STATEMENT(wh_stmt) => Statement::WHILE_STATEMENT(wh_stmt.resolve()?),
-            Statement::DO_WHILE_STATEMENT(dw_stmt) => Statement::DO_WHILE_STATEMENT(dw_stmt.resolve()?),
+            Statement::ASSIGNMENT(ass) => Statement::ASSIGNMENT(ass.resolve(caller)?),
+            Statement::REASSIGNMENT(reass) => Statement::REASSIGNMENT(reass.resolve(caller)?),
+            Statement::EXPRESSION(expr) => Statement::EXPRESSION(expr.resolve(caller)?),
+            Statement::IF_STATEMENT(if_stmt) => Statement::IF_STATEMENT(if_stmt.resolve(caller)?),
+            Statement::WHILE_STATEMENT(wh_stmt) => Statement::WHILE_STATEMENT(wh_stmt.resolve(caller)?),
+            Statement::DO_WHILE_STATEMENT(dw_stmt) => Statement::DO_WHILE_STATEMENT(dw_stmt.resolve(caller)?),
         })
     }
 }

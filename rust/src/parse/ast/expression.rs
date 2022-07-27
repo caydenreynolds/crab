@@ -40,7 +40,7 @@ impl ExpressionType {
     pub(super) fn resolve(self, caller: CrabType) -> compile::Result<Self> {
         Ok(match self {
             ExpressionType::STRUCT_INIT(si) => ExpressionType::STRUCT_INIT(si.resolve(caller)?),
-            ExpressionType::FN_CALL(fc) => ExpressionType::FN_CALL(fc.resolve()?),
+            ExpressionType::FN_CALL(fc) => ExpressionType::FN_CALL(fc.resolve(caller)?),
             _ => self,
         })
     }
