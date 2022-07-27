@@ -6,7 +6,7 @@ pub type Result<T> = std::result::Result<T, CompileError>;
 
 #[derive(Error, Debug)]
 pub enum CompileError {
-    #[error("Struct {} expected to have a caller id, but it did not")]
+    #[error("Struct {0} expected to have a caller id, but it did not")]
     NoCallerId(Ident),
 
     #[error("A template got the wrong number of type arguments. Expected{0} and got {1}")]

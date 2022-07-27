@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use crate::parse::ast::FnBodyType::{CODEBLOCK, COMPILER_PROVIDED};
 use crate::parse::ast::{AstNode, CodeBlock, CrabType, Expression, Ident, Statement, StructId};
 use crate::parse::{ParseError, Result, Rule};
@@ -173,11 +173,34 @@ impl FuncSignature {
                 match caller {
                     CrabType::TMPL(name, tmpls) => {
                         let unresolved_caller_id = self.caller_id.ok_or(CompileError::NoCallerId(self.name.clone()))?;
+                        let pos_params = self
+                            .pos_params
+                            .into_iter()
+                            .try_fold(vec![], |pos_params, pos_param| {
+                                pos_params.fpush (
+                                    PosParam {
+                                        crab_type: pos_param.crab_type.resolve(&unresolved_caller_id, &tmpls)?,
+                                        ..pos_param
+                                    }
+                                )
+                            })?;
+                        let named_params = self
+                            .named_params
+                            .into_iter()
+                            .try_fold(HashMap::new(), |named_params, (name, named_param)| {
+                                named_params.finsert (
+                                    name,
+                                    NamedParam {
+                                        crab_type: named_param.crab_type.resolve(&unresolved_caller_id, &tmpls)?,
+                                        ..named_param
+                                    }
+                                )
+                            })?;
                         Ok(Self {
                             caller_id: Some(StructId::try_from(caller.clone())?),
                             pos_params,
                             named_params,
-                            return_type: self.return_type.resolve(unresolved_caller_id, &tmpls),
+                            return_type: self.return_type.resolve(&unresolved_caller_id, &tmpls)?,
                             ..self
                         })
                     },

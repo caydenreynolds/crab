@@ -52,7 +52,7 @@ impl CrabType {
         }
     }
 
-    pub(super) fn resolve(self, caller_id: StructId, tmpls: &[CrabType]) -> compile::Result<Self> {
+    pub(super) fn resolve(self, caller_id: &StructId, tmpls: &[CrabType]) -> compile::Result<Self> {
         let resolution_map = caller_id
             .tmpls
             .iter()
