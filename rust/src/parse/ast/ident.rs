@@ -76,7 +76,7 @@ impl CrabType {
                 let resolved_tmpls = inner_tmpls
                     .into_iter()
                     .try_fold(vec![], |resolved_tmpls, inner_tmpl| {
-                        Ok(resolved_tmpls.fpush(inner_tmpl.resolve(caller_id, tmpls)?))
+                        compile::Result::Ok(resolved_tmpls.fpush(inner_tmpl.resolve(caller_id, tmpls)?))
                     })?;
                 Ok(CrabType::TMPL(name, resolved_tmpls))
             }

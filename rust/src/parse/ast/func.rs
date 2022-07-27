@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use crate::parse::ast::FnBodyType::{CODEBLOCK, COMPILER_PROVIDED};
 use crate::parse::ast::{AstNode, CodeBlock, CrabType, Expression, Ident, Statement, StructId};
 use crate::parse::{ParseError, Result, Rule};
