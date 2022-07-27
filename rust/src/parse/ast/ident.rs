@@ -1,4 +1,4 @@
-use std::convert::TryFrom;
+use std::convert::{TryFrom, TryInto};
 use std::fmt::{Display, Formatter};
 use pest::iterators::Pair;
 use crate::compile::CompileError;
@@ -188,5 +188,24 @@ impl Display for StructId {
         self.tmpls.iter().try_for_each(|tmpl| {
             write!(f, "_{}", tmpl)
         })
+    }
+}
+impl TryFrom<CrabType> for StructId {
+    type Error = CompileError;
+
+    fn try_from(ct: CrabType) -> Result<Self, Self::Error> {
+        match ct {
+            CrabType::SIMPLE(name) => Ok(Self { name, tmpls: vec![] }),
+            CrabType::LIST(inner) => inner.try_into(),
+            CrabType::TMPL(name, tmpls) => {
+                Ok(Self {
+                    name,
+                    tmpls: tmpls.into_iter().try_fold(vec![], |tmpls, tmpl| {
+                        Ok(tmpls.fpush(tmpl.try_into()?))
+                    })?
+                })
+            }
+            _ => Err(CompileError::NotAStruct(StructId::from_name(format!("{}", ct)), String::from("CrabType::try_from"))),
+        }
     }
 }

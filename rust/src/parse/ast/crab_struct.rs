@@ -1,9 +1,11 @@
+use std::collections::HashMap;
 use crate::parse::ast::{AstNode, CrabType, Ident, StructId};
 use crate::parse::{ParseError, Result, Rule};
 use crate::{compile, try_from_pair, util};
 use pest::iterators::Pair;
 use std::convert::TryFrom;
 use util::ListFunctional;
+use crate::compile::CompileError;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct CrabStruct {
@@ -36,9 +38,19 @@ impl CrabStruct {
     /// Consumes self, returning a CrabStruct with the structId types resolved according to the
     /// given slice of CrabTypes
     pub fn resolve(self, types: &[CrabType]) -> compile::Result<Self> {
+        let unresolved = self.id.clone();
+        let resolved = self.id.resolve(types)?;
+        let resolution_map = HashMap::from(
+            unresolved
+                .tmpls
+                .into_iter()
+                .zip(resolved.tmpls.clone().into_iter())
+                .collect()
+        );
+        let resolved_body = self.body.resolve(resolution_map);
         Ok(Self {
-            id: self.id.resolve(types)?,
-            ..self
+            id: resolved,
+            body: resolved_body,
         })
     }
 }
@@ -67,6 +79,23 @@ impl AstNode for StructBody {
                 ))
             }
         })
+    }
+}
+impl StructBody {
+    fn resolve(self, resolution_map: HashMap<StructId, StructId>) -> Self {
+        match self {
+            StructBody::COMPILER_PROVIDED => StructBody::COMPILER_PROVIDED,
+            StructBody::FIELDS(fields) => {
+                Ok(StructBody::FIELDS(
+                    fields.into_iter().map(|field| {
+                        match resolution_map.get(&field.crab_type.into()) {
+                            Some(si) => si.into(),
+                            None => field,
+                        }
+                    }).collect()
+                ))
+            }
+        }
     }
 }
 
