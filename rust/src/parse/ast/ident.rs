@@ -193,7 +193,7 @@ impl Display for StructId {
 impl TryFrom<CrabType> for StructId {
     type Error = CompileError;
 
-    fn try_from(ct: CrabType) -> Result<Self, Self::Error> {
+    fn try_from(ct: CrabType) -> std::Result<Self, Self::Error> {
         match ct {
             CrabType::SIMPLE(name) => Ok(Self { name, tmpls: vec![] }),
             CrabType::LIST(inner) => StructId::try_from(*inner),
@@ -201,7 +201,7 @@ impl TryFrom<CrabType> for StructId {
                 Ok(Self {
                     name,
                     tmpls: tmpls.into_iter().try_fold(vec![], |tmpls, tmpl| {
-                        Ok(tmpls.fpush(tmpl.try_into()?))
+                        std::Result::Ok(tmpls.fpush(tmpl.try_into()?))
                     })?
                 })
             }
