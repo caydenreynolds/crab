@@ -5,7 +5,6 @@ use crate::{compile, try_from_pair, util};
 use pest::iterators::Pair;
 use std::convert::{TryFrom, TryInto};
 use util::ListFunctional;
-use crate::compile::CompileError;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct CrabStruct {
@@ -82,7 +81,7 @@ impl AstNode for StructBody {
     }
 }
 impl StructBody {
-    fn resolve(self, resolution_map: HashMap<StructId, StructId>) -> Result<Self> {
+    fn resolve(self, resolution_map: HashMap<StructId, StructId>) -> compile::Result<Self> {
         match self {
             StructBody::COMPILER_PROVIDED => Ok(StructBody::COMPILER_PROVIDED),
             StructBody::FIELDS(fields) => {

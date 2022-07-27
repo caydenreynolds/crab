@@ -196,7 +196,7 @@ impl TryFrom<CrabType> for StructId {
     fn try_from(ct: CrabType) -> Result<Self, Self::Error> {
         match ct {
             CrabType::SIMPLE(name) => Ok(Self { name, tmpls: vec![] }),
-            CrabType::LIST(inner) => inner.try_into(),
+            CrabType::LIST(inner) => *inner.try_into()?,
             CrabType::TMPL(name, tmpls) => {
                 Ok(Self {
                     name,
