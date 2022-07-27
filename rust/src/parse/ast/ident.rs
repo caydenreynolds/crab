@@ -60,7 +60,7 @@ impl CrabType {
             .fold(HashMap::new(), |resolution_map, (caller_tmpl, real_tmpl)| {
                 resolution_map.finsert(caller_tmpl.clone(), real_tmpl.clone())
             });
-        match self {
+        match self.clone() {
             CrabType::SIMPLE(name) => {
                 match resolution_map.get(&StructId::from_name(name)) {
                     None => Ok(self),

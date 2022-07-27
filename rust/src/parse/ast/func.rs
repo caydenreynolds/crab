@@ -170,8 +170,8 @@ impl FuncSignature {
         match caller_opt {
             None => Ok(self),
             Some(caller) => {
-                match caller {
-                    CrabType::TMPL(name, tmpls) => {
+                match &caller {
+                    CrabType::TMPL(_, tmpls) => {
                         let unresolved_caller_id = self.caller_id.ok_or(CompileError::NoCallerId(self.name.clone()))?;
                         let pos_params = self
                             .pos_params
@@ -197,7 +197,7 @@ impl FuncSignature {
                                 ))
                             })?;
                         Ok(Self {
-                            caller_id: Some(StructId::try_from(caller.clone())?),
+                            caller_id: Some(StructId::try_from(caller)?),
                             pos_params,
                             named_params,
                             return_type: self.return_type.resolve(&unresolved_caller_id, &tmpls)?,
