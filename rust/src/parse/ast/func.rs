@@ -61,14 +61,14 @@ impl Func {
     }
 
     pub fn resolve(self, caller_opt: Option<CrabType>) -> compile::Result<Self> {
-        let caller_id = self
-            .signature
-            .caller_id
-            .clone()
-            .ok_or(CompileError::NoCallerId(self.signature.name.clone()))?;
         match caller_opt {
             None => Ok(self),
             Some(caller) => {
+                let caller_id = self
+                    .signature
+                    .caller_id
+                    .clone()
+                    .ok_or(CompileError::NoCallerId(self.signature.name.clone()))?;
                 Ok(Self {
                     signature: self.signature.resolve(caller.clone(), &caller_id)?,
                     body: self.body.resolve(caller, &caller_id)?,
