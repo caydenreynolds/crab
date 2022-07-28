@@ -198,29 +198,21 @@ impl FuncSignature {
                     self.pos_params
                         .into_iter()
                         .try_fold(vec![], |pos_params, pos_param| {
-                            compile::Result::Ok(
-                                pos_params.fpush(PosParam {
-                                    crab_type: pos_param
-                                        .crab_type
-                                        .resolve(caller_id, &tmpls)?,
-                                    ..pos_param
-                                }),
-                            )
+                            compile::Result::Ok(pos_params.fpush(PosParam {
+                                crab_type: pos_param.crab_type.resolve(caller_id, &tmpls)?,
+                                ..pos_param
+                            }))
                         })?;
                 let named_params = self.named_params.into_iter().try_fold(
                     BTreeMap::new(),
                     |named_params, (name, named_param)| {
-                        compile::Result::Ok(
-                            named_params.finsert(
-                                name,
-                                NamedParam {
-                                    crab_type: named_param
-                                        .crab_type
-                                        .resolve(caller_id, &tmpls)?,
-                                    ..named_param
-                                },
-                            ),
-                        )
+                        compile::Result::Ok(named_params.finsert(
+                            name,
+                            NamedParam {
+                                crab_type: named_param.crab_type.resolve(caller_id, &tmpls)?,
+                                ..named_param
+                            },
+                        ))
                     },
                 )?;
                 Ok(Self {

@@ -17,7 +17,7 @@ The Crabfile "${crabfile}" is built and the results are compared against a file"
                 ${at_least_one_checked} =  Set Variable  ${TRUE}
             END
         END
-        hould Be True  ${at_least_one_checked}
+        Should Be True  ${at_least_one_checked}
 
 *** Test Cases ***
 Run Multiline Crabfiles

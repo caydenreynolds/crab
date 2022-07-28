@@ -1,7 +1,7 @@
 use crate::parse::ast::{AstNode, CrabType, Expression, Ident, StructId};
 use crate::parse::{ParseError, Result, Rule};
-use crate::{compile, try_from_pair};
 use crate::util::ListFunctional;
+use crate::{compile, try_from_pair};
 use pest::iterators::Pair;
 use std::convert::TryFrom;
 
@@ -33,12 +33,9 @@ impl StructInit {
         Ok(match &caller {
             CrabType::TMPL(_, tmpls) => Self {
                 id: self.id.resolve(caller_id, &tmpls)?,
-                fields: self
-                    .fields
-                    .into_iter()
-                    .try_fold(vec![], |fields, field| {
-                        compile::Result::Ok(fields.fpush(field.resolve(caller.clone(), caller_id)?))
-                    })?,
+                fields: self.fields.into_iter().try_fold(vec![], |fields, field| {
+                    compile::Result::Ok(fields.fpush(field.resolve(caller.clone(), caller_id)?))
+                })?,
             },
             _ => self,
         })

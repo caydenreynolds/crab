@@ -1,9 +1,9 @@
 use crate::parse::ast::{AstNode, CrabType, Statement, StructId};
 use crate::parse::{ParseError, Result, Rule};
+use crate::util::ListFunctional;
 use crate::{compile, try_from_pair};
 use pest::iterators::Pair;
 use std::convert::TryFrom;
-use crate::util::ListFunctional;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct CodeBlock {
@@ -35,8 +35,10 @@ impl CodeBlock {
                 .statements
                 .into_iter()
                 .try_fold(vec![], |statements, statement| {
-                    compile::Result::Ok(statements.fpush(statement.resolve(caller.clone(), caller_id)?))
-                })?
+                    compile::Result::Ok(
+                        statements.fpush(statement.resolve(caller.clone(), caller_id)?),
+                    )
+                })?,
         })
     }
 }

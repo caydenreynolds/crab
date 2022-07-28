@@ -1,7 +1,7 @@
 use crate::parse::ast::{AstNode, CrabType, Expression, Ident, StructId};
 use crate::parse::{ParseError, Result, Rule};
-use crate::{compile, try_from_pair};
 use crate::util::ListFunctional;
+use crate::{compile, try_from_pair};
 use pest::iterators::Pair;
 use std::convert::TryFrom;
 
@@ -54,7 +54,9 @@ impl FnCall {
                 .named_args
                 .into_iter()
                 .try_fold(vec![], |named_args, named_arg| {
-                    compile::Result::Ok(named_args.fpush(named_arg.resolve(caller.clone(), caller_id)?))
+                    compile::Result::Ok(
+                        named_args.fpush(named_arg.resolve(caller.clone(), caller_id)?),
+                    )
                 })?,
             ..self
         })

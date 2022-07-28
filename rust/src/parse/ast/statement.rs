@@ -56,18 +56,24 @@ impl AstNode for Statement {
 impl Statement {
     pub(super) fn resolve(self, caller: CrabType, caller_id: &StructId) -> compile::Result<Self> {
         Ok(match self {
-            Statement::RETURN(expr) => Statement::RETURN(
-                match expr {
-                    None => None,
-                    Some(expr) => Some(expr.resolve(caller, caller_id)?),
-                }
-            ),
+            Statement::RETURN(expr) => Statement::RETURN(match expr {
+                None => None,
+                Some(expr) => Some(expr.resolve(caller, caller_id)?),
+            }),
             Statement::ASSIGNMENT(ass) => Statement::ASSIGNMENT(ass.resolve(caller, caller_id)?),
-            Statement::REASSIGNMENT(reass) => Statement::REASSIGNMENT(reass.resolve(caller, caller_id)?),
+            Statement::REASSIGNMENT(reass) => {
+                Statement::REASSIGNMENT(reass.resolve(caller, caller_id)?)
+            }
             Statement::EXPRESSION(expr) => Statement::EXPRESSION(expr.resolve(caller, caller_id)?),
-            Statement::IF_STATEMENT(if_stmt) => Statement::IF_STATEMENT(if_stmt.resolve(caller, caller_id)?),
-            Statement::WHILE_STATEMENT(wh_stmt) => Statement::WHILE_STATEMENT(wh_stmt.resolve(caller, caller_id)?),
-            Statement::DO_WHILE_STATEMENT(dw_stmt) => Statement::DO_WHILE_STATEMENT(dw_stmt.resolve(caller, caller_id)?),
+            Statement::IF_STATEMENT(if_stmt) => {
+                Statement::IF_STATEMENT(if_stmt.resolve(caller, caller_id)?)
+            }
+            Statement::WHILE_STATEMENT(wh_stmt) => {
+                Statement::WHILE_STATEMENT(wh_stmt.resolve(caller, caller_id)?)
+            }
+            Statement::DO_WHILE_STATEMENT(dw_stmt) => {
+                Statement::DO_WHILE_STATEMENT(dw_stmt.resolve(caller, caller_id)?)
+            }
         })
     }
 }
