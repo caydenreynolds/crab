@@ -1,29 +1,53 @@
-use crate::parse::ast::{AstNode, FnCall, Ident, Primitive, StructFieldInit, StructInit};
+use crate::parse::ast::{
+    AstNode, CrabType, FnCall, Ident, Primitive, StructFieldInit, StructId, StructInit,
+};
 use crate::parse::ParseError::ExpectedInner;
 use crate::parse::{ParseError, Result, Rule};
-use crate::try_from_pair;
 use crate::util::{bool_struct_name, int_struct_name, primitive_field_name, string_type_name};
 use crate::util::{
     operator_add_name, operator_div_name, operator_eq_name, operator_gt_name, operator_gte_name,
     operator_lsh_name, operator_lt_name, operator_lte_name, operator_mult_name, operator_rsh_name,
     operator_sub_name,
 };
+use crate::{compile, try_from_pair};
 use pest::iterators::Pair;
 use std::convert::TryFrom;
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct Expression {
     pub this: ExpressionType,
     pub next: Option<Box<Expression>>,
 }
+impl Expression {
+    pub(super) fn resolve(self, caller: CrabType, caller_id: &StructId) -> compile::Result<Self> {
+        Ok(Self {
+            this: self.this.resolve(caller.clone(), caller_id)?,
+            next: match self.next {
+                None => None,
+                Some(bexpr) => Some(Box::new(bexpr.resolve(caller, caller_id)?)),
+            },
+        })
+    }
+}
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 #[allow(non_camel_case_types)]
 pub enum ExpressionType {
     PRIM(Primitive),
     STRUCT_INIT(StructInit),
     FN_CALL(FnCall),
     VARIABLE(Ident),
+}
+impl ExpressionType {
+    pub(super) fn resolve(self, caller: CrabType, caller_id: &StructId) -> compile::Result<Self> {
+        Ok(match self {
+            ExpressionType::STRUCT_INIT(si) => {
+                ExpressionType::STRUCT_INIT(si.resolve(caller, caller_id)?)
+            }
+            ExpressionType::FN_CALL(fc) => ExpressionType::FN_CALL(fc.resolve(caller, caller_id)?),
+            _ => self,
+        })
+    }
 }
 
 try_from_pair!(Expression, Rule::expression);
@@ -115,7 +139,7 @@ impl TryFrom<Pair<'_, Rule>> for ExpressionType {
                 let prim = Primitive::try_from(pair)?;
                 match &prim {
                     Primitive::UINT(_) => Ok(Self::STRUCT_INIT(StructInit {
-                        name: int_struct_name(),
+                        id: CrabType::SIMPLE(int_struct_name()),
                         fields: vec![StructFieldInit {
                             name: primitive_field_name(),
                             value: Expression {
@@ -125,7 +149,7 @@ impl TryFrom<Pair<'_, Rule>> for ExpressionType {
                         }],
                     })),
                     Primitive::STRING(_) => Ok(Self::STRUCT_INIT(StructInit {
-                        name: string_type_name(),
+                        id: CrabType::SIMPLE(string_type_name()),
                         fields: vec![StructFieldInit {
                             name: primitive_field_name(),
                             value: Expression {
@@ -135,7 +159,7 @@ impl TryFrom<Pair<'_, Rule>> for ExpressionType {
                         }],
                     })),
                     Primitive::BOOL(_) => Ok(Self::STRUCT_INIT(StructInit {
-                        name: bool_struct_name(),
+                        id: CrabType::SIMPLE(bool_struct_name()),
                         fields: vec![StructFieldInit {
                             name: primitive_field_name(),
                             value: Expression {

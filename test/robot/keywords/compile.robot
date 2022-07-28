@@ -4,7 +4,7 @@ Documentation     Resources for running processes.
 ...               All stdout and stderr is forwarded to the log file
 Resource          processes.robot
 Library           Process
-Library               String
+Library           String
 
 
 *** Keywords ***

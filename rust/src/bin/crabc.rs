@@ -7,6 +7,7 @@ use log::{debug, error, info, warn, LevelFilter};
 use simple_logger::SimpleLogger;
 use std::path::{Path, PathBuf};
 use std::process::{exit, Command};
+use std::str::FromStr;
 use structopt::StructOpt;
 
 #[derive(StructOpt, Debug)]
@@ -40,9 +41,14 @@ struct Args {
     #[structopt(short, long)]
     no_verify: bool,
 
-    /// Output a Quill IR file instead of a regular artifact
-    #[structopt(short, long)]
-    quill_ir: bool,
+    /// The type of artifact to output {n}
+    /// Options: {n}
+    ///     executable -- Builds an executable file. Aliases: exe, e {n}
+    ///     qir -- Builds a quill ir file. Aliases: q {n}
+    ///     bitcode -- Builds llvm bitcode. Aliases: bit, bc {n}
+    ///     llvmir -- Builds llvm ir. Aliases: llvm_ir, llvm, ll, ir {n}
+    #[structopt(short = "t", long, default_value = "executable")]
+    output_type: OutputType,
 
     // Use debug_assertions to tell whether this is a debug or release build
     // If it is a release build, add a flag to enable the verify step
@@ -50,6 +56,28 @@ struct Args {
     #[cfg(not(debug_assertions))]
     #[structopt(long)]
     verify: bool,
+}
+
+#[derive(Debug)]
+enum OutputType {
+    EXECUTABLE,
+    QIR,
+    BITCODE,
+    LLVMIR,
+}
+
+impl FromStr for OutputType {
+    type Err = String;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "executable" | "exe" | "e" => Ok(Self::EXECUTABLE),
+            "qir" | "q" => Ok(Self::QIR),
+            "bitcode" | "bit" | "bc" => Ok(Self::BITCODE),
+            "llvmir" | "llvm_ir" | "llvm" | "ll" | "ir" => Ok(Self::LLVMIR),
+            _ => Err(String::from("Could not parse string as OutputType")),
+        }
+    }
 }
 
 fn get_crabfiles(paths: Vec<PathBuf>) -> Vec<PathBuf> {
@@ -150,27 +178,17 @@ fn _main() -> Result<()> {
     #[cfg(not(debug_assertions))]
     let artifact_path = target_dir.join(artifact_name.with_extension("bc"));
 
-    if args.verbose == 0 {
-        SimpleLogger::new()
-            .with_level(LevelFilter::Info)
-            .init()
-            .unwrap();
-    } else if args.verbose == 1 {
-        SimpleLogger::new()
-            .with_level(LevelFilter::Debug)
-            .init()
-            .unwrap();
-    } else if args.verbose == 2 {
-        SimpleLogger::new()
-            .with_level(LevelFilter::Trace)
-            .init()
-            .unwrap();
-    } else {
-        return Err(anyhow!(
+    let lvl_filter = match args.verbose {
+        0 => Ok(LevelFilter::Info),
+        1 => Ok(LevelFilter::Debug),
+        2 => Ok(LevelFilter::Trace),
+        _ => Err(anyhow!(
             "Invalid number of verbose flags. Expected 0-2, instead got {}",
             args.verbose
-        ));
-    }
+        )),
+    };
+
+    SimpleLogger::new().with_level(lvl_filter?).init().unwrap();
 
     info!("Compiling {:#?}", args.paths);
 
@@ -184,9 +202,11 @@ fn _main() -> Result<()> {
     #[cfg(not(debug_assertions))]
     let verify = args.verify;
 
-    let artifact_type = match args.quill_ir {
-        true => ArtifactType::QIR,
-        false => {
+    let artifact_type = match &args.output_type {
+        OutputType::QIR => ArtifactType::QIR,
+        OutputType::BITCODE => ArtifactType::Bitcode,
+        OutputType::LLVMIR => ArtifactType::LIR,
+        OutputType::EXECUTABLE => {
             #[cfg(debug_assertions)]
             {
                 ArtifactType::LIR
@@ -200,9 +220,11 @@ fn _main() -> Result<()> {
 
     handle_crabfile(&paths, verify, &artifact_path, &artifact_type)?;
 
-    match artifact_type {
-        ArtifactType::QIR => {} // Do nothing
-        _ => clang_compile(&artifact_path, &args.output, &args.c_builtins, args.release)?,
+    match args.output_type {
+        OutputType::EXECUTABLE => {
+            clang_compile(&artifact_path, &args.output, &args.c_builtins, args.release)?
+        }
+        _ => {} // Do nothing
     }
 
     info!("Finished!");

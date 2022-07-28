@@ -1,7 +1,7 @@
 use crate::compile::builtins::get_builtin_strct_definition;
 use crate::compile::{CompileError, Result};
 use crate::parse::ast::{
-    CrabInterface, CrabStruct, CrabType, FuncSignature, Ident, StructBody, StructIntr,
+    CrabInterface, CrabStruct, CrabType, FuncSignature, Ident, StructBody, StructId, StructIntr,
 };
 use crate::quill::{
     PolyQuillType, QuillFnType, QuillListType, QuillPointerType, QuillStructType, QuillVoidType,
@@ -15,17 +15,33 @@ pub(super) enum ManagedType {
     INTERFACE(CrabInterface),
 }
 
+impl ManagedType {
+    fn as_struct(&self) -> Result<&CrabStruct> {
+        match self {
+            ManagedType::STRUCT(s) => Ok(s),
+            ManagedType::INTERFACE(i) => Err(CompileError::NotAStruct(
+                StructId::from_name(i.name.clone()),
+                String::from("ManagedType::as_struct"),
+            )),
+        }
+    }
+}
+
 ///
 /// Struct that's responsible for converting from crab types to quill types
 /// This includes structs, interfaces, and primitive types
 ///
 #[derive(Debug, Clone, Default)]
 pub(super) struct TypeManager {
-    /// All of the types that have been registered, but may or may not have been used. Includes structs and interfaces.
+    /// All of the types that have been registered, but may or may not have been used
+    /// Includes structs and interfaces
+    /// Duplicate names are disallowed here
     registered_types: HashMap<Ident, ManagedType>,
 
     /// All of the structs that have been used and must therefore be added to the quill
-    included_types: HashSet<Ident>,
+    /// Duplicate names are allowed here
+    /// Any StructId tmpls must be resolved to concrete types
+    included_types: HashSet<CrabStruct>,
 
     /// All of interfaces each struct implements
     intrs: HashMap<Ident, Vec<Ident>>,
@@ -47,10 +63,10 @@ impl TypeManager {
     pub fn register_struct(&mut self, strct: CrabStruct) -> Result<()> {
         return if self
             .registered_types
-            .insert(strct.name.clone(), ManagedType::STRUCT(strct.clone()))
+            .insert(strct.id.name.clone(), ManagedType::STRUCT(strct.clone()))
             .is_some()
         {
-            Err(CompileError::StructRedefinition(strct.name))
+            Err(CompileError::StructRedefinition(strct.id.name))
         } else {
             Ok(())
         };
@@ -68,24 +84,25 @@ impl TypeManager {
     pub fn register_intr(&mut self, intr: StructIntr) -> Result<()> {
         if let ManagedType::INTERFACE(_) = self
             .registered_types
-            .get(&intr.struct_name)
-            .ok_or(CompileError::StructDoesNotExist(intr.struct_name.clone()))?
+            .get(&intr.struct_id.name)
+            .ok_or(CompileError::StructDoesNotExist(intr.struct_id.clone()))?
         {
             return Err(CompileError::NotAStruct(
-                intr.struct_name.clone(),
+                intr.struct_id.clone(),
                 String::from("TypeManager::register_intr"),
             ));
         }
         for intfc in &intr.inters {
+            let si = StructId::from_name(intfc.clone());
             if let ManagedType::STRUCT(_) = self
                 .registered_types
-                .get(intfc)
-                .ok_or(CompileError::StructDoesNotExist(intfc.clone()))?
+                .get(&si.name)
+                .ok_or(CompileError::StructDoesNotExist(si.clone()))?
             {
                 return Err(CompileError::NotAnInterface);
             }
         }
-        self.intrs.insert(intr.struct_name, intr.inters);
+        self.intrs.insert(intr.struct_id.name, intr.inters);
 
         Ok(())
     }
@@ -121,37 +138,39 @@ impl TypeManager {
     /// Returns:
     /// The ManagedType with the matching name, may be either a struct or an interface
     ///
-    pub fn get_type(&mut self, name: &Ident) -> Result<&ManagedType> {
+    fn get_type(&mut self, ct: &CrabType) -> Result<ManagedType> {
+        let (ct_name, ct_tmpls) = match ct {
+            CrabType::SIMPLE(id) => (id.clone(), vec![]),
+            CrabType::LIST(id) => (id.try_get_struct_name()?, vec![]),
+            CrabType::TMPL(id, tmpls) => (id.clone(), tmpls.clone()),
+            CrabType::VOID => return Err(CompileError::VoidType),
+            _ => {
+                return Err(CompileError::NotAStruct(
+                    StructId::from_name(format!("{}", ct)),
+                    String::from("TypeManager::get_type"),
+                ))
+            }
+        };
         let mt = self
             .registered_types
-            .get(name)
-            .ok_or(CompileError::TypeDoesNotExist(name.clone()))?;
-        match &mt {
-            ManagedType::STRUCT(_) => {
-                self.included_types.insert(name.clone());
-            }
-            ManagedType::INTERFACE(_) => {} // Do nothing
-        }
-        Ok(mt)
-    }
+            .get(&ct_name)
+            .ok_or(CompileError::TypeDoesNotExist(ct_name.clone()))?
+            .clone();
+        let mt = match &mt {
+            ManagedType::STRUCT(strct) => {
+                // Check the ct_tmpls has valid types
+                // Also add any types included in the CrabType to the list of registered types
+                ct_tmpls
+                    .iter()
+                    .try_for_each(|ct| self.get_type(ct)?.as_struct().map(|_| ()))?;
 
-    ///
-    /// Try to get a struct by name
-    ///
-    /// Params:
-    /// * `name` - The name of the struct to get
-    ///
-    /// Returns:
-    /// The struct with the matching name, or an error if there is no struct with the matching name
-    ///
-    pub fn get_struct(&mut self, name: &Ident) -> Result<&CrabStruct> {
-        match self.get_type(name)? {
-            ManagedType::INTERFACE(_) => Err(CompileError::NotAStruct(
-                name.clone(),
-                String::from("TypeManager::get_struct"),
-            )),
-            ManagedType::STRUCT(strct) => Ok(strct),
-        }
+                let resolved_struct = strct.clone().resolve(ct_tmpls.as_slice())?;
+                self.included_types.insert(resolved_struct.clone());
+                ManagedType::STRUCT(resolved_struct)
+            }
+            ManagedType::INTERFACE(_) => mt.clone(),
+        };
+        Ok(mt)
     }
 
     ///
@@ -168,19 +187,15 @@ impl TypeManager {
     pub fn get_quill_type(&mut self, ct: &CrabType) -> Result<PolyQuillType> {
         Ok(match ct {
             CrabType::VOID => QuillVoidType::new().into(),
-            CrabType::STRUCT(name) => match self.get_type(name)?.clone() {
-                ManagedType::INTERFACE(_) => Err(CompileError::NotAStruct(
-                    name.clone(),
-                    String::from("TypeManager::get_quill_type"),
-                ))?,
-                ManagedType::STRUCT(strct) => {
-                    QuillPointerType::new(QuillStructType::new(strct.name)).into()
-                }
-            },
+            CrabType::SIMPLE(_) | CrabType::TMPL(_, _) => {
+                let name = self.get_type(ct)?.as_struct()?.id.mangle();
+                QuillPointerType::new(QuillStructType::new(name)).into()
+            }
             //TODO: This len should be dynamic
             CrabType::LIST(t) => {
                 QuillListType::new_const_length(self.get_quill_type(t)?, 1000).into()
             }
+            _ => unreachable!(),
         })
     }
 
@@ -195,14 +210,10 @@ impl TypeManager {
     /// Returns:
     /// A QuillStructType that has the given name
     ///
-    pub fn get_quill_struct(&mut self, id: &Ident) -> Result<QuillStructType> {
-        match self.get_type(id)?.clone() {
-            ManagedType::INTERFACE(_) => Err(CompileError::NotAStruct(
-                id.clone(),
-                String::from("TypeManager::get_quill_struct"),
-            )),
-            ManagedType::STRUCT(strct) => Ok(QuillStructType::new(strct.name)),
-        }
+    pub fn get_quill_struct(&mut self, id: &CrabType) -> Result<QuillStructType> {
+        Ok(QuillStructType::new(
+            self.get_type(id)?.as_struct()?.id.mangle(),
+        ))
     }
 
     ///
@@ -220,9 +231,12 @@ impl TypeManager {
         let params = fs.pos_params.into_iter().try_fold(vec![], |params, up| {
             Result::Ok(params.fpush((up.name, self.get_quill_type(&up.crab_type)?)))
         })?;
-        let params = fs.named_params.into_iter().try_fold(params, |params, np| {
-            Result::Ok(params.fpush((np.name, self.get_quill_type(&np.crab_type)?)))
-        })?;
+        let params = fs
+            .named_params
+            .into_iter()
+            .try_fold(params, |params, (_, np)| {
+                Result::Ok(params.fpush((np.name, self.get_quill_type(&np.crab_type)?)))
+            })?;
         let ret_t = match self.get_quill_type(&fs.return_type)? {
             PolyQuillType::VoidType(_) => None,
             t => Some(t),
@@ -255,6 +269,10 @@ impl TypeManager {
                 Err(_) => return false,
             };
 
+            if lhs_name == rhs_name {
+                return true;
+            }
+
             match self.intrs.get(&lhs_name) {
                 Some(intrs) => {
                     for intr in intrs {
@@ -274,9 +292,11 @@ impl TypeManager {
     /// If the struct type's fields are compiler provided, they will be fetched from the ast
     /// Otherwise, they will be resolved from this type manager's struct definitions
     ///
-    pub fn get_fields(&mut self, name: &Ident) -> Result<HashMap<String, PolyQuillType>> {
-        Ok(match self.get_struct(name)?.body.clone() {
-            StructBody::COMPILER_PROVIDED => get_builtin_strct_definition(&name)?.clone(),
+    pub fn get_fields(&mut self, id: &CrabType) -> Result<HashMap<String, PolyQuillType>> {
+        Ok(match self.get_type(id)?.as_struct()?.body.clone() {
+            StructBody::COMPILER_PROVIDED => {
+                get_builtin_strct_definition(&id.try_get_struct_name()?)?.clone()
+            }
             StructBody::FIELDS(fields) => {
                 fields
                     .into_iter()
@@ -292,7 +312,25 @@ impl TypeManager {
         })
     }
 
-    pub fn get_included_type_names(&self) -> &HashSet<Ident> {
+    ///
+    /// Returns the CrabTypes of the fields of a given struct type
+    /// If the struct type's fields are compiler provided, they will be fetched from the ast
+    /// Otherwise, they will be resolved from this type manager's struct definitions
+    ///
+    pub fn get_field_types(&mut self, id: &CrabType) -> Result<HashMap<String, CrabType>> {
+        Ok(match self.get_type(id)?.as_struct()?.body.clone() {
+            StructBody::COMPILER_PROVIDED => todo!(),
+            StructBody::FIELDS(fields) => {
+                fields
+                    .into_iter()
+                    .try_fold(HashMap::new(), |fields, field| {
+                        Result::Ok(fields.finsert(field.name.clone(), field.crab_type.clone()))
+                    })?
+            }
+        })
+    }
+
+    pub fn get_included_type_names(&self) -> &HashSet<CrabStruct> {
         &self.included_types
     }
 }

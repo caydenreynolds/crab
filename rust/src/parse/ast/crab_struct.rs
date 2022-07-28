@@ -1,13 +1,15 @@
-use crate::parse::ast::{AstNode, CrabType, Ident};
+use crate::parse::ast::{AstNode, CrabType, Ident, StructId};
 use crate::parse::{ParseError, Result, Rule};
-use crate::{try_from_pair, util};
+use crate::util::MapFunctional;
+use crate::{compile, try_from_pair, util};
 use pest::iterators::Pair;
-use std::convert::TryFrom;
+use std::collections::HashMap;
+use std::convert::{TryFrom, TryInto};
 use util::ListFunctional;
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct CrabStruct {
-    pub name: Ident,
+    pub id: StructId,
     pub body: StructBody,
 }
 
@@ -18,24 +20,43 @@ impl AstNode for CrabStruct {
         Self: Sized,
     {
         let mut inner = pair.into_inner();
-        let name = Ident::from(
+        let name = StructId::try_from(
             inner
                 .next()
-                .ok_or(ParseError::NoMatch(String::from("Struct::from_pair")))?
-                .as_str(),
-        );
+                .ok_or(ParseError::NoMatch(String::from("Struct::from_pair")))?,
+        )?;
         let body = StructBody::try_from(
             inner
                 .next()
                 .ok_or(ParseError::NoMatch(String::from("Struct::from_pair")))?,
         )?;
 
-        Ok(Self { name, body })
+        Ok(Self { id: name, body })
+    }
+}
+impl CrabStruct {
+    /// Consumes self, returning a CrabStruct with the structId types resolved according to the
+    /// given slice of CrabTypes
+    pub fn resolve(self, types: &[CrabType]) -> compile::Result<Self> {
+        let unresolved = self.id.clone();
+        let resolved = self.id.resolve(types)?;
+        let resolution_map = unresolved
+            .tmpls
+            .into_iter()
+            .zip(resolved.tmpls.clone().into_iter())
+            .fold(HashMap::new(), |resolution_map, (unresolved, resolved)| {
+                resolution_map.finsert(unresolved, resolved)
+            });
+        let resolved_body = self.body.resolve(resolution_map)?;
+        Ok(Self {
+            id: resolved,
+            body: resolved_body,
+        })
     }
 }
 
 #[allow(non_camel_case_types)]
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum StructBody {
     FIELDS(Vec<StructField>),
     COMPILER_PROVIDED,
@@ -60,8 +81,29 @@ impl AstNode for StructBody {
         })
     }
 }
+impl StructBody {
+    fn resolve(self, resolution_map: HashMap<StructId, StructId>) -> compile::Result<Self> {
+        match self {
+            StructBody::COMPILER_PROVIDED => Ok(StructBody::COMPILER_PROVIDED),
+            StructBody::FIELDS(fields) => Ok(StructBody::FIELDS(fields.into_iter().try_fold(
+                vec![],
+                |fields, field| {
+                    compile::Result::Ok(fields.fpush(
+                        match resolution_map.get(&field.crab_type.clone().try_into()?) {
+                            Some(si) => StructField {
+                                crab_type: si.clone().into(),
+                                ..field
+                            },
+                            None => field,
+                        },
+                    ))
+                },
+            )?)),
+        }
+    }
+}
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct StructField {
     pub name: Ident,
     pub crab_type: CrabType,

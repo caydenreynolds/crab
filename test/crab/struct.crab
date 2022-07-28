@@ -15,7 +15,6 @@ fn new_gym_goer() -> GymGoer {
 }
 
 fn main() -> Int {
-
     let my_gym_goer = new_gym_goer()
     my_gym_goer.go_to_the_gym()
 

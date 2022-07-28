@@ -25,9 +25,6 @@ pub use expression::*;
 mod primitive;
 pub use primitive::*;
 
-mod crab_type;
-pub use crab_type::*;
-
 mod crab_struct_behavior;
 pub use crab_struct_behavior::*;
 
