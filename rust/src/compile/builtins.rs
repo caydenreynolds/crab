@@ -1,7 +1,7 @@
 use crate::compile::{CompileError, Result};
 use crate::parse::ast::{CrabType, FuncSignature, Ident, PosParam, StructId};
 use crate::quill::{FnNib, Nib, PolyQuillType, Quill, QuillBoolType, QuillFloatType, QuillFnType, QuillIntType, QuillListType, QuillPointerType, QuillStructType, QuillVoidType};
-use crate::util::{bool_struct_name, capacity_field_name, format_i_c_name, int_struct_name, length_field_name, ListFunctional, magic_main_func_name, main_func_name, MapFunctional, operator_add_name, primitive_field_name, printf_c_name, printf_crab_name, string_struct_name, to_string_name};
+use crate::util::{bool_struct_name, capacity_field_name, format_i_c_name, int_struct_name, length_field_name, list_struct_name, ListFunctional, magic_main_func_name, main_func_name, MapFunctional, operator_add_name, primitive_field_name, printf_c_name, printf_crab_name, string_struct_name, to_string_name};
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 use std::convert::TryInto;
@@ -94,7 +94,7 @@ fn init_builtin_strct_map() -> HashMap<Ident, HashMap<String, StructTypeResolver
             )]),
         ),
         (
-            list_type_name(),
+            list_struct_name(),
             HashMap::from([
                 (primitive_field_name(), StructTypeResolver::TmplTypePtr(0)),
                 (length_field_name(), StructTypeResolver::QuillType(QuillIntType::new(64).into())),
@@ -138,7 +138,7 @@ fn resolve_type(ct: &CrabType, index: usize) -> Result<PolyQuillType> {
                         StructId {
                             name: name.clone(),
                             tmpls: tmpls.clone().into_iter().try_fold(vec![], |tmpls, tmpl| {
-                                Ok(tmpls.fpush(tmpl.try_into()?))
+                                Result::Ok(tmpls.fpush(tmpl.try_into()?))
                             })?,
                         }.mangle()
                     ).into())
