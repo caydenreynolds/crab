@@ -106,7 +106,7 @@ fn init_builtin_strct_map() -> HashMap<Ident, HashMap<String, StructTypeResolver
 
 enum StructTypeResolver {
     QuillType(PolyQuillType),
-    TmplType(usize),
+    //TmplType(usize),
     TmplTypePtr(usize),
 }
 
@@ -131,17 +131,24 @@ fn resolve_type(ct: &CrabType, index: usize) -> Result<PolyQuillType> {
                 CrabType::PRIM_INT => Ok(QuillIntType::new(64).into()),
                 CrabType::PRIM_STR => unimplemented!(),
                 CrabType::PRIM_BOOL => Ok(QuillBoolType::new().into()),
-                CrabType::SIMPLE(name) => Ok(QuillStructType::new(StructId::from_name(name.clone()).mangle()).into()),
-                CrabType::LIST(name) => unimplemented!(),
+                CrabType::SIMPLE(name) => Ok(
+                    QuillPointerType::new(
+                        QuillStructType::new(
+                            StructId::from_name(name.clone()).mangle()
+                    )).into()
+                ),
+                CrabType::LIST(_) => unimplemented!(),
                 CrabType::TMPL(name, tmpls) => {
-                    Ok(QuillStructType::new(
-                        StructId {
-                            name: name.clone(),
-                            tmpls: tmpls.clone().into_iter().try_fold(vec![], |tmpls, tmpl| {
-                                Result::Ok(tmpls.fpush(tmpl.try_into()?))
-                            })?,
-                        }.mangle()
-                    ).into())
+                    Ok(
+                        QuillPointerType::new(
+                            QuillStructType::new(
+                            StructId {
+                                name: name.clone(),
+                                tmpls: tmpls.clone().into_iter().try_fold(vec![], |tmpls, tmpl| {
+                                    Result::Ok(tmpls.fpush(tmpl.try_into()?))
+                                })?,
+                            }.mangle()
+                    )).into())
                 }
             }
         }
