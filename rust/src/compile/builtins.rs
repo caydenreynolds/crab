@@ -137,7 +137,6 @@ fn resolve_type(ct: &CrabType, index: usize) -> Result<PolyQuillType> {
                             StructId::from_name(name.clone()).mangle()
                     )).into()
                 ),
-                CrabType::LIST(_) => unimplemented!(),
                 CrabType::TMPL(name, tmpls) => {
                     Ok(
                         QuillPointerType::new(

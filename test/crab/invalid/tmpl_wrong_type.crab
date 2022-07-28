@@ -1,0 +1,15 @@
+struct ThingPrinter<T> {
+    T thing,
+}
+
+impl ThingPrinter<T> {
+    fn with(T thing) -> ThingPrinter<T> {
+        return ThingPrinter<T> {thing=thing}
+    }
+}
+
+fn main() -> Int {
+    let string_printer = ThingPrinter<String> { thing = "string thing" }
+    string_printer = string_printer.with(12345)
+    return 0
+}

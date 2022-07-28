@@ -1,7 +1,7 @@
 use crate::compile::CompileError;
 use crate::parse::ast::AstNode;
 use crate::parse::{ParseError, Rule};
-use crate::util::{ListFunctional, MapFunctional};
+use crate::util::{list_struct_name, ListFunctional, MapFunctional};
 use crate::{compile, parse, try_from_pair};
 use pest::iterators::Pair;
 use std::collections::HashMap;
@@ -18,7 +18,6 @@ pub enum CrabType {
     PRIM_STR,
     PRIM_BOOL,
     SIMPLE(Ident),
-    LIST(Box<CrabType>),
     TMPL(Ident, Vec<CrabType>),
 }
 try_from_pair!(CrabType, Rule::crab_type);
@@ -30,7 +29,7 @@ impl AstNode for CrabType {
         let next = pair.into_inner().next().ok_or(ParseError::ExpectedInner)?;
         match next.as_rule() {
             Rule::simple_crab_type => Ok(Self::SIMPLE(SimpleCrabType::try_from(next)?.0)),
-            Rule::list_crab_type => Ok(Self::LIST(ListCrabType::try_from(next)?.0)),
+            Rule::list_crab_type => Ok(Self::TMPL(list_struct_name(), vec![ListCrabType::try_from(next)?.0])),
             Rule::tmpl_crab_type => {
                 let tct = TmplCrabType::try_from(next)?;
                 Ok(Self::TMPL(tct.0, tct.1))
@@ -64,7 +63,6 @@ impl CrabType {
                 None => Ok(self),
                 Some(ct) => Ok(ct.clone()),
             },
-            CrabType::LIST(ct) => Ok(CrabType::LIST(Box::new(ct.resolve(caller_id, tmpls)?))),
             CrabType::TMPL(name, inner_tmpls) => {
                 let name = match resolution_map.get(&StructId::from_name(name.clone())) {
                     None => name,
@@ -92,7 +90,6 @@ impl Display for CrabType {
             CrabType::PRIM_STR => write!(f, "PRIM_STR"),
             CrabType::PRIM_INT => write!(f, "PRIM_INT"),
             CrabType::SIMPLE(n) => write!(f, "{}", n),
-            CrabType::LIST(l) => write!(f, "LIST_{}", l),
             CrabType::TMPL(i, t) => {
                 write!(f, "TMPL_{}", i)?;
                 for ct in t {
@@ -132,16 +129,16 @@ impl AstNode for SimpleCrabType {
     }
 }
 
-struct ListCrabType(Box<CrabType>);
+struct ListCrabType(CrabType);
 try_from_pair!(ListCrabType, Rule::list_crab_type);
 impl AstNode for ListCrabType {
     fn from_pair(pair: Pair<Rule>) -> parse::Result<Self>
     where
         Self: Sized,
     {
-        Ok(Self(Box::new(CrabType::try_from(
+        Ok(Self(CrabType::try_from(
             pair.into_inner().next().ok_or(ParseError::ExpectedInner)?,
-        )?)))
+        )?))
     }
 }
 
@@ -224,7 +221,6 @@ impl StructId {
                     ))
                 }
                 CrabType::SIMPLE(n) => Ok(tmpls.fpush(StructId::from_name(n.clone()))),
-                CrabType::LIST(_) => todo!(),
                 CrabType::TMPL(n, ct_tmpls) => {
                     Ok(tmpls.fpush(StructId::from_name(n.clone()).add_tmpls(ct_tmpls)?))
                 }
@@ -250,7 +246,6 @@ impl TryFrom<CrabType> for StructId {
                 name,
                 tmpls: vec![],
             }),
-            CrabType::LIST(inner) => StructId::try_from(*inner),
             CrabType::TMPL(name, tmpls) => Ok(Self {
                 name,
                 tmpls: tmpls.into_iter().try_fold(vec![], |tmpls, tmpl| {

@@ -141,7 +141,6 @@ impl TypeManager {
     fn get_type(&mut self, ct: &CrabType) -> Result<ManagedType> {
         let (ct_name, ct_tmpls) = match ct {
             CrabType::SIMPLE(id) => (id.clone(), vec![]),
-            CrabType::LIST(id) => (id.try_get_struct_name()?, vec![]),
             CrabType::TMPL(id, tmpls) => (id.clone(), tmpls.clone()),
             CrabType::VOID => return Err(CompileError::VoidType),
             _ => {
@@ -190,10 +189,6 @@ impl TypeManager {
             CrabType::SIMPLE(_) | CrabType::TMPL(_, _) => {
                 let name = self.get_type(ct)?.as_struct()?.id.mangle();
                 QuillPointerType::new(QuillStructType::new(name)).into()
-            }
-            //TODO: This len should be dynamic
-            CrabType::LIST(t) => {
-                QuillListType::new_const_length(self.get_quill_type(t)?, 1000).into()
             }
             _ => unreachable!(),
         })

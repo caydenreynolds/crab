@@ -236,7 +236,6 @@ impl ImplFuncId {
                 ))
             }
             CrabType::SIMPLE(name) | CrabType::TMPL(name, _) => Ok(name.clone()),
-            CrabType::LIST(ct) => Ok(ct.try_get_struct_name()?.clone()),
         }?;
         Ok(Self {
             func_name,
