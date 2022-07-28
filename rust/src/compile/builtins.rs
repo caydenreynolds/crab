@@ -116,7 +116,7 @@ fn resolve_struct(ct: &CrabType, fields: &HashMap<String, StructTypeResolver>) -
         .try_fold(HashMap::new(), |types, (name, str)| {
             let qt = match str {
                 StructTypeResolver::QuillType(qt) => qt.clone(),
-                StructTypeResolver::TmplType(t) => resolve_type(ct, *t)?,
+                //StructTypeResolver::TmplType(t) => resolve_type(ct, *t)?,
                 StructTypeResolver::TmplTypePtr(t) => QuillPointerType::new(resolve_type(ct, *t)?).into(),
             };
             Ok(types.finsert(name.clone(), qt))
