@@ -1,11 +1,9 @@
 use crate::compile::{CompileError, Result};
-use crate::parse::ast::{CrabStruct, CrabType, FuncSignature, Ident, PosParam, StructId};
+use crate::parse::ast::{CrabType, FuncSignature, Ident, PosParam, StructId};
 use crate::quill::{FnNib, Nib, PolyQuillType, Quill, QuillBoolType, QuillFloatType, QuillFnType, QuillIntType, QuillListType, QuillPointerType, QuillStructType, QuillVoidType};
-use crate::util::{bool_struct_name, capacity_field_name, default_tmpl, format_i_c_name, int_struct_name, length_field_name, magic_main_func_name, main_func_name, MapFunctional, operator_add_name, primitive_field_name, printf_c_name, printf_crab_name, string_struct_name, to_string_name};
+use crate::util::{bool_struct_name, capacity_field_name, format_i_c_name, int_struct_name, length_field_name, magic_main_func_name, main_func_name, MapFunctional, operator_add_name, primitive_field_name, printf_c_name, printf_crab_name, string_struct_name, to_string_name};
 use lazy_static::lazy_static;
 use std::collections::HashMap;
-use serde::de::Unexpected::Str;
-use crate::compile::builtins::StructTypeResolver::QuillType;
 
 lazy_static! {
     /// A map of the names of each of our function builtins to the function that generates the ir for that builtin
@@ -120,9 +118,8 @@ fn resolve_struct(ct: &CrabType, fields: &HashMap<String, StructTypeResolver>) -
                 StructTypeResolver::TmplType(t) => resolve_type(ct, *t)?,
                 StructTypeResolver::TmplTypePtr(t) => QuillPointerType::new(resolve_type(ct, *t)?),
             };
-            Ok(types.finsert(name, qt))
+            Ok(types.finsert(name.clone(), qt))
         })
-        .collect()
 }
 
 fn resolve_type(ct: &CrabType, index: usize) -> Result<PolyQuillType> {
@@ -159,13 +156,13 @@ pub(super) fn add_builtin_definition(peter: &mut Quill, nib: &mut FnNib) -> Resu
 
 pub(super) fn get_builtin_strct_definition(ct: &CrabType) -> Result<HashMap<String, PolyQuillType>> {
     let name = ct.try_get_struct_name()?;
-    Ok(resolve_struct(ct, STRCT_BUILTIN_NAME_MAP
+    resolve_struct(ct, STRCT_BUILTIN_NAME_MAP
         .get(&name)
         .ok_or(CompileError::NotAStruct(
             StructId::from_name(Ident::from(&name)),
             String::from("builtins::get_builtin_strct_definition"),
         ))?
-    ))
+    )
 }
 
 fn add_printf(peter: &mut Quill, nib: &mut FnNib) -> Result<()> {

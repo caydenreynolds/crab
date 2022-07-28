@@ -1,4 +1,4 @@
-use crate::parse::ast::{CrabType, Ident, StructId};
+use crate::parse::ast::Ident;
 
 pub fn int_struct_name() -> Ident {
     Ident::from("Int")
