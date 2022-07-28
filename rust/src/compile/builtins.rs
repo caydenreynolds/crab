@@ -1,9 +1,10 @@
 use crate::compile::{CompileError, Result};
 use crate::parse::ast::{CrabType, FuncSignature, Ident, PosParam, StructId};
 use crate::quill::{FnNib, Nib, PolyQuillType, Quill, QuillBoolType, QuillFloatType, QuillFnType, QuillIntType, QuillListType, QuillPointerType, QuillStructType, QuillVoidType};
-use crate::util::{bool_struct_name, capacity_field_name, format_i_c_name, int_struct_name, length_field_name, magic_main_func_name, main_func_name, MapFunctional, operator_add_name, primitive_field_name, printf_c_name, printf_crab_name, string_struct_name, to_string_name};
+use crate::util::{bool_struct_name, capacity_field_name, format_i_c_name, int_struct_name, length_field_name, ListFunctional, magic_main_func_name, main_func_name, MapFunctional, operator_add_name, primitive_field_name, printf_c_name, printf_crab_name, string_struct_name, to_string_name};
 use lazy_static::lazy_static;
 use std::collections::HashMap;
+use std::convert::TryInto;
 
 lazy_static! {
     /// A map of the names of each of our function builtins to the function that generates the ir for that builtin
@@ -116,7 +117,7 @@ fn resolve_struct(ct: &CrabType, fields: &HashMap<String, StructTypeResolver>) -
             let qt = match str {
                 StructTypeResolver::QuillType(qt) => qt.clone(),
                 StructTypeResolver::TmplType(t) => resolve_type(ct, *t)?,
-                StructTypeResolver::TmplTypePtr(t) => QuillPointerType::new(resolve_type(ct, *t)?),
+                StructTypeResolver::TmplTypePtr(t) => QuillPointerType::new(resolve_type(ct, *t)?).into(),
             };
             Ok(types.finsert(name.clone(), qt))
         })
@@ -136,7 +137,9 @@ fn resolve_type(ct: &CrabType, index: usize) -> Result<PolyQuillType> {
                     Ok(QuillStructType::new(
                         StructId {
                             name: name.clone(),
-                            tmpls: tmpls.clone().into_iter().map(|tmpl| tmpl.into()).collect(),
+                            tmpls: tmpls.clone().into_iter().try_fold(vec![], |tmpls, tmpl| {
+                                Ok(tmpls.fpush(tmpl.try_into()?))
+                            })?,
                         }.mangle()
                     ).into())
                 }
