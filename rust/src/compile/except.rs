@@ -6,6 +6,9 @@ pub type Result<T> = std::result::Result<T, CompileError>;
 
 #[derive(Error, Debug)]
 pub enum CompileError {
+    #[error("Expected {0} to be templated type, but it was not")]
+    NotATmpl(CrabType),
+
     #[error("Struct {0} expected to have a caller id, but it did not")]
     NoCallerId(Ident),
 

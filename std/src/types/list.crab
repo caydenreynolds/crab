@@ -1,0 +1,38 @@
+struct List<T> {
+    (V) '--' (V)
+}
+
+//intr List<T> {
+//   Printable,
+//   Addable,
+//}
+
+//impl List<T> {
+//    fn get(Int index) -> T {
+//        (V) '--' (V)
+//    }
+
+//    fn len() -> Int {
+//        (V) '--' (V)
+//    }
+
+//    fn append(T other) -> List<T> {
+//        (V) '--' (V)
+//    }
+
+//    fn push(T other) -> List<T> {
+//        return self.append(other)
+//    }
+
+//    fn add(T other) -> List<T> {
+//        return self.append(other)
+//    }
+
+//    fn toString() {
+//        (V) '--' (V)
+//    }
+
+//    fn resize() {
+//        (V) '--' (V)
+//    }
+//}

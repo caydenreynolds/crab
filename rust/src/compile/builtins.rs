@@ -1,23 +1,18 @@
 use crate::compile::{CompileError, Result};
-use crate::parse::ast::{CrabType, FuncSignature, Ident, PosParam, StructId};
-use crate::quill::{
-    FnNib, Nib, PolyQuillType, Quill, QuillFloatType, QuillFnType, QuillIntType, QuillListType,
-    QuillPointerType, QuillStructType, QuillVoidType,
-};
-use crate::util::{
-    bool_struct_name, format_i_c_name, int_struct_name, magic_main_func_name, main_func_name,
-    operator_add_name, primitive_field_name, printf_c_name, printf_crab_name, string_type_name,
-    to_string_name,
-};
+use crate::parse::ast::{CrabStruct, CrabType, FuncSignature, Ident, PosParam, StructId};
+use crate::quill::{FnNib, Nib, PolyQuillType, Quill, QuillBoolType, QuillFloatType, QuillFnType, QuillIntType, QuillListType, QuillPointerType, QuillStructType, QuillVoidType};
+use crate::util::{bool_struct_name, capacity_field_name, default_tmpl, format_i_c_name, int_struct_name, length_field_name, magic_main_func_name, main_func_name, MapFunctional, operator_add_name, primitive_field_name, printf_c_name, printf_crab_name, string_struct_name, to_string_name};
 use lazy_static::lazy_static;
 use std::collections::HashMap;
+use serde::de::Unexpected::Str;
+use crate::compile::builtins::StructTypeResolver::QuillType;
 
 lazy_static! {
     /// A map of the names of each of our function builtins to the function that generates the ir for that builtin
     static ref FN_BUILTIN_NAME_MAP: HashMap<Ident, fn(&mut Quill, &mut FnNib)->Result<()>> = init_builtin_fn_map();
 
     /// A map of the names of each of our struct builtins to the function that generates the ir for that builtin
-    static ref STRCT_BUILTIN_NAME_MAP: HashMap<Ident, HashMap<Ident, PolyQuillType>> = init_builtin_strct_map();
+    static ref STRCT_BUILTIN_NAME_MAP: HashMap<Ident, HashMap<Ident, StructTypeResolver>> = init_builtin_strct_map();
 }
 
 ///
@@ -48,7 +43,7 @@ fn init_builtin_fn_map() -> HashMap<Ident, fn(&mut Quill, &mut FnNib) -> Result<
 
     let int_to_str = FuncSignature {
         name: to_string_name(),
-        return_type: CrabType::SIMPLE(string_type_name()),
+        return_type: CrabType::SIMPLE(string_struct_name()),
         pos_params: vec![PosParam {
             name: Ident::from("self"),
             crab_type: CrabType::SIMPLE(int_struct_name()),
@@ -64,7 +59,7 @@ fn init_builtin_fn_map() -> HashMap<Ident, fn(&mut Quill, &mut FnNib) -> Result<
         return_type: CrabType::VOID,
         pos_params: vec![PosParam {
             name: Ident::from("str"),
-            crab_type: CrabType::SIMPLE(string_type_name()),
+            crab_type: CrabType::SIMPLE(string_struct_name()),
         }],
         named_params: Default::default(),
         caller_id: None,
@@ -78,24 +73,80 @@ fn init_builtin_fn_map() -> HashMap<Ident, fn(&mut Quill, &mut FnNib) -> Result<
 ///
 /// Init the builtin struct definition map
 ///
-fn init_builtin_strct_map() -> HashMap<Ident, HashMap<String, PolyQuillType>> {
+fn init_builtin_strct_map() -> HashMap<Ident, HashMap<String, StructTypeResolver>> {
     HashMap::from([
         (
             int_struct_name(),
-            HashMap::from([(primitive_field_name(), QuillIntType::new(64).into())]),
+            HashMap::from([
+                (primitive_field_name(), StructTypeResolver::QuillType(QuillIntType::new(64).into())),
+            ]),
         ),
         (
             bool_struct_name(),
-            HashMap::from([(primitive_field_name(), QuillIntType::new(1).into())]),
+            HashMap::from([
+                (primitive_field_name(), StructTypeResolver::QuillType(QuillIntType::new(1).into())),
+            ]),
         ),
         (
-            string_type_name(),
+            string_struct_name(),
             HashMap::from([(
                 primitive_field_name(),
-                QuillPointerType::new(QuillIntType::new(8)).into(),
+                StructTypeResolver::QuillType(QuillPointerType::new(QuillIntType::new(8)).into()),
             )]),
         ),
+        (
+            list_type_name(),
+            HashMap::from([
+                (primitive_field_name(), StructTypeResolver::TmplTypePtr(0)),
+                (length_field_name(), StructTypeResolver::QuillType(QuillIntType::new(64).into())),
+                (capacity_field_name(), StructTypeResolver::QuillType(QuillIntType::new(64).into())),
+            ]),
+        ),
     ])
+}
+
+enum StructTypeResolver {
+    QuillType(PolyQuillType),
+    TmplType(usize),
+    TmplTypePtr(usize),
+}
+
+fn resolve_struct(ct: &CrabType, fields: &HashMap<String, StructTypeResolver>) -> Result<HashMap<String, PolyQuillType>> {
+    fields
+        .iter()
+        .try_fold(HashMap::new(), |types, (name, str)| {
+            let qt = match str {
+                StructTypeResolver::QuillType(qt) => qt.clone(),
+                StructTypeResolver::TmplType(t) => resolve_type(ct, *t)?,
+                StructTypeResolver::TmplTypePtr(t) => QuillPointerType::new(resolve_type(ct, *t)?),
+            };
+            Ok(types.finsert(name, qt))
+        })
+        .collect()
+}
+
+fn resolve_type(ct: &CrabType, index: usize) -> Result<PolyQuillType> {
+    match ct {
+        CrabType::TMPL(_, tmpls) => {
+            match &tmpls[index] {
+                CrabType::VOID => Err(CompileError::VoidType),
+                CrabType::PRIM_INT => Ok(QuillIntType::new(64).into()),
+                CrabType::PRIM_STR => unimplemented!(),
+                CrabType::PRIM_BOOL => Ok(QuillBoolType::new().into()),
+                CrabType::SIMPLE(name) => Ok(QuillStructType::new(StructId::from_name(name.clone()).mangle()).into()),
+                CrabType::LIST(name) => unimplemented!(),
+                CrabType::TMPL(name, tmpls) => {
+                    Ok(QuillStructType::new(
+                        StructId {
+                            name: name.clone(),
+                            tmpls: tmpls.clone().into_iter().map(|tmpl| tmpl.into()).collect(),
+                        }.mangle()
+                    ).into())
+                }
+            }
+        }
+        _ => Err(CompileError::NotATmpl(ct.clone())),
+    }
 }
 
 pub(super) fn add_builtin_definition(peter: &mut Quill, nib: &mut FnNib) -> Result<()> {
@@ -106,13 +157,15 @@ pub(super) fn add_builtin_definition(peter: &mut Quill, nib: &mut FnNib) -> Resu
         ))?(peter, nib)
 }
 
-pub(super) fn get_builtin_strct_definition(name: &str) -> Result<&HashMap<String, PolyQuillType>> {
-    STRCT_BUILTIN_NAME_MAP
-        .get(name)
+pub(super) fn get_builtin_strct_definition(ct: &CrabType) -> Result<HashMap<String, PolyQuillType>> {
+    let name = ct.try_get_struct_name()?;
+    Ok(resolve_struct(ct, STRCT_BUILTIN_NAME_MAP
+        .get(&name)
         .ok_or(CompileError::NotAStruct(
-            StructId::from_name(Ident::from(name)),
+            StructId::from_name(Ident::from(&name)),
             String::from("builtins::get_builtin_strct_definition"),
-        ))
+        ))?
+    ))
 }
 
 fn add_printf(peter: &mut Quill, nib: &mut FnNib) -> Result<()> {
@@ -129,7 +182,7 @@ fn add_printf(peter: &mut Quill, nib: &mut FnNib) -> Result<()> {
     // Call the C printf function
     let fn_param = nib.get_fn_param(
         String::from("str"),
-        QuillPointerType::new(QuillStructType::new(string_type_name())),
+        QuillPointerType::new(QuillStructType::new(string_struct_name())),
     );
     let char_star = nib.get_value_from_struct(
         &fn_param,
@@ -239,5 +292,5 @@ fn int_name_mangled() -> String {
 }
 
 fn string_name_mangled() -> String {
-    StructId::from_name(string_type_name()).mangle()
+    StructId::from_name(string_struct_name()).mangle()
 }
