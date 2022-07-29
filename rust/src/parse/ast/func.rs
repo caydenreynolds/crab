@@ -9,6 +9,7 @@ use pest::iterators::Pair;
 use std::collections::BTreeMap;
 use std::convert::TryFrom;
 use std::fmt::{Display, Formatter};
+use serde::de::Unexpected::Str;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Func {
@@ -64,8 +65,15 @@ impl Func {
         match caller_opt {
             None => {
                 if tmpls.len() > 0 {
-                    let co = Some(CrabType::TMPL(Ident::from("Irrelevent"), tmpls));
-                    self.resolve(co, vec![])
+                    let call_type = CrabType::TMPL(Ident::from("Irrelevent"), tmpls);
+                    let expected_tmpls = StructId {
+                        name: String::from("Irrelevent"),
+                        tmpls: self.signature.tmpls.clone(),
+                    };
+                    Ok(Self {
+                        signature: self.signature.resolve(call_type.clone(), &expected_tmpls)?,
+                        body: self.body.resolve(caller, &expected_tmpls)?,
+                    })
                 } else {
                     Ok(self)
                 }
