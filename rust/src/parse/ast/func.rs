@@ -9,7 +9,6 @@ use pest::iterators::Pair;
 use std::collections::BTreeMap;
 use std::convert::TryFrom;
 use std::fmt::{Display, Formatter};
-use serde::de::Unexpected::Str;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Func {
@@ -72,7 +71,7 @@ impl Func {
                     };
                     Ok(Self {
                         signature: self.signature.resolve(call_type.clone(), &expected_tmpls)?,
-                        body: self.body.resolve(caller, &expected_tmpls)?,
+                        body: self.body.resolve(call_type, &expected_tmpls)?,
                     })
                 } else {
                     Ok(self)
