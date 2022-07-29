@@ -168,7 +168,7 @@ impl FuncSignature {
     ///
     pub(super) fn method(self, caller_id: StructId) -> Self {
         if self.tmpls.len() > 0 {
-            unimplemnted!();
+            unimplemented!();
         }
         Self {
             caller_id: Some(caller_id),

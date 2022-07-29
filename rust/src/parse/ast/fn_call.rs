@@ -20,7 +20,7 @@ impl AstNode for FnCall {
     {
         let mut inner = pair.into_inner();
         let name = Ident::from(inner.next().ok_or(ParseError::ExpectedInner)?.as_str());
-        let tmpls = Tmpls::try_from(inner.next().ok_or(ParseError::ExpectedInner)?).0;
+        let tmpls = Tmpls::try_from(inner.next().ok_or(ParseError::ExpectedInner)?)?.0;
         let (pos_args, named_args) =
             inner.try_fold((vec![], vec![]), |(pos_args, named_args), pair| {
                 Ok(match pair.as_rule() {
@@ -38,6 +38,7 @@ impl AstNode for FnCall {
 
         Ok(Self {
             name,
+            tmpls,
             named_args,
             pos_args,
         })
@@ -142,7 +143,7 @@ impl AstNode for Tmpls {
             pair
                 .into_inner()
                 .try_fold(vec![], |tmpls, pair| {
-                    Ok(tmpls.fpush(CrabType::try_from(pair)?))
+                    Result::Ok(tmpls.fpush(CrabType::try_from(pair)?))
                 })?
         ))
     }

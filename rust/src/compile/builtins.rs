@@ -36,6 +36,7 @@ fn init_builtin_fn_map() -> HashMap<Ident, fn(&mut Quill, &mut FnNib) -> Result<
         ],
         named_params: Default::default(),
         caller_id: Some(StructId::from_name(int_struct_name())),
+        tmpls: vec![],
     }
     .mangled();
     map.insert(int_add.name, add_int);
@@ -49,6 +50,7 @@ fn init_builtin_fn_map() -> HashMap<Ident, fn(&mut Quill, &mut FnNib) -> Result<
         }],
         named_params: Default::default(),
         caller_id: Some(StructId::from_name(int_struct_name())),
+        tmpls: vec![],
     }
     .mangled();
     map.insert(int_to_str.name, format_i);
@@ -62,6 +64,7 @@ fn init_builtin_fn_map() -> HashMap<Ident, fn(&mut Quill, &mut FnNib) -> Result<
         }],
         named_params: Default::default(),
         caller_id: None,
+        tmpls: vec![],
     }
     .mangled();
     map.insert(printf.name, add_printf);
