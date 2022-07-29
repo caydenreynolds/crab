@@ -280,6 +280,7 @@ pub(super) fn add_main_func(peter: &mut Quill) -> Result<()> {
         pos_params: Default::default(),
         named_params: Default::default(),
         caller_id: None,
+        tmpls: vec![],
     }
     .mangled();
     let result = nib.add_fn_call(

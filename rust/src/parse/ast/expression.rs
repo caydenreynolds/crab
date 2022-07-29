@@ -91,6 +91,7 @@ impl AstNode for Expression {
                 name: operator.into_fn_name(),
                 pos_args: vec![arg],
                 named_args: vec![],
+                tmpls: vec![],
             }));
         }
 
