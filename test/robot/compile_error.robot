@@ -19,3 +19,4 @@ Attempt to build invalid Crabfiles
     func_no_arg.crab
     func_unexpected_arg.crab
     no_such_func.crab
+    tmpl_wrong_type.crab

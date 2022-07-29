@@ -1,0 +1,27 @@
+struct ThingContainer<T> {
+    T thing,
+}
+
+impl ThingContainer<T> {
+    fn toString() -> String {
+        return self.thing.toString()
+    }
+}
+
+intr ThingContainer<T> {
+    Printable,
+}
+
+fn putInContainer<T>(T thing) -> ThingContainer<T> {
+    return ThingContainer<T> { thing=thing }
+}
+
+fn main() -> Int {
+    let string_container = putInContainer<String>("contained!")
+    let int_container = putInContainer<Int>(1337)
+    print(string_container, newline=false)
+    print(", ", newline=false)
+    print(int_container)
+
+    return 0
+}

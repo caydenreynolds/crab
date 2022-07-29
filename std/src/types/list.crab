@@ -36,3 +36,7 @@ struct List<T> {
 //        (V) '--' (V)
 //    }
 //}
+
+//fn __new_list__<T>(capacity=0) -> List<T> {
+//    (V) '--' (V)
+//}

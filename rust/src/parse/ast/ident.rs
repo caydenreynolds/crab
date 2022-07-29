@@ -43,7 +43,6 @@ impl CrabType {
         match self {
             Self::SIMPLE(id) => Ok(id.clone()),
             Self::TMPL(id, _) => Ok(id.clone()),
-            Self::LIST(ct) => Ok(ct.try_get_struct_name()?),
             _ => Err(CompileError::NotAStruct(
                 StructId::from_name(Ident::from("unknown")),
                 String::from("CrabType::try_get_struct_name"),
@@ -259,3 +258,5 @@ impl TryFrom<CrabType> for StructId {
         }
     }
 }
+
+pub type FuncId = StructId;

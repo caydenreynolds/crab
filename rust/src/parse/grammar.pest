@@ -34,7 +34,7 @@ struct_field_init = { ident ~ "=" ~ expression }
 
 // func.rs
 function = { fn_signature ~ (compiler_provided | code_block) }
-fn_signature = { "fn" ~ ident ~ "(" ~ fn_params ~ ")" ~ return_type? }
+fn_signature = { "fn" ~ struct_id ~ "(" ~ fn_params ~ ")" ~ return_type? }
 return_type = { "->" ~ crab_type }
 fn_params = _{ ((pos_params ~ ("," ~ named_params)?) | named_params)? ~ ","? }
 pos_params = { pos_param ~ ("," ~ pos_param)* }
@@ -43,7 +43,8 @@ pos_param = { crab_type ~ ident ~ !"=" } // Use negative lookahead to ensure thi
 named_param = { crab_type ~ ident ~ "=" ~ expression }
 
 // fn_call.rs
-fn_call = { ident ~ "(" ~ fn_args? ~ ","? ~ ")" }
+fn_call = { ident ~ tmpls ~ "(" ~ fn_args? ~ ","? ~ ")" }
+tmpls = { ("<" ~ crab_type ~ ("," ~ crab_type)* ~ ","? ~ ">")? }
 fn_args = _{ ((pos_args ~ ("," ~ named_args)?) | named_args)? ~ ","? }
 pos_args = { pos_arg ~ ("," ~ pos_arg)* }
 named_args = { named_arg ~ ("," ~ named_arg)* }

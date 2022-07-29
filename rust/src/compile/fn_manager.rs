@@ -133,7 +133,7 @@ impl FnManager {
     ) -> Result<FuncSignature> {
         let source_fn = self
             .get_source(&call.name, caller_opt.clone())?
-            .resolve(caller_opt.clone())?;
+            .resolve(caller_opt.clone(), call.tmpls.clone())?;
 
         let pos_params = match &caller_opt {
             None => vec![],

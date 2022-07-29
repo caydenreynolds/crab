@@ -8,6 +8,7 @@ use std::convert::TryFrom;
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct FnCall {
     pub name: Ident,
+    pub tmpls: Vec<CrabType>,
     pub pos_args: Vec<Expression>,
     pub named_args: Vec<NamedArg>,
 }
@@ -19,6 +20,7 @@ impl AstNode for FnCall {
     {
         let mut inner = pair.into_inner();
         let name = Ident::from(inner.next().ok_or(ParseError::ExpectedInner)?.as_str());
+        let tmpls = Tmpls::try_from(inner.next().ok_or(ParseError::ExpectedInner)?).0;
         let (pos_args, named_args) =
             inner.try_fold((vec![], vec![]), |(pos_args, named_args), pair| {
                 Ok(match pair.as_rule() {
@@ -126,5 +128,22 @@ impl NamedArg {
             expr: self.expr.resolve(caller, caller_id)?,
             ..self
         })
+    }
+}
+
+struct Tmpls(Vec<CrabType>);
+try_from_pair!(Tmpls, Rule::tmpls);
+impl AstNode for Tmpls {
+    fn from_pair(pair: Pair<Rule>) -> Result<Self>
+        where
+            Self: Sized,
+    {
+        Ok(Self(
+            pair
+                .into_inner()
+                .try_fold(vec![], |tmpls, pair| {
+                    Ok(tmpls.fpush(CrabType::try_from(pair)?))
+                })?
+        ))
     }
 }

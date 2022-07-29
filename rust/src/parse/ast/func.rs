@@ -60,9 +60,16 @@ impl Func {
         }
     }
 
-    pub fn resolve(self, caller_opt: Option<CrabType>) -> compile::Result<Self> {
+    pub fn resolve(self, caller_opt: Option<CrabType>, tmpls: Vec<CrabType>) -> compile::Result<Self> {
         match caller_opt {
-            None => Ok(self),
+            None => {
+                if tmpls.len() > 0 {
+                    let co = Some(CrabType::TMPL(Ident::from("Irrelevent"), tmpls));
+                    self.resolve(co, vec![])
+                } else {
+                    Ok(self)
+                }
+            },
             Some(caller) => {
                 let caller_id = self
                     .signature
@@ -96,6 +103,7 @@ impl FnBodyType {
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct FuncSignature {
     pub name: Ident,
+    pub tmpls: Vec<StructId>,
     pub return_type: CrabType,
     pub pos_params: Vec<PosParam>,
     pub named_params: BTreeMap<Ident, NamedParam>,
@@ -106,7 +114,9 @@ try_from_pair!(FuncSignature, Rule::fn_signature);
 impl AstNode for FuncSignature {
     fn from_pair(pair: Pair<Rule>) -> Result<Self> {
         let mut inner = pair.into_inner();
-        let name = Ident::from(inner.next().ok_or(ParseError::ExpectedInner)?.as_str());
+        let id = StructId::try_from(inner.next().ok_or(ParseError::ExpectedInner)?)?;
+        let name = id.name;
+        let tmpls = id.tmpls;
 
         let (pos_params, named_params, return_type) = inner.try_fold(
             (vec![], BTreeMap::new(), CrabType::VOID),
@@ -133,6 +143,7 @@ impl AstNode for FuncSignature {
 
         let new_fn = Self {
             name,
+            tmpls,
             return_type,
             pos_params,
             named_params,
@@ -156,6 +167,9 @@ impl FuncSignature {
     /// Convert this function signature to a method
     ///
     pub(super) fn method(self, caller_id: StructId) -> Self {
+        if self.tmpls.len() > 0 {
+            unimplemnted!();
+        }
         Self {
             caller_id: Some(caller_id),
             ..self

@@ -18,3 +18,4 @@ Run Simple Crabfiles
     struct.crab                     Phillip went to the gym
     optional_param.crab             foobar
     if.crab                         passed
+    func_tmpl.crab                  contained!, 1337
