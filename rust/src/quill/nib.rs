@@ -233,7 +233,7 @@ pub trait Nib: Debug {
     /// * `value` - The value to set the field to
     /// * 'index' - The index in the list to set
     ///
-    fn set_list_value(
+    fn set_list_value<T: QuillType>(
         &mut self,
         lv: &QuillValue<QuillPointerType>,
         value: QuillValue<T>,
@@ -375,7 +375,7 @@ impl Nib for FnNib {
     fn get_fn_t(&self) -> &QuillFnType {
         self.inner.get_fn_t()
     }
-    fn set_list_value(&mut self, lv: &QuillValue<QuillPointerType>, value: QuillValue<T>, index: QuillValue<QuillIntType>) {
+    fn set_list_value<T: QuillType>(&mut self, lv: &QuillValue<QuillPointerType>, value: QuillValue<T>, index: QuillValue<QuillIntType>) {
         self.inner.set_list_value(lv, value, index)
     }
 }
@@ -941,7 +941,7 @@ impl Nib for ChildNib {
         &self.parent_fn
     }
 
-    fn set_list_value(&mut self, lv: &QuillValue<QuillPointerType>, value: QuillValue<T>, index: QuillValue<QuillIntType>) {
+    fn set_list_value<T: QuillType>(&mut self, lv: &QuillValue<QuillPointerType>, value: QuillValue<T>, index: QuillValue<QuillIntType>) {
         self.instructions.push(Instruction::ListValueSet(lv.id(), value.id(), index.id()));
     }
 }

@@ -168,7 +168,7 @@ impl TryFrom<Pair<'_, Rule>> for ExpressionType {
                                 next: None,
                             },
                         }],
-                    }))
+                    })),
                     _ => Ok(ExpressionType::PRIM(prim)),
                 }
             }

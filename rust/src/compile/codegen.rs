@@ -6,7 +6,7 @@ use crate::quill::{
     ArtifactType, ChildNib, FnNib, Nib, PolyQuillType, Quill, QuillBoolType, QuillFnType,
     QuillStructType, QuillValue,
 };
-use crate::util::{primitive_field_name, ListFunctional, MapFunctional, SetFunctional, new_list_name, default_tmpls, int_struct_name, operator_add_name};
+use crate::util::{primitive_field_name, ListFunctional, MapFunctional, SetFunctional, new_list_name, int_struct_name, operator_add_name};
 use log::{debug, trace};
 use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -456,7 +456,7 @@ impl<NibType: Nib> Codegen<NibType> {
             Primitive::UINT(value) => {
                 Ok(CrabValue::new(self.nib.const_int(64, value).into(), CrabType::PRIM_INT))
             }
-            Primitive::LIST(exprs) =? {
+            Primitive::LIST(exprs) => {
                 self.build_list_prim(exprs)
             }
         }
@@ -495,7 +495,7 @@ impl<NibType: Nib> Codegen<NibType> {
                         fields: vec![StructFieldInit {
                             name: primitive_field_name(),
                             value: Expression {
-                                this: ExpressionType::PRIM(Primitive::UINT(values.len() as u64)),
+                                this: ExpressionType::PRIM(Primitive::UINT(var_names.len() as u64)),
                                 next: None
                             }
                         }],
