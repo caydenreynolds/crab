@@ -244,6 +244,10 @@ fn list_add_fn(_: &mut Quill, nib: &mut FnNib, caller: Option<StructId>, _: Vec<
     let one = nib.const_int(64, 1);
     let new_len = nib.int_add(length, one)?;
     nib.set_value_in_struct(&list, length_field_name(), new_len)?;
+
+    // Return nothing
+    nib.add_return(QuillFnType::void_return_value());
+    
     Ok(())
 }
 
