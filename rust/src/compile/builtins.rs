@@ -22,87 +22,17 @@ lazy_static! {
 /// The builtin name map is populated with *hashed* function names -> function body generator
 ///
 fn init_builtin_fn_map() -> FnNameMap {
-    let mut map: FnNameMap = HashMap::new();
+    HashMap::from([
+        (mangle_fn_name(&operator_add_name(), &int_struct_name()), add_int),
+        (mangle_fn_name(&to_string_name(), &int_struct_name()), format_i),
+        (mangle_fn_name(&printf_crab_name(), ""), add_printf),
+        (mangle_fn_name(&new_list_name(), ""), add_new_list),
+        (mangle_fn_name(&operator_add_name(), &list_struct_name()), list_add_fn),
+    ])
+}
 
-    let int_add = FuncSignature {
-        name: operator_add_name(),
-        return_type: CrabType::SIMPLE(int_struct_name()),
-        pos_params: vec![
-            PosParam {
-                name: Ident::from("self"),
-                crab_type: CrabType::SIMPLE(int_struct_name()),
-            },
-            PosParam {
-                name: Ident::from("other"),
-                crab_type: CrabType::SIMPLE(int_struct_name()),
-            },
-        ],
-        named_params: Default::default(),
-        caller_id: Some(StructId::from_name(int_struct_name())),
-        tmpls: vec![],
-    };
-    map.insert(int_add.name, add_int);
-
-    let int_to_str = FuncSignature {
-        name: to_string_name(),
-        return_type: CrabType::SIMPLE(string_struct_name()),
-        pos_params: vec![PosParam {
-            name: Ident::from("self"),
-            crab_type: CrabType::SIMPLE(int_struct_name()),
-        }],
-        named_params: Default::default(),
-        caller_id: Some(StructId::from_name(int_struct_name())),
-        tmpls: vec![],
-    };
-    map.insert(int_to_str.name, format_i);
-
-    let printf = FuncSignature {
-        name: printf_crab_name(),
-        return_type: CrabType::VOID,
-        pos_params: vec![PosParam {
-            name: Ident::from("str"),
-            crab_type: CrabType::SIMPLE(string_struct_name()),
-        }],
-        named_params: Default::default(),
-        caller_id: None,
-        tmpls: vec![],
-    };
-    map.insert(printf.name, add_printf);
-
-    let new_list = FuncSignature {
-        name: new_list_name(),
-        tmpls: vec![StructId::from_name(Ident::from("T"))],
-        return_type: CrabType::TMPL(list_struct_name(), vec![CrabType::SIMPLE(Ident::from("T"))]),
-        pos_params: vec![],
-        named_params: BTreeMap::from([(
-            capacity_field_name(),
-             NamedParam {
-                 name: capacity_field_name(),
-                 crab_type: CrabType::SIMPLE(int_struct_name()),
-                 expr: Expression {
-                     this: ExpressionType::PRIM(Primitive::UINT(128)),
-                     next: None,
-                 }
-             }
-        )]),
-        caller_id: None
-    };
-    map.insert(new_list.name, add_new_list);
-
-    let list_add = FuncSignature {
-        name: operator_add_name(),
-        tmpls: vec![],
-        return_type: CrabType::VOID,
-        pos_params: vec![PosParam {
-            name: Ident::from("element"),
-            crab_type: CrabType::SIMPLE(Ident::from("T")),
-        }],
-        named_params: Default::default(),
-        caller_id: Some(StructId { name: list_struct_name(), tmpls: vec![StructId::from_name(Ident::from("T"))] }),
-    };
-    map.insert(list_add.name, list_add_fn);
-
-    map
+fn mangle_fn_name(name: &str, caller_name: &str) -> Ident {
+    format!("-{}-{}", name, caller_name)
 }
 
 ///
@@ -198,8 +128,9 @@ pub(super) fn add_builtin_definition(peter: &mut Quill, nib: &mut FnNib, caller_
         .skip(2)
         .next()
         .unwrap();
+    let caller_name = caller_opt.or(Some(StructId::from_name(Ident::from("")))).unwrap().name;
     FN_BUILTIN_NAME_MAP
-        .get(fn_name)
+        .get(&mangle_fn_name(fn_name, &caller_name))
         .ok_or(CompileError::CouldNotFindFunction(
             String::from(fn_name),
         ))?(peter, nib, caller_opt, tmpls)

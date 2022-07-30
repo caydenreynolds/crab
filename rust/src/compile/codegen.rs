@@ -512,7 +512,7 @@ impl<NibType: Nib> Codegen<NibType> {
             .try_for_each(|name| {
                 let add_element_call = FnCall {
                     name: operator_add_name(),
-                    tmpls: vec![first_value.crab_type.clone()],
+                    tmpls: vec![],
                     pos_args: vec![Expression {
                         this: ExpressionType::VARIABLE(name),
                         next: None,
