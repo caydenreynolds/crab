@@ -772,11 +772,11 @@ impl ChildNib {
                             .unwrap()
                             .ok_or(QuillError::BadValueAccess)?;
                         let element_ptr = builder.build_gep(
-                            PointerValue::try_from(list).or(Err(QuillError::Unknown))?,
-                            &[IntValue::try_from(index)?],
+                            PointerValue::try_from(list).or(Err(QuillError::Convert))?,
+                            &[IntValue::try_from(index).or(Err(QuillError::Convert))?],
                             "list_set_gep"
-                        )?;
-                        builder.build_store(element_ptr, value)?;
+                        );
+                        builder.build_store(element_ptr, value);
                     }
                 }
             }
@@ -942,7 +942,7 @@ impl Nib for ChildNib {
     }
 
     fn set_list_value<T: QuillType>(&mut self, lv: &QuillValue<QuillPointerType>, value: QuillValue<T>, index: QuillValue<QuillIntType>) -> Result<()> {
-        if lv.get_type().get_inner_type() != value.get_type() {
+        if lv.get_type().get_inner_type() != value.get_type().into() {
             Err(QuillError::WrongType(format!("{:?}", lv.get_type().get_inner_type()), format!("{:?}", value.get_type())))
         } else {
             self.instructions.push(Instruction::ListValueSet(lv.id(), value.id(), index.id()));

@@ -6,8 +6,8 @@ pub type Result<T> = std::result::Result<T, QuillError>;
 
 #[derive(Error, Debug)]
 pub enum QuillError {
-    #[error("An unknown error occurred")]
-    Unknown,
+    #[error("An error occured while converting a quill value or type")]
+    Convert,
 
     #[error("Quill failed to generate LLVM IR. Debugging output sent to {0}")]
     QuillFailed(PathBuf),
