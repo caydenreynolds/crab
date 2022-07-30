@@ -74,7 +74,7 @@ fn init_builtin_fn_map() -> FnNameMap {
 
     let new_list = FuncSignature {
         name: new_list_name(),
-        tmpls: vec![],
+        tmpls: vec![StructId::from_name(Ident::from("T"))],
         return_type: CrabType::TMPL(list_struct_name(), vec![CrabType::SIMPLE(Ident::from("T"))]),
         pos_params: vec![],
         named_params: BTreeMap::from([(
@@ -91,6 +91,19 @@ fn init_builtin_fn_map() -> FnNameMap {
         caller_id: None
     }.mangled();
     map.insert(new_list.name, add_new_list);
+
+    let list_add = FuncSignature {
+        name: operator_add_name(),
+        tmpls: vec![],
+        return_type: CrabType::VOID,
+        pos_params: vec![PosParam {
+            name: Ident::from("element"),
+            crab_type: CrabType::SIMPLE(Ident::from("T")),
+        }],
+        named_params: Default::default(),
+        caller_id: Some(StructId { name: list_struct_name(), tmpls: vec![StructId::from_name(Ident::from("T"))] }),
+    }.mangled();
+    map.insert(list_add.name, list_add_fn);
 
     map
 }
@@ -270,7 +283,7 @@ fn add_new_list(_: &mut Quill, nib: &mut FnNib, _: Option<StructId>, tmpls: Vec<
     Ok(())
 }
 
-fn list_add(_: &mut Quill, nib: &mut FnNib, caller: Option<StructId>, _: Vec<StructId>) -> Result<()> {
+fn list_add_fn(_: &mut Quill, nib: &mut FnNib, caller: Option<StructId>, _: Vec<StructId>) -> Result<()> {
     let caller = caller.unwrap();
     let list = nib.get_fn_param(
         Ident::from("self"),

@@ -41,6 +41,6 @@ impl List<T> {
 //    }
 }
 
-fn __new_list__<T>(capacity=128) -> List<T> {
+fn __new_list__<T>(Int capacity=128) -> List<T> {
     (V) '--' (V)
 }
