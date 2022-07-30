@@ -372,7 +372,7 @@ impl<NibType: Nib> Codegen<NibType> {
     fn build_expression(&mut self, expr: Expression, prev: Option<CrabValue>) -> Result<CrabValue> {
         trace!("Codegen::build_expression");
         let val = match expr.this {
-            ExpressionType::PRIM(prim) => Ok(self.build_primitive(prim)),
+            ExpressionType::PRIM(prim) => self.build_primitive(prim),
             ExpressionType::STRUCT_INIT(si) => Ok(self.build_struct_init(si)?),
             ExpressionType::FN_CALL(fc) => self.build_fn_call(fc, prev),
             ExpressionType::VARIABLE(id) => {
@@ -467,7 +467,7 @@ impl<NibType: Nib> Codegen<NibType> {
         let var_names = exprs
             .into_iter()
             .try_fold(vec![], |var_names, expr| {
-                let var_name = Ident::from(Uuid::new_v4());
+                let var_name = format!("{}", Uuid::new_v4().as_simple());
                 let ass = Assignment {
                     var_name: var_name.clone(),
                     expr,
@@ -519,7 +519,7 @@ impl<NibType: Nib> Codegen<NibType> {
                     }],
                     named_args: vec![]
                 };
-                self.build_fn_call(add_element_call, Some(my_list.clone()))
+                self.build_fn_call(add_element_call, Some(my_list.clone()))?;
             })?;
 
         return Ok(my_list);

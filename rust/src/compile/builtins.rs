@@ -1,5 +1,5 @@
 use crate::compile::{CompileError, Result};
-use crate::parse::ast::{CrabType, Expression, ExpressionType, Func, FuncSignature, Ident, NamedParam, PosParam, Primitive, StructId};
+use crate::parse::ast::{CrabType, Expression, ExpressionType, FuncSignature, Ident, NamedParam, PosParam, Primitive, StructId};
 use crate::quill::{FnNib, Nib, PolyQuillType, Quill, QuillBoolType, QuillFloatType, QuillFnType, QuillIntType, QuillListType, QuillPointerType, QuillStructType, QuillVoidType};
 use crate::util::{bool_struct_name, capacity_field_name, format_i_c_name, int_struct_name, length_field_name, list_struct_name, ListFunctional, magic_main_func_name, main_func_name, MapFunctional, new_list_name, operator_add_name, primitive_field_name, printf_c_name, printf_crab_name, string_struct_name, to_string_name};
 use lazy_static::lazy_static;
@@ -263,7 +263,7 @@ fn add_new_list(_: &mut Quill, nib: &mut FnNib, _: Option<StructId>, tmpls: Vec<
         )
     );
     nib.set_value_in_struct(&list, primitive_field_name(), t_star)?;
-    nib.set_value_in_struct(&list, length_field_name(), nib.const_int(64, 0)?)?;
+    nib.set_value_in_struct(&list, length_field_name(), nib.const_int(64, 0))?;
     nib.set_value_in_struct(&list, capacity_field_name(), capacity)?;
     nib.add_return(Some(&list));
     Ok(())
@@ -275,7 +275,7 @@ fn list_add(_: &mut Quill, nib: &mut FnNib, caller: Option<StructId>, _: Vec<Str
         Ident::from("self"),
         QuillStructType::new(
         StructId { name: list_struct_name(), tmpls: caller.tmpls }.mangle()
-    ))?;
+    ));
     let element = nib.get_fn_param(
         Ident::from("element"),
         QuillStructType::new(
@@ -291,7 +291,7 @@ fn list_add(_: &mut Quill, nib: &mut FnNib, caller: Option<StructId>, _: Vec<Str
         primitive_field_name(),
         QuillPointerType::new(QuillStructType::new(caller.tmpls[0].mangle())),
     )?;
-    nib.set_list_value(&t_star, element, length)?;
+    nib.set_list_value(&t_star, element, length);
 
     let new_len = nib.int_add(length, nib.const_int(64, 1))?;
     nib.set_value_in_struct(list, length_field_name(), new_len)?;

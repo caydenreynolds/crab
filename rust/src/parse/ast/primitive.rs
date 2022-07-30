@@ -50,7 +50,7 @@ impl AstNode for ListPrimitive {
             pair
                 .into_inner()
                 .try_fold(vec![], |exprs, pair| {
-                    Ok(exprs.fpush(Expression::try_from(pair)?))
+                    Result::Ok(exprs.fpush(Expression::try_from(pair)?))
                 })?
         ))
     }

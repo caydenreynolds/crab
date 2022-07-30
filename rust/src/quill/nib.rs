@@ -238,7 +238,7 @@ pub trait Nib: Debug {
         lv: &QuillValue<QuillPointerType>,
         value: QuillValue<T>,
         index: QuillValue<QuillIntType>,
-    );
+    ) -> Result<()>;
 }
 
 ///
@@ -375,7 +375,7 @@ impl Nib for FnNib {
     fn get_fn_t(&self) -> &QuillFnType {
         self.inner.get_fn_t()
     }
-    fn set_list_value<T: QuillType>(&mut self, lv: &QuillValue<QuillPointerType>, value: QuillValue<T>, index: QuillValue<QuillIntType>) {
+    fn set_list_value<T: QuillType>(&mut self, lv: &QuillValue<QuillPointerType>, value: QuillValue<T>, index: QuillValue<QuillIntType>) -> Result<()> {
         self.inner.set_list_value(lv, value, index)
     }
 }
@@ -764,7 +764,7 @@ impl ChildNib {
                             .unwrap()
                             .ok_or(QuillError::BadValueAccess)?;
                         let value = values
-                            .get(values_id)
+                            .get(value_id)
                             .unwrap()
                             .ok_or(QuillError::BadValueAccess)?;
                         let index = values
@@ -941,7 +941,12 @@ impl Nib for ChildNib {
         &self.parent_fn
     }
 
-    fn set_list_value<T: QuillType>(&mut self, lv: &QuillValue<QuillPointerType>, value: QuillValue<T>, index: QuillValue<QuillIntType>) {
-        self.instructions.push(Instruction::ListValueSet(lv.id(), value.id(), index.id()));
+    fn set_list_value<T: QuillType>(&mut self, lv: &QuillValue<QuillPointerType>, value: QuillValue<T>, index: QuillValue<QuillIntType>) -> Result<()> {
+        if lv.get_type().get_inner_type() != value.get_type() {
+            Err(QuillError::WrongType(format!("{:?}", lv.get_type().get_inner_type()), format!("{:?}", value.get_type())))
+        } else {
+            self.instructions.push(Instruction::ListValueSet(lv.id(), value.id(), index.id()));
+            Ok(())
+        }
     }
 }
