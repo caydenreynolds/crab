@@ -240,7 +240,7 @@ impl FuncSignature {
                     .tmpls
                     .into_iter()
                     .try_fold(vec![], |new_tmpls, tmpl| {
-                        Result::Ok(new_tmpls.fpush(tmpl.resolve(&tmpls)?))
+                        compile::Result::Ok(new_tmpls.fpush(tmpl.resolve(&tmpls)?))
                     })?;
                 Ok(Self {
                     pos_params,
