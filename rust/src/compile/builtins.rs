@@ -287,14 +287,14 @@ fn list_add(_: &mut Quill, nib: &mut FnNib, caller: Option<StructId>, _: Vec<Str
     let length = nib.get_value_from_struct(&list, length_field_name(), QuillIntType::new(64))?;
 
     let t_star = nib.get_value_from_struct(
-        list,
+        &list,
         primitive_field_name(),
         QuillPointerType::new(QuillStructType::new(caller.tmpls[0].mangle())),
     )?;
-    nib.set_list_value(&t_star, element, length);
+    nib.set_list_value(&t_star, element, length)?;
 
     let new_len = nib.int_add(length, nib.const_int(64, 1))?;
-    nib.set_value_in_struct(list, length_field_name(), new_len)?;
+    nib.set_value_in_struct(&list, length_field_name(), new_len)?;
     Ok(())
 }
 

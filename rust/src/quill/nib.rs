@@ -772,7 +772,7 @@ impl ChildNib {
                             .unwrap()
                             .ok_or(QuillError::BadValueAccess)?;
                         let element_ptr = builder.build_gep(
-                            PointerValue::try_from(list)?,
+                            PointerValue::try_from(list).or(Err(QuillError::Unknown))?,
                             &[IntValue::try_from(index)?],
                             "list_set_gep"
                         )?;

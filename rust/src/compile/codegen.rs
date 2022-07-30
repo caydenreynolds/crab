@@ -520,7 +520,7 @@ impl<NibType: Nib> Codegen<NibType> {
                     named_args: vec![]
                 };
                 self.build_fn_call(add_element_call, Some(my_list.clone()))?;
-                Ok(())
+                Result::Ok(())
             })?;
 
         return Ok(my_list);
