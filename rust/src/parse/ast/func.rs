@@ -64,9 +64,9 @@ impl Func {
         match caller_opt {
             None => {
                 if tmpls.len() > 0 {
-                    let call_type = CrabType::TMPL(Ident::from("Irrelevent"), tmpls);
+                    let call_type = CrabType::TMPL(Ident::from(""), tmpls);
                     let expected_tmpls = StructId {
-                        name: String::from("Irrelevent"),
+                        name: String::from(""),
                         tmpls: self.signature.tmpls.clone(),
                     };
                     Ok(Self {
