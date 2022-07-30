@@ -40,8 +40,7 @@ fn init_builtin_fn_map() -> FnNameMap {
         named_params: Default::default(),
         caller_id: Some(StructId::from_name(int_struct_name())),
         tmpls: vec![],
-    }
-    .mangled();
+    };
     map.insert(int_add.name, add_int);
 
     let int_to_str = FuncSignature {
@@ -54,8 +53,7 @@ fn init_builtin_fn_map() -> FnNameMap {
         named_params: Default::default(),
         caller_id: Some(StructId::from_name(int_struct_name())),
         tmpls: vec![],
-    }
-    .mangled();
+    };
     map.insert(int_to_str.name, format_i);
 
     let printf = FuncSignature {
@@ -68,8 +66,7 @@ fn init_builtin_fn_map() -> FnNameMap {
         named_params: Default::default(),
         caller_id: None,
         tmpls: vec![],
-    }
-    .mangled();
+    };
     map.insert(printf.name, add_printf);
 
     let new_list = FuncSignature {
@@ -89,7 +86,7 @@ fn init_builtin_fn_map() -> FnNameMap {
              }
         )]),
         caller_id: None
-    }.mangled();
+    };
     map.insert(new_list.name, add_new_list);
 
     let list_add = FuncSignature {
@@ -102,7 +99,7 @@ fn init_builtin_fn_map() -> FnNameMap {
         }],
         named_params: Default::default(),
         caller_id: Some(StructId { name: list_struct_name(), tmpls: vec![StructId::from_name(Ident::from("T"))] }),
-    }.mangled();
+    };
     map.insert(list_add.name, list_add_fn);
 
     map
