@@ -236,11 +236,18 @@ impl FuncSignature {
                         ))
                     },
                 )?;
+                let tmpls = self
+                    .tmpls
+                    .into_iter()
+                    .try_fold(vec![], |tmpls, tmpl| {
+                        Ok(tmpls.fpush(tmpl.resolve(&tmpls)?))
+                    })?;
                 Ok(Self {
-                    caller_id: Some(StructId::try_from(caller.clone())?),
                     pos_params,
                     named_params,
+                    tmpls,
                     return_type: self.return_type.resolve(caller_id, &tmpls)?,
+                    caller_id: Some(StructId::try_from(caller.clone())?),
                     ..self
                 })
             }
