@@ -273,9 +273,9 @@ fn list_add(_: &mut Quill, nib: &mut FnNib, caller: Option<StructId>, _: Vec<Str
     let caller = caller.unwrap();
     let list = nib.get_fn_param(
         Ident::from("self"),
-        QuillStructType::new(
+        QuillPointerType::new(QuillStructType::new(
         StructId { name: list_struct_name(), tmpls: caller.tmpls }.mangle()
-    ));
+    )));
     let element = nib.get_fn_param(
         Ident::from("element"),
         QuillStructType::new(
@@ -284,7 +284,7 @@ fn list_add(_: &mut Quill, nib: &mut FnNib, caller: Option<StructId>, _: Vec<Str
     );
 
     //TODO: call to resize if len == capacity
-    let length = nib.get_value_from_struct(list, length_field_name(), QuillIntType::new(64))?;
+    let length = nib.get_value_from_struct(&list, length_field_name(), QuillIntType::new(64))?;
 
     let t_star = nib.get_value_from_struct(
         list,
