@@ -239,7 +239,7 @@ impl FuncSignature {
                 let new_tmpls = if self.tmpls.len() > 0 {
                     StructId { name: Ident::from("Irrelevent"), tmpls: self.tmpls }
                         .resolve(tmpls)?
-                        .tmpls;
+                        .tmpls
                 } else {
                     self.tmpls
                 };
