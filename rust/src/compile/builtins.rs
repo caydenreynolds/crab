@@ -6,7 +6,8 @@ use lazy_static::lazy_static;
 use std::collections::HashMap;
 use std::convert::TryInto;
 
-type FnNameMap = HashMap<Ident, fn(&mut Quill, &mut FnNib, caller_opt: Option<StructId>, tmpls: Vec<StructId>) -> Result<()>>;
+type FnDefFn = fn(&mut Quill, &mut FnNib, caller_opt: Option<StructId>, tmpls: Vec<StructId>) -> Result<()>;
+type FnNameMap = HashMap<Ident, FnDefFn>;
 type StrctNameMap = HashMap<Ident, HashMap<Ident, StructTypeResolver>>;
 
 lazy_static! {
@@ -23,11 +24,11 @@ lazy_static! {
 ///
 fn init_builtin_fn_map() -> FnNameMap {
     let map: FnNameMap = HashMap::from([
-        (mangle_fn_name(&operator_add_name(), &int_struct_name()), add_int),
-        (mangle_fn_name(&to_string_name(), &int_struct_name()), format_i),
-        (mangle_fn_name(&printf_crab_name(), ""), add_printf),
-        (mangle_fn_name(&new_list_name(), ""), add_new_list),
-        (mangle_fn_name(&operator_add_name(), &list_struct_name()), list_add_fn),
+        (mangle_fn_name(&operator_add_name(), &int_struct_name()), add_int as FnDefFn),
+        (mangle_fn_name(&to_string_name(), &int_struct_name()), format_i as FnDefFn),
+        (mangle_fn_name(&printf_crab_name(), ""), add_printf as FnDefFn),
+        (mangle_fn_name(&new_list_name(), ""), add_new_list as FnDefFn),
+        (mangle_fn_name(&operator_add_name(), &list_struct_name()), list_add_fn as FnDefFn),
     ]);
     map
 }
