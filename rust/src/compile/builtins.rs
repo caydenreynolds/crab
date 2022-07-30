@@ -1,9 +1,9 @@
 use crate::compile::{CompileError, Result};
-use crate::parse::ast::{CrabType, Expression, ExpressionType, FuncSignature, Ident, NamedParam, PosParam, Primitive, StructId};
+use crate::parse::ast::{CrabType, FuncSignature, Ident, StructId};
 use crate::quill::{FnNib, Nib, PolyQuillType, Quill, QuillBoolType, QuillFloatType, QuillFnType, QuillIntType, QuillListType, QuillPointerType, QuillStructType, QuillVoidType};
 use crate::util::{bool_struct_name, capacity_field_name, format_i_c_name, int_struct_name, length_field_name, list_struct_name, ListFunctional, magic_main_func_name, main_func_name, MapFunctional, new_list_name, operator_add_name, primitive_field_name, printf_c_name, printf_crab_name, string_struct_name, to_string_name};
 use lazy_static::lazy_static;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::convert::TryInto;
 
 type FnNameMap = HashMap<Ident, fn(&mut Quill, &mut FnNib, caller_opt: Option<StructId>, tmpls: Vec<StructId>) -> Result<()>>;
@@ -22,13 +22,14 @@ lazy_static! {
 /// The builtin name map is populated with *hashed* function names -> function body generator
 ///
 fn init_builtin_fn_map() -> FnNameMap {
-    HashMap::from([
+    let map: FnNameMap = HashMap::from([
         (mangle_fn_name(&operator_add_name(), &int_struct_name()), add_int),
         (mangle_fn_name(&to_string_name(), &int_struct_name()), format_i),
         (mangle_fn_name(&printf_crab_name(), ""), add_printf),
         (mangle_fn_name(&new_list_name(), ""), add_new_list),
         (mangle_fn_name(&operator_add_name(), &list_struct_name()), list_add_fn),
-    ])
+    ]);
+    map
 }
 
 fn mangle_fn_name(name: &str, caller_name: &str) -> Ident {
