@@ -130,7 +130,11 @@ pub(super) fn add_builtin_definition(peter: &mut Quill, nib: &mut FnNib, caller_
         .skip(2)
         .next()
         .unwrap();
-    let caller_name = caller_opt.or(Some(StructId::from_name(Ident::from("")))).unwrap().name;
+    let caller_name = caller_opt
+        .clone()
+        .or(Some(StructId::from_name(Ident::from(""))))
+        .unwrap()
+        .name;
     FN_BUILTIN_NAME_MAP
         .get(&mangle_fn_name(fn_name, &caller_name))
         .ok_or(CompileError::CouldNotFindFunction(
