@@ -8,7 +8,7 @@ use inkwell::basic_block::BasicBlock;
 use inkwell::context::Context;
 use inkwell::module::Module;
 use inkwell::types::AnyTypeEnum;
-use inkwell::values::{BasicMetadataValueEnum, BasicValue, BasicValueEnum, FunctionValue};
+use inkwell::values::{BasicMetadataValueEnum, BasicValue, BasicValueEnum, FunctionValue, IntValue, PointerValue};
 use log::{debug, trace};
 use std::convert::TryFrom;
 use std::fmt::Debug;
@@ -31,7 +31,8 @@ enum Instruction {
     Malloc(usize, PolyQuillType),    // Id, type
     FnCall(String, usize, Vec<usize>), // Fn name, return id, positional params
     FnParam(usize, String),          // Param Id, Param name
-    IntAdd(usize, usize, usize),     // Result Id, lhs Id, rhs Id
+    IntAdd(usize, usize, usize),     // Result Id, lhs id, rhs id
+    ListValueSet(usize, usize, usize) // List Id, value id. index id
 }
 
 ///
@@ -223,6 +224,21 @@ pub trait Nib: Debug {
     /// The QuillFnType of this Nib
     ///
     fn get_fn_t(&self) -> &QuillFnType;
+
+    ///
+    /// Sets a value in a list
+    ///
+    /// Params:
+    /// * `sv` - A pointer to the list
+    /// * `value` - The value to set the field to
+    /// * 'index' - The index in the list to set
+    ///
+    fn set_list_value(
+        &mut self,
+        lv: &QuillValue<QuillPointerType>,
+        value: QuillValue<T>,
+        index: QuillValue<QuillIntType>,
+    );
 }
 
 ///
@@ -358,6 +374,9 @@ impl Nib for FnNib {
     }
     fn get_fn_t(&self) -> &QuillFnType {
         self.inner.get_fn_t()
+    }
+    fn set_list_value(&mut self, lv: &QuillValue<QuillPointerType>, value: QuillValue<T>, index: QuillValue<QuillIntType>) {
+        self.inner.set_list_value(lv, value, index)
     }
 }
 
@@ -737,6 +756,29 @@ impl ChildNib {
                         Some(builder.build_int_add(lhs, rhs, "add").as_basic_value_enum()),
                     );
                 }
+
+                Instruction::ListValueSet(list_id, value_id, index_id) => {
+                    unsafe {
+                        let list = values
+                            .get(list_id)
+                            .unwrap()
+                            .ok_or(QuillError::BadValueAccess)?;
+                        let value = values
+                            .get(values_id)
+                            .unwrap()
+                            .ok_or(QuillError::BadValueAccess)?;
+                        let index = values
+                            .get(index_id)
+                            .unwrap()
+                            .ok_or(QuillError::BadValueAccess)?;
+                        let element_ptr = builder.build_gep(
+                            PointerValue::try_from(list)?,
+                            &[IntValue::try_from(index)?],
+                            "list_set_gep"
+                        )?;
+                        builder.build_store(element_ptr, value)?;
+                    }
+                }
             }
         }
 
@@ -897,5 +939,9 @@ impl Nib for ChildNib {
 
     fn get_fn_t(&self) -> &QuillFnType {
         &self.parent_fn
+    }
+
+    fn set_list_value(&mut self, lv: &QuillValue<QuillPointerType>, value: QuillValue<T>, index: QuillValue<QuillIntType>) {
+        self.instructions.push(Instruction::ListValueSet(lv.id(), value.id(), index.id()));
     }
 }

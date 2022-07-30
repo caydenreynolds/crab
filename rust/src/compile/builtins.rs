@@ -1,25 +1,28 @@
 use crate::compile::{CompileError, Result};
-use crate::parse::ast::{CrabType, FuncSignature, Ident, PosParam, StructId};
+use crate::parse::ast::{CrabType, Expression, ExpressionType, Func, FuncSignature, Ident, NamedParam, PosParam, Primitive, StructId};
 use crate::quill::{FnNib, Nib, PolyQuillType, Quill, QuillBoolType, QuillFloatType, QuillFnType, QuillIntType, QuillListType, QuillPointerType, QuillStructType, QuillVoidType};
-use crate::util::{bool_struct_name, capacity_field_name, format_i_c_name, int_struct_name, length_field_name, list_struct_name, ListFunctional, magic_main_func_name, main_func_name, MapFunctional, operator_add_name, primitive_field_name, printf_c_name, printf_crab_name, string_struct_name, to_string_name};
+use crate::util::{bool_struct_name, capacity_field_name, format_i_c_name, int_struct_name, length_field_name, list_struct_name, ListFunctional, magic_main_func_name, main_func_name, MapFunctional, new_list_name, operator_add_name, primitive_field_name, printf_c_name, printf_crab_name, string_struct_name, to_string_name};
 use lazy_static::lazy_static;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::convert::TryInto;
+
+type FnNameMap = HashMap<Ident, fn(&mut Quill, &mut FnNib, caller_opt: Option<StructId>, tmpls: Vec<StructId>) -> Result<()>>;
+type StrctNameMap = HashMap<Ident, HashMap<Ident, StructTypeResolver>>;
 
 lazy_static! {
     /// A map of the names of each of our function builtins to the function that generates the ir for that builtin
-    static ref FN_BUILTIN_NAME_MAP: HashMap<Ident, fn(&mut Quill, &mut FnNib)->Result<()>> = init_builtin_fn_map();
+    static ref FN_BUILTIN_NAME_MAP: FnNameMap = init_builtin_fn_map();
 
     /// A map of the names of each of our struct builtins to the function that generates the ir for that builtin
-    static ref STRCT_BUILTIN_NAME_MAP: HashMap<Ident, HashMap<Ident, StructTypeResolver>> = init_builtin_strct_map();
+    static ref STRCT_BUILTIN_NAME_MAP: StrctNameMap = init_builtin_strct_map();
 }
 
 ///
 /// Initialize the builtin function map
 /// The builtin name map is populated with *hashed* function names -> function body generator
 ///
-fn init_builtin_fn_map() -> HashMap<Ident, fn(&mut Quill, &mut FnNib) -> Result<()>> {
-    let mut map: HashMap<Ident, fn(&mut Quill, &mut FnNib) -> Result<()>> = HashMap::new();
+fn init_builtin_fn_map() -> FnNameMap {
+    let mut map: FnNameMap = HashMap::new();
 
     let int_add = FuncSignature {
         name: operator_add_name(),
@@ -69,13 +72,33 @@ fn init_builtin_fn_map() -> HashMap<Ident, fn(&mut Quill, &mut FnNib) -> Result<
     .mangled();
     map.insert(printf.name, add_printf);
 
+    let new_list = FuncSignature {
+        name: new_list_name(),
+        tmpls: vec![],
+        return_type: CrabType::TMPL(list_struct_name(), vec![CrabType::SIMPLE(Ident::from("T"))]),
+        pos_params: vec![],
+        named_params: BTreeMap::from([(
+            capacity_field_name(),
+             NamedParam {
+                 name: capacity_field_name(),
+                 crab_type: CrabType::SIMPLE(int_struct_name()),
+                 expr: Expression {
+                     this: ExpressionType::PRIM(Primitive::UINT(128)),
+                     next: None,
+                 }
+             }
+        )]),
+        caller_id: None
+    }.mangled();
+    map.insert(new_list.name, add_new_list);
+
     map
 }
 
 ///
 /// Init the builtin struct definition map
 ///
-fn init_builtin_strct_map() -> HashMap<Ident, HashMap<String, StructTypeResolver>> {
+fn init_builtin_strct_map() -> StrctNameMap {
     HashMap::from([
         (
             int_struct_name(),
@@ -158,12 +181,18 @@ fn resolve_type(ct: &CrabType, index: usize) -> Result<PolyQuillType> {
     }
 }
 
-pub(super) fn add_builtin_definition(peter: &mut Quill, nib: &mut FnNib) -> Result<()> {
+pub(super) fn add_builtin_definition(peter: &mut Quill, nib: &mut FnNib, caller_opt: Option<StructId>, tmpls: Vec<StructId>) -> Result<()> {
+    let fn_name = nib
+        .get_fn_name()
+        .split("-")
+        .skip(1)
+        .next()
+        .unwrap();
     FN_BUILTIN_NAME_MAP
-        .get(nib.get_fn_name())
+        .get(fn_name)
         .ok_or(CompileError::CouldNotFindFunction(
-            nib.get_fn_name().clone(),
-        ))?(peter, nib)
+            String::from(fn_name),
+        ))?(peter, nib, caller_opt, tmpls)
 }
 
 pub(super) fn get_builtin_strct_definition(ct: &CrabType) -> Result<HashMap<String, PolyQuillType>> {
@@ -177,7 +206,7 @@ pub(super) fn get_builtin_strct_definition(ct: &CrabType) -> Result<HashMap<Stri
     )
 }
 
-fn add_printf(peter: &mut Quill, nib: &mut FnNib) -> Result<()> {
+fn add_printf(peter: &mut Quill, nib: &mut FnNib, _: Option<StructId>, _: Vec<StructId>) -> Result<()> {
     // Tell the quill we need to link to the C printf function
     let params = vec![(
         String::from("0"),
@@ -210,7 +239,66 @@ fn add_printf(peter: &mut Quill, nib: &mut FnNib) -> Result<()> {
     Ok(())
 }
 
-fn add_int(_: &mut Quill, nib: &mut FnNib) -> Result<()> {
+fn add_new_list(_: &mut Quill, nib: &mut FnNib, _: Option<StructId>, tmpls: Vec<StructId>) -> Result<()> {
+    let capacity_param = nib.get_fn_param(
+        capacity_field_name(),
+        QuillPointerType::new(QuillStructType::new(int_struct_name()))
+    );
+    let capacity = nib.get_value_from_struct(
+        &capacity_param,
+        primitive_field_name(),
+        QuillIntType::new(64),
+    )?;
+    let t_star = nib.add_malloc(
+        QuillListType::new_var_length(
+            QuillPointerType::new(
+                QuillStructType::new(tmpls[0].mangle())
+            ),
+            capacity.clone(),
+        )
+    );
+    let list = nib.add_malloc(
+        QuillStructType::new(
+            StructId { name: list_struct_name(), tmpls: vec![tmpls[0]] }.mangle()
+        )
+    );
+    nib.set_value_in_struct(&list, primitive_field_name(), t_star)?;
+    nib.set_value_in_struct(&list, length_field_name(), nib.const_int(64, 0)?)?;
+    nib.set_value_in_struct(&list, capacity_field_name(), capacity)?;
+    nib.add_return(Some(&list));
+    Ok(())
+}
+
+fn list_add(_: &mut Quill, nib: &mut FnNib, caller: Option<StructId>, _: Vec<StructId>) -> Result<()> {
+    let caller = caller.unwrap();
+    let list = nib.get_fn_param(
+        Ident::from("self"),
+        QuillStructType::new(
+        StructId { name: list_struct_name(), tmpls: caller.tmpls }.mangle()
+    ))?;
+    let element = nib.get_fn_param(
+        Ident::from("element"),
+        QuillStructType::new(
+            caller.tmpls[0].mangle()
+        )
+    );
+
+    //TODO: call to resize if len == capacity
+    let length = nib.get_value_from_struct(list, length_field_name(), QuillIntType::new(64))?;
+
+    let t_star = nib.get_value_from_struct(
+        list,
+        primitive_field_name(),
+        QuillPointerType::new(QuillStructType::new(caller.tmpls[0].mangle())),
+    )?;
+    nib.set_list_value(&t_star, element, length)?;
+
+    let new_len = nib.int_add(length, nib.const_int(64, 1))?;
+    nib.set_value_in_struct(list, length_field_name(), new_len)?;
+    Ok(())
+}
+
+fn add_int(_: &mut Quill, nib: &mut FnNib, _: Option<StructId>, _: Vec<StructId>) -> Result<()> {
     let self_arg = nib.get_fn_param(
         String::from("self"),
         QuillPointerType::new(QuillStructType::new(int_name_mangled())),
@@ -234,7 +322,7 @@ fn add_int(_: &mut Quill, nib: &mut FnNib) -> Result<()> {
     Ok(())
 }
 
-fn format_i(peter: &mut Quill, nib: &mut FnNib) -> Result<()> {
+fn format_i(peter: &mut Quill, nib: &mut FnNib, _: Option<StructId>, _: Vec<StructId>) -> Result<()> {
     let params = vec![
         (
             String::from("0"),

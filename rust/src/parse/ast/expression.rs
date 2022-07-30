@@ -168,7 +168,8 @@ impl TryFrom<Pair<'_, Rule>> for ExpressionType {
                                 next: None,
                             },
                         }],
-                    })),
+                    }))
+                    _ => Ok(ExpressionType::PRIM(prim)),
                 }
             }
             Rule::struct_init => Ok(Self::STRUCT_INIT(StructInit::try_from(pair)?)),

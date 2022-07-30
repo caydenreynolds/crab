@@ -1,0 +1,6 @@
+fn main() -> Int {
+    let int_list = [1, 2, 3, 4, 5]
+    let string_list = ["I", "am", "a", "list", "of", "strings"]
+
+    return 0
+}

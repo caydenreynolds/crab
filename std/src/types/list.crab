@@ -2,12 +2,16 @@ struct List<T> {
     (V) '--' (V)
 }
 
-//intr List<T> {
+intr List<T> {
 //   Printable,
-//   Addable,
-//}
+   Addable,
+}
 
-//impl List<T> {
+impl List<T> {
+      fn operatorAdd(T element) {
+          (V) '--' (V)
+      }
+
 //    fn get(Int index) -> T {
 //        (V) '--' (V)
 //    }
@@ -21,11 +25,11 @@ struct List<T> {
 //    }
 
 //    fn push(T other) -> List<T> {
-//        return self.append(other)
+//        return self + other
 //    }
 
 //    fn add(T other) -> List<T> {
-//        return self.append(other)
+//        return self + other
 //    }
 
 //    fn toString() {
@@ -35,8 +39,8 @@ struct List<T> {
 //    fn resize() {
 //        (V) '--' (V)
 //    }
-//}
+}
 
-//fn __new_list__<T>(capacity=0) -> List<T> {
-//    (V) '--' (V)
-//}
+fn __new_list__<T>(capacity=128) -> List<T> {
+    (V) '--' (V)
+}

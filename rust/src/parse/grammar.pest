@@ -69,12 +69,14 @@ expression = { ( primitive | struct_init | fn_call | ident ) ~ ("." ~ (fn_call |
 operator = { "+" | "-" | "*" | "/" | "<<" | ">>" | "==" | "<" | ">" | "<=" | ">=" }
 
 // primitive.rs
-primitive = { (uint64_primitive | string_primitive | bool_primitive) }
+primitive = { (uint64_primitive | string_primitive | bool_primitive | list_primitive) }
 uint64_primitive = @{ ASCII_DIGIT+ }
 bool_primitive = { "true" | "false" }
 string_primitive = ${ ("\"" | NEWLINE) ~ string_inner ~ "\"" }
 string_inner = @{ char* }
 char = @{ !("\"" | "\\") ~ ANY | ("\\" ~ ( "n" )) }
+// TODO: should be able to supply and empty list, but I don't have a way to infer the type right now
+list_primitive = { "[" ~ (expression ~ ("," ~ expression)*) ~ ",?" ~ "]" }
 
 // Unaffiliated
 compiler_provided = { "{" ~ "(V) '--' (V)" ~ "}" }

@@ -30,6 +30,9 @@ pub fn printf_crab_name() -> Ident {
 pub fn format_i_c_name() -> Ident {
     Ident::from("__c_format_i__")
 }
+pub fn new_list_name() -> Ident {
+    Ident::from("__new_list__")
+}
 
 pub fn operator_add_name() -> Ident {
     Ident::from("operatorAdd")

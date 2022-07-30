@@ -254,13 +254,13 @@ impl Display for FuncSignature {
             None => "FN",
             Some(_) => "MD",
         };
-        write!(f, "_{}_{}", fn_or_md, self.name)?;
+        write!(f, "-{}-{}", fn_or_md, self.name)?;
         self.pos_params
             .iter()
-            .try_for_each(|param| write!(f, "_{}", param.crab_type))?;
+            .try_for_each(|param| write!(f, "-{}", param.crab_type))?;
         self.named_params
             .iter()
-            .try_for_each(|(_, param)| write!(f, "_{}", param.crab_type))
+            .try_for_each(|(_, param)| write!(f, "-{}", param.crab_type))
     }
 }
 

@@ -1,21 +1,19 @@
 use crate::compile::{
     add_builtin_definition, add_main_func, CompileError, FnManager, Result, TypeManager, VarManager,
 };
-use crate::parse::ast::{
-    Assignment, CodeBlock, CrabAst, CrabType, DoWhileStmt, Expression, ExpressionType, FnBodyType,
-    FnCall, Ident, IfStmt, PosParam, Primitive, Statement, StructId, StructInit, WhileStmt,
-};
+use crate::parse::ast::{Assignment, CodeBlock, CrabAst, CrabType, DoWhileStmt, Expression, ExpressionType, FnBodyType, FnCall, Ident, IfStmt, NamedArg, PosParam, Primitive, Statement, StructFieldInit, StructId, StructInit, WhileStmt};
 use crate::quill::{
     ArtifactType, ChildNib, FnNib, Nib, PolyQuillType, Quill, QuillBoolType, QuillFnType,
     QuillStructType, QuillValue,
 };
-use crate::util::{primitive_field_name, ListFunctional, MapFunctional, SetFunctional};
+use crate::util::{primitive_field_name, ListFunctional, MapFunctional, SetFunctional, new_list_name, default_tmpls, int_struct_name, operator_add_name};
 use log::{debug, trace};
 use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::convert::{TryFrom, TryInto};
 use std::path::Path;
 use std::rc::Rc;
+use uuid::Uuid;
 
 ///
 /// Compiles the given CrabAst and writes the output to out_path
@@ -86,7 +84,7 @@ pub fn compile(
                     (codegen.into_nib(), returns)
                 }
                 FnBodyType::COMPILER_PROVIDED => {
-                    add_builtin_definition(&mut peter, &mut nib)?;
+                    add_builtin_definition(&mut peter, &mut nib, func.signature.caller_id, func.signature.tmpls)?;
                     (nib, true) // Just assume it's all good for now
                 }
             };
@@ -446,19 +444,85 @@ impl<NibType: Nib> Codegen<NibType> {
     /// Returns:
     /// The new quill value
     ///
-    fn build_primitive(&mut self, prim: Primitive) -> CrabValue {
+    fn build_primitive(&mut self, prim: Primitive) -> Result<CrabValue> {
         trace!("Codegen::build_primitive");
         match prim {
             Primitive::STRING(value) => {
-                CrabValue::new(self.nib.const_string(value).into(), CrabType::PRIM_STR)
+                Ok(CrabValue::new(self.nib.const_string(value).into(), CrabType::PRIM_STR))
             }
             Primitive::BOOL(value) => {
-                CrabValue::new(self.nib.const_bool(value).into(), CrabType::PRIM_BOOL)
+                Ok(CrabValue::new(self.nib.const_bool(value).into(), CrabType::PRIM_BOOL))
             }
             Primitive::UINT(value) => {
-                CrabValue::new(self.nib.const_int(64, value).into(), CrabType::PRIM_INT)
+                Ok(CrabValue::new(self.nib.const_int(64, value).into(), CrabType::PRIM_INT))
+            }
+            Primitive::LIST(exprs) =? {
+                self.build_list_prim(exprs)
             }
         }
+    }
+
+    fn build_list_prim(&mut self, exprs: Vec<Expression>) -> Result<CrabValue> {
+        // Get the values to add to the list
+        let var_names = exprs
+            .into_iter()
+            .try_fold(vec![], |var_names, expr| {
+                let var_name = Ident::from(Uuid::new_v4());
+                let ass = Assignment {
+                    var_name: var_name.clone(),
+                    expr,
+                };
+                self.build_assignment(ass)?;
+                Result::Ok(var_names.fpush(var_name))
+            })?;
+        let first_value = self.build_expression(Expression {
+                this: ExpressionType::VARIABLE(var_names[0].clone()),
+                next: None
+            },
+            None,
+        )?;
+
+        // Construct the vector
+        let fn_call = FnCall {
+            name: new_list_name(),
+            tmpls: vec![first_value.crab_type.clone()],
+            pos_args: vec![],
+            named_args: vec![NamedArg {
+                name: Ident::from("capacity"),
+                expr: Expression {
+                    this: ExpressionType::STRUCT_INIT(StructInit {
+                        id: CrabType::SIMPLE(int_struct_name()),
+                        fields: vec![StructFieldInit {
+                            name: primitive_field_name(),
+                            value: Expression {
+                                this: ExpressionType::PRIM(Primitive::UINT(values.len() as u64)),
+                                next: None
+                            }
+                        }],
+                    }),
+                    next: None
+                }
+            }]
+        };
+        let my_list = self.build_fn_call(fn_call, None)?;
+
+        // Add elements to the array
+        var_names
+            .into_iter()
+            .try_for_each(|name| {
+                let add_element_call = FnCall {
+                    name: operator_add_name(),
+                    tmpls: vec![first_value.crab_type.clone()],
+                    pos_args: vec![Expression {
+                        this: ExpressionType::VARIABLE(name),
+                        next: None,
+                    }],
+                    named_args: vec![]
+                };
+                self.build_fn_call(add_element_call, Some(my_list.clone()))
+            })?;
+
+        return Ok(my_list);
     }
 
     ///
