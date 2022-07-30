@@ -236,12 +236,9 @@ impl FuncSignature {
                         ))
                     },
                 )?;
-                let new_tmpls = self
-                    .tmpls
-                    .into_iter()
-                    .try_fold(vec![], |new_tmpls, tmpl| {
-                        compile::Result::Ok(new_tmpls.fpush(tmpl.resolve(&tmpls)?))
-                    })?;
+                let new_tmpls = StructId { name: Ident::from("Irrelevent"), tmpls: self.tmpls }
+                    .resolve(tmpls)?
+                    .tmpls;
                 Ok(Self {
                     pos_params,
                     named_params,
