@@ -942,7 +942,7 @@ impl Nib for ChildNib {
     }
 
     fn set_list_value<T: QuillType>(&mut self, lv: &QuillValue<QuillPointerType>, value: QuillValue<T>, index: QuillValue<QuillIntType>) -> Result<()> {
-        if lv.get_type().get_inner_type() != value.get_type().into() {
+        if lv.get_type().get_inner_type() != value.get_type().clone().into() {
             Err(QuillError::WrongType(format!("{:?}", lv.get_type().get_inner_type()), format!("{:?}", value.get_type())))
         } else {
             self.instructions.push(Instruction::ListValueSet(lv.id(), value.id(), index.id()));
