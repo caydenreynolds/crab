@@ -236,9 +236,13 @@ impl FuncSignature {
                         ))
                     },
                 )?;
-                let new_tmpls = StructId { name: Ident::from("Irrelevent"), tmpls: self.tmpls }
-                    .resolve(tmpls)?
-                    .tmpls;
+                let new_tmpls = if self.tmpls.len() > 0 {
+                    StructId { name: Ident::from("Irrelevent"), tmpls: self.tmpls }
+                        .resolve(tmpls)?
+                        .tmpls;
+                } else {
+                    self.tmpls
+                };
                 Ok(Self {
                     pos_params,
                     named_params,
