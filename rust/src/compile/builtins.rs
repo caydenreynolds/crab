@@ -259,11 +259,12 @@ fn add_new_list(_: &mut Quill, nib: &mut FnNib, _: Option<StructId>, tmpls: Vec<
     );
     let list = nib.add_malloc(
         QuillStructType::new(
-            StructId { name: list_struct_name(), tmpls: vec![tmpls[0]] }.mangle()
+            StructId { name: list_struct_name(), tmpls: vec![tmpls[0].clone()] }.mangle()
         )
     );
     nib.set_value_in_struct(&list, primitive_field_name(), t_star)?;
-    nib.set_value_in_struct(&list, length_field_name(), nib.const_int(64, 0))?;
+    let zero = nib.const_int(64, 0);
+    nib.set_value_in_struct(&list, length_field_name(), zero)?;
     nib.set_value_in_struct(&list, capacity_field_name(), capacity)?;
     nib.add_return(Some(&list));
     Ok(())
@@ -274,7 +275,7 @@ fn list_add(_: &mut Quill, nib: &mut FnNib, caller: Option<StructId>, _: Vec<Str
     let list = nib.get_fn_param(
         Ident::from("self"),
         QuillPointerType::new(QuillStructType::new(
-        StructId { name: list_struct_name(), tmpls: caller.tmpls }.mangle()
+        StructId { name: list_struct_name(), tmpls: caller.tmpls.clone() }.mangle()
     )));
     let element = nib.get_fn_param(
         Ident::from("element"),
@@ -291,9 +292,10 @@ fn list_add(_: &mut Quill, nib: &mut FnNib, caller: Option<StructId>, _: Vec<Str
         primitive_field_name(),
         QuillPointerType::new(QuillStructType::new(caller.tmpls[0].mangle())),
     )?;
-    nib.set_list_value(&t_star, element, length)?;
+    nib.set_list_value(&t_star, element, length.clone())?;
 
-    let new_len = nib.int_add(length, nib.const_int(64, 1))?;
+    let one = nib.const_int(64, 1);
+    let new_len = nib.int_add(length, one)?;
     nib.set_value_in_struct(&list, length_field_name(), new_len)?;
     Ok(())
 }
