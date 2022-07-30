@@ -76,7 +76,7 @@ string_primitive = ${ ("\"" | NEWLINE) ~ string_inner ~ "\"" }
 string_inner = @{ char* }
 char = @{ !("\"" | "\\") ~ ANY | ("\\" ~ ( "n" )) }
 // TODO: should be able to supply and empty list, but I don't have a way to infer the type right now
-list_primitive = { "[" ~ (expression ~ ("," ~ expression)*) ~ ",?" ~ "]" }
+list_primitive = { "[" ~ (expression ~ ("," ~ expression)*) ~ ","? ~ "]" }
 
 // Unaffiliated
 compiler_provided = { "{" ~ "(V) '--' (V)" ~ "}" }
