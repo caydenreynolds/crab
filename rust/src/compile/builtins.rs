@@ -198,7 +198,7 @@ pub(super) fn add_builtin_definition(peter: &mut Quill, nib: &mut FnNib, caller_
     let fn_name = nib
         .get_fn_name()
         .split("-")
-        .skip(1)
+        .skip(2)
         .next()
         .unwrap();
     FN_BUILTIN_NAME_MAP
