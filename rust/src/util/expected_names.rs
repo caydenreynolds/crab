@@ -33,6 +33,9 @@ pub fn format_i_c_name() -> Ident {
 pub fn new_list_name() -> Ident {
     Ident::from("__new_list__")
 }
+pub fn get_fn_name() -> Ident {
+    Ident::from("get")
+}
 
 pub fn operator_add_name() -> Ident {
     Ident::from("operatorAdd")

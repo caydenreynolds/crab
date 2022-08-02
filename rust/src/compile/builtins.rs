@@ -1,7 +1,7 @@
 use crate::compile::{CompileError, Result};
 use crate::parse::ast::{CrabType, FuncSignature, Ident, StructId};
 use crate::quill::{FnNib, Nib, PolyQuillType, Quill, QuillBoolType, QuillFloatType, QuillFnType, QuillIntType, QuillListType, QuillPointerType, QuillStructType, QuillVoidType};
-use crate::util::{bool_struct_name, capacity_field_name, format_i_c_name, int_struct_name, length_field_name, list_struct_name, ListFunctional, magic_main_func_name, main_func_name, MapFunctional, new_list_name, operator_add_name, primitive_field_name, printf_c_name, printf_crab_name, string_struct_name, to_string_name};
+use crate::util::{bool_struct_name, capacity_field_name, format_i_c_name, get_fn_name, int_struct_name, length_field_name, list_struct_name, ListFunctional, magic_main_func_name, main_func_name, MapFunctional, new_list_name, operator_add_name, primitive_field_name, printf_c_name, printf_crab_name, string_struct_name, to_string_name};
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 use std::convert::TryInto;
@@ -29,6 +29,7 @@ fn init_builtin_fn_map() -> FnNameMap {
         (mangle_fn_name(&printf_crab_name(), ""), add_printf as FnDefFn),
         (mangle_fn_name(&new_list_name(), ""), add_new_list as FnDefFn),
         (mangle_fn_name(&operator_add_name(), &list_struct_name()), list_add_fn as FnDefFn),
+        (mangle_fn_name(&get_fn_name(), &list_struct_name(),), list_get_fn as FnDefFn),
     ]);
     map
 }
@@ -248,6 +249,26 @@ fn list_add_fn(_: &mut Quill, nib: &mut FnNib, caller: Option<StructId>, _: Vec<
     // Return nothing
     nib.add_return(QuillFnType::void_return_value());
     
+    Ok(())
+}
+
+fn list_get_fn(_: &mut Quill, nib: &mut FnNib, caller: Option<StructId>, _: Vec<StructId>) -> Result<()> {
+    let caller = caller.unwrap();
+    let list = nib.get_fn_param(
+        Ident::from("self"),
+        QuillPointerType::new(QuillStructType::new(
+            StructId { name: list_struct_name(), tmpls: caller.tmpls.clone() }.mangle()
+        )));
+    let index = nib.get_fn_param(
+        Ident::from("index"),
+        QuillPointerType::new(
+            QuillStructType::new(
+                int_struct_name()
+            )
+        )
+    );
+    let value = nib.get_list_value(list, index)?;
+    nib.add_return(value)?;
     Ok(())
 }
 

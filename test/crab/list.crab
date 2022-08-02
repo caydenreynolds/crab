@@ -2,5 +2,8 @@ fn main() -> Int {
     let int_list = [1, 2, 3, 4, 5]
     let string_list = ["I", "am", "a", "list", "of", "strings"]
 
+    print(int_list.get(0))
+    print(string_list.get(1))
+
     return 0
 }

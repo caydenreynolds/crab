@@ -12,9 +12,9 @@ impl List<T> {
           (V) '--' (V)
       }
 
-//    fn get(Int index) -> T {
-//        (V) '--' (V)
-//    }
+    fn get(Int index) -> T {
+        (V) '--' (V)
+    }
 
 //    fn len() -> Int {
 //        (V) '--' (V)

@@ -32,7 +32,8 @@ enum Instruction {
     FnCall(String, usize, Vec<usize>), // Fn name, return id, positional params
     FnParam(usize, String),          // Param Id, Param name
     IntAdd(usize, usize, usize),     // Result Id, lhs id, rhs id
-    ListValueSet(usize, usize, usize) // List Id, value id. index id
+    ListValueSet(usize, usize, usize), // List Id, value id, index id
+    ListValueGet(usize, usize, usize), // List Id, value id, index id
 }
 
 ///
@@ -229,9 +230,9 @@ pub trait Nib: Debug {
     /// Sets a value in a list
     ///
     /// Params:
-    /// * `sv` - A pointer to the list
+    /// * `lv` - A pointer to the list
     /// * `value` - The value to set the field to
-    /// * 'index' - The index in the list to set
+    /// * `index` - The index in the list to set
     ///
     fn set_list_value<T: QuillType>(
         &mut self,
@@ -239,6 +240,19 @@ pub trait Nib: Debug {
         value: QuillValue<T>,
         index: QuillValue<QuillIntType>,
     ) -> Result<()>;
+
+    ///
+    /// Gets a value from a list
+    ///
+    /// Params:
+    /// * `lv` - A pointer to the list
+    /// * `index` - The index in the list to set
+    /// * `expected_type` - The type of element expected. Must match the type in the list
+    ///
+    /// Returns:
+    /// The value fetched from the list
+    ///
+    fn get_list_value<T: QuillType>(&mut self, lv: &QuillValue<QuillPointerType>, index: QuillValue<QuillIntType>, expected_type: T) -> Result<QuillValue<T>>
 }
 
 ///
@@ -377,6 +391,9 @@ impl Nib for FnNib {
     }
     fn set_list_value<T: QuillType>(&mut self, lv: &QuillValue<QuillPointerType>, value: QuillValue<T>, index: QuillValue<QuillIntType>) -> Result<()> {
         self.inner.set_list_value(lv, value, index)
+    }
+    fn get_list_value<T: QuillType>(&mut self, lv: &QuillValue<QuillPointerType>, index: QuillValue<QuillIntType>, expected_type: T) -> Result<QuillValue<T>> {
+        self.inner.get_list_value(lv, index, expected_type)
     }
 }
 
@@ -779,6 +796,26 @@ impl ChildNib {
                         builder.build_store(element_ptr, value);
                     }
                 }
+
+                Instruction::ListValueGet(list_id, value_id, index_id) => {
+                    unsafe {
+                        let list = values
+                            .get(list_id)
+                            .unwrap()
+                            .ok_or(QuillError::BadValueAccess)?;
+                        let index = values
+                            .get(index_id)
+                            .unwrap()
+                            .ok_or(QuillError::BadValueAccess)?;
+                        let element_ptr = builder.build_gep(
+                            PointerValue::try_from(list).or(Err(QuillError::Convert))?,
+                            &[IntValue::try_from(index).or(Err(QuillError::Convert))?],
+                            "list_get_gep"
+                        );
+                        let value = builder.build_load(element_ptr, value);
+                        values.replace(value_id, value);
+                    }
+                }
             }
         }
 
@@ -947,6 +984,17 @@ impl Nib for ChildNib {
         } else {
             self.instructions.push(Instruction::ListValueSet(lv.id(), value.id(), index.id()));
             Ok(())
+        }
+    }
+
+    fn get_list_value<T: QuillType>(&mut self, lv: &QuillValue<QuillPointerType>, index: QuillValue<QuillIntType>, expected_type: T) -> Result<QuillValue<T>> {
+        if lv.get_type().get_inner_type() != expected_type {
+            Err(QuillError::WrongType(format!("{:?}", lv.get_type().get_inner_type()), format!("{:?}", expected_type)))
+        } else {
+            let value = QuillValue::new(self.id_generator, expected_type);
+            self.id_generator += 1;
+            self.instructions.push(Instruction::ListValueGet(lv.id(), value.id(), index.id()));
+            Ok(value)
         }
     }
 }
