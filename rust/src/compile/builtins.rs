@@ -211,10 +211,10 @@ fn add_new_list(_: &mut Quill, nib: &mut FnNib, _: Option<StructId>, tmpls: Vec<
             StructId { name: list_struct_name(), tmpls: vec![tmpls[0].clone()] }.mangle()
         )
     );
-    nib.set_value_in_struct(&list, primitive_field_name(), t_star)?;
+    nib.set_value_in_struct(&list, primitive_field_name(), &t_star)?;
     let zero = nib.const_int(64, 0);
-    nib.set_value_in_struct(&list, length_field_name(), zero)?;
-    nib.set_value_in_struct(&list, capacity_field_name(), capacity)?;
+    nib.set_value_in_struct(&list, length_field_name(), &zero)?;
+    nib.set_value_in_struct(&list, capacity_field_name(), &capacity)?;
     nib.add_return(Some(&list));
     Ok(())
 }
@@ -245,7 +245,7 @@ fn list_add_fn(_: &mut Quill, nib: &mut FnNib, caller: Option<StructId>, _: Vec<
 
     let one = nib.const_int(64, 1);
     let new_len = nib.int_add(&length, &one)?;
-    nib.set_value_in_struct(&list, length_field_name(), new_len)?;
+    nib.set_value_in_struct(&list, length_field_name(), &new_len)?;
 
     // Return nothing
     nib.add_return(QuillFnType::void_return_value());
@@ -296,7 +296,7 @@ fn list_resize_fn(_: &mut Quill, nib: &mut FnNib, caller: Option<StructId>, _: V
         ))?;
     let capacity_value = nib.get_value_from_struct(&capacity, primitive_field_name(), QuillIntType::new(64))?;
     let new_capacity_value = nib.int_add(&capacity_value, &capacity_value)?;
-    nib.set_value_in_struct(&capacity, primitive_field_name(), new_capacity_value)?;
+    nib.set_value_in_struct(&capacity, primitive_field_name(), &new_capacity_value)?;
     let new_t_star = nib.add_malloc(
         QuillListType::new_var_length(
             QuillPointerType::new(
@@ -311,7 +311,7 @@ fn list_resize_fn(_: &mut Quill, nib: &mut FnNib, caller: Option<StructId>, _: V
         QuillPointerType::new(QuillStructType::new(caller.tmpls[0].mangle())),
     )?;
     nib.list_copy(&old_t_star, &new_t_star, &capacity_value)?;
-    nib.set_value_in_struct(&list, primitive_field_name(), new_t_star)?;
+    nib.set_value_in_struct(&list, primitive_field_name(), &new_t_star)?;
 
     nib.add_return(QuillFnType::void_return_value());
     Ok(())
@@ -335,7 +335,7 @@ fn add_int(_: &mut Quill, nib: &mut FnNib, _: Option<StructId>, _: Vec<StructId>
     let result_int = nib.int_add(&self_int, &other_int)?;
 
     let ret_val = nib.add_malloc(QuillStructType::new(int_name_mangled()));
-    nib.set_value_in_struct(&ret_val, primitive_field_name(), result_int)?;
+    nib.set_value_in_struct(&ret_val, primitive_field_name(), &result_int)?;
     nib.add_return(Some(&ret_val));
 
     Ok(())
@@ -368,7 +368,7 @@ fn format_i(peter: &mut Quill, nib: &mut FnNib, _: Option<StructId>, _: Vec<Stru
         vec![char_star.clone().into(), self_int.into()],
         QuillVoidType::new(),
     );
-    nib.set_value_in_struct(&ret_val, primitive_field_name(), char_star)?;
+    nib.set_value_in_struct(&ret_val, primitive_field_name(), &char_star)?;
 
     nib.add_return(Some(&ret_val));
 

@@ -572,7 +572,7 @@ impl<NibType: Nib> Codegen<NibType> {
         let new_struct_ptr = self.nib.add_malloc(struct_t);
         fields.into_iter().try_for_each(|(name, value)| {
             self.nib
-                .set_value_in_struct(&new_struct_ptr, name, value.quill_value)
+                .set_value_in_struct(&new_struct_ptr, name, &value.quill_value)
         })?;
         Ok(CrabValue::new(new_struct_ptr.into(), struct_id))
     }

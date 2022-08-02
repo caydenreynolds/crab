@@ -135,7 +135,7 @@ pub trait Nib: Debug {
         &mut self,
         pv: &QuillValue<QuillPointerType>,
         name: String,
-        value: QuillValue<T>,
+        value: &QuillValue<T>,
     ) -> Result<()>;
 
     ///
@@ -368,7 +368,7 @@ impl Nib for FnNib {
         &mut self,
         pv: &QuillValue<QuillPointerType>,
         name: String,
-        value: QuillValue<T>,
+        value: &QuillValue<T>,
     ) -> Result<()> {
         self.inner.set_value_in_struct(pv, name, value)
     }
@@ -931,7 +931,7 @@ impl Nib for ChildNib {
         &mut self,
         pv: &QuillValue<QuillPointerType>,
         name: String,
-        value: QuillValue<T>,
+        value: &QuillValue<T>,
     ) -> Result<()> {
         // Ensure we got a struct type
         QuillStructType::try_from(pv.get_type().get_inner_type())?;
