@@ -988,7 +988,7 @@ impl Nib for ChildNib {
     }
 
     fn get_list_value<T: QuillType>(&mut self, lv: &QuillValue<QuillPointerType>, index: &QuillValue<QuillIntType>, expected_type: T) -> Result<QuillValue<T>> {
-        if lv.get_type().get_inner_type() != expected_type {
+        if lv.get_type().get_inner_type() != expected_type.into() {
             Err(QuillError::WrongType(format!("{:?}", lv.get_type().get_inner_type()), format!("{:?}", expected_type)))
         } else {
             let value = QuillValue::new(self.id_generator, expected_type);

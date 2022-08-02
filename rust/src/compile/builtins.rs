@@ -240,7 +240,7 @@ fn list_add_fn(_: &mut Quill, nib: &mut FnNib, caller: Option<StructId>, _: Vec<
         primitive_field_name(),
         QuillPointerType::new(QuillStructType::new(caller.tmpls[0].mangle())),
     )?;
-    nib.set_list_value(&t_star, element, length.clone())?;
+    nib.set_list_value(&t_star, &element, &length)?;
 
     let one = nib.const_int(64, 1);
     let new_len = nib.int_add(length, one)?;
@@ -269,7 +269,7 @@ fn list_get_fn(_: &mut Quill, nib: &mut FnNib, caller: Option<StructId>, _: Vec<
     );
     let index_value = nib.get_value_from_struct(&index, primitive_field_name(), QuillIntType::new(64))?;
     let value = nib.get_list_value(&list, &index_value, list.get_type().get_inner_type())?;
-    nib.add_return(Some(&value))?;
+    nib.add_return(Some(&value));
     Ok(())
 }
 
