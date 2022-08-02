@@ -1,7 +1,7 @@
 use crate::compile::{CompileError, Result};
 use crate::parse::ast::{CrabType, FuncSignature, Ident, StructId};
 use crate::quill::{FnNib, Nib, PolyQuillType, Quill, QuillBoolType, QuillFloatType, QuillFnType, QuillIntType, QuillListType, QuillPointerType, QuillStructType, QuillVoidType};
-use crate::util::{bool_struct_name, capacity_field_name, format_i_c_name, get_fn_name, int_struct_name, length_field_name, list_struct_name, ListFunctional, magic_main_func_name, main_func_name, MapFunctional, new_list_name, operator_add_name, primitive_field_name, printf_c_name, printf_crab_name, string_struct_name, to_string_name};
+use crate::util::{bool_struct_name, capacity_field_name, format_i_c_name, get_fn_name, int_struct_name, length_field_name, list_struct_name, ListFunctional, magic_main_func_name, main_func_name, MapFunctional, new_list_name, operator_add_name, primitive_field_name, printf_c_name, printf_crab_name, resize_name, string_struct_name, to_string_name};
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 use std::convert::TryInto;
@@ -30,6 +30,7 @@ fn init_builtin_fn_map() -> FnNameMap {
         (mangle_fn_name(&new_list_name(), ""), add_new_list as FnDefFn),
         (mangle_fn_name(&operator_add_name(), &list_struct_name()), list_add_fn as FnDefFn),
         (mangle_fn_name(&get_fn_name(), &list_struct_name(),), list_get_fn as FnDefFn),
+        (mangle_fn_name(&resize_name(), &list_struct_name()), list_resize_fn as FnDefFn),
     ]);
     map
 }
@@ -278,6 +279,44 @@ fn list_get_fn(_: &mut Quill, nib: &mut FnNib, caller: Option<StructId>, _: Vec<
     Ok(())
 }
 
+fn list_resize_fn(_: &mut Quill, nib: &mut FnNib, caller: Option<StructId>, _: Vec<StructId>) -> Result<()> {
+    let caller = caller.unwrap();
+    let list = nib.get_fn_param(
+        Ident::from("self"),
+        QuillPointerType::new(QuillStructType::new(
+            StructId { name: list_struct_name(), tmpls: caller.tmpls.clone() }.mangle()
+        )));
+    let capacity = nib.get_value_from_struct(
+        &list,
+        capacity_field_name(),
+        QuillPointerType::new(
+            QuillStructType::new(
+                int_struct_name()
+            )
+        ))?;
+    let capacity_value = nib.get_value_from_struct(&capacity, primitive_field_name(), QuillIntType::new(64))?;
+    let new_capacity_value = nib.int_add(&capacity_value, &capacity_value)?;
+    nib.set_value_in_struct(&capacity, primitive_field_name(), new_capacity_value)?;
+    let new_t_star = nib.add_malloc(
+        QuillListType::new_var_length(
+            QuillPointerType::new(
+                QuillStructType::new(tmpls[0].mangle())
+            ),
+            new_capacity_value.clone(),
+        )
+    );
+    let old_t_star = nib.get_value_from_struct(
+        &list,
+        primitive_field_name(),
+        QuillPointerType::new(QuillStructType::new(caller.tmpls[0].mangle())),
+    )?;
+    nib.list_copy(&old_t_star, &new_t_star, &capacity_value)?;
+    nib.set_value_in_struct(&list, primitive_field_name(), new_t_star)?;
+
+    nib.add_return(QuillFnType::void_return_value());
+    Ok(())
+}
+
 fn add_int(_: &mut Quill, nib: &mut FnNib, _: Option<StructId>, _: Vec<StructId>) -> Result<()> {
     let self_arg = nib.get_fn_param(
         String::from("self"),
@@ -293,7 +332,7 @@ fn add_int(_: &mut Quill, nib: &mut FnNib, _: Option<StructId>, _: Vec<StructId>
     let other_int =
         nib.get_value_from_struct(&other_arg, primitive_field_name(), QuillIntType::new(64))?;
 
-    let result_int = nib.int_add(self_int, other_int)?;
+    let result_int = nib.int_add(&self_int, &other_int)?;
 
     let ret_val = nib.add_malloc(QuillStructType::new(int_name_mangled()));
     nib.set_value_in_struct(&ret_val, primitive_field_name(), result_int)?;

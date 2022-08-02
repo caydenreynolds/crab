@@ -36,9 +36,9 @@ impl List<T> {
 //        (V) '--' (V)
 //    }
 
-//    fn resize() {
-//        (V) '--' (V)
-//    }
+    fn resize() {
+        (V) '--' (V)
+    }
 }
 
 fn __new_list__<T>(Int capacity=128) -> List<T> {

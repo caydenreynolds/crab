@@ -12,6 +12,7 @@ use inkwell::values::{BasicMetadataValueEnum, BasicValue, BasicValueEnum, Functi
 use log::{debug, trace};
 use std::convert::TryFrom;
 use std::fmt::Debug;
+use inkwell::values::AnyValueEnum::PointerValue;
 
 ///
 /// Enum of all the possible instructions that can be stored in a nib
@@ -30,10 +31,11 @@ enum Instruction {
     ConstString(usize, String),      // Id, value
     Malloc(usize, PolyQuillType),    // Id, type
     FnCall(String, usize, Vec<usize>), // Fn name, return id, positional params
-    FnParam(usize, String),          // Param Id, Param name
-    IntAdd(usize, usize, usize),     // Result Id, lhs id, rhs id
-    ListValueSet(usize, usize, usize), // List Id, value id, index id
-    ListValueGet(usize, usize, usize), // List Id, value id, index id
+    FnParam(usize, String),          // Param id, param name
+    IntAdd(usize, usize, usize),     // Result id, lhs id, rhs id
+    ListValueSet(usize, usize, usize), // List id, value id, index id
+    ListValueGet(usize, usize, usize), // List id, value id, index id
+    ListCopy(usize, usize, usize), // Old list id, new list id, list len
 }
 
 ///
@@ -214,8 +216,8 @@ pub trait Nib: Debug {
     ///
     fn int_add(
         &mut self,
-        lhs: QuillValue<QuillIntType>,
-        rhs: QuillValue<QuillIntType>,
+        lhs: &QuillValue<QuillIntType>,
+        rhs: &QuillValue<QuillIntType>,
     ) -> Result<QuillValue<QuillIntType>>;
 
     ///
@@ -253,6 +255,18 @@ pub trait Nib: Debug {
     /// The value fetched from the list
     ///
     fn get_list_value<T: QuillType>(&mut self, lv: &QuillValue<QuillPointerType>, index: &QuillValue<QuillIntType>, expected_type: T) -> Result<QuillValue<T>>;
+
+    ///
+    /// Copies one list from another
+    ///
+    /// Params:
+    /// * `ol` - A pointer to the old list
+    /// * `nl` - A pointer to the new list set
+    ///
+    /// Returns:
+    /// The value fetched from the list
+    ///
+    fn list_copy(&mut self, ol: &QuillValue<QuillPointerType>, nl: &QuillValue<QuillPointerType>, len: &QuillValue<QuillIntType>) -> Result<()>;
 }
 
 ///
@@ -381,8 +395,8 @@ impl Nib for FnNib {
     }
     fn int_add(
         &mut self,
-        lhs: QuillValue<QuillIntType>,
-        rhs: QuillValue<QuillIntType>,
+        lhs: &QuillValue<QuillIntType>,
+        rhs: &QuillValue<QuillIntType>,
     ) -> Result<QuillValue<QuillIntType>> {
         self.inner.int_add(lhs, rhs)
     }
@@ -394,6 +408,9 @@ impl Nib for FnNib {
     }
     fn get_list_value<T: QuillType>(&mut self, lv: &QuillValue<QuillPointerType>, index: &QuillValue<QuillIntType>, expected_type: T) -> Result<QuillValue<T>> {
         self.inner.get_list_value(lv, index, expected_type)
+    }
+    fn list_copy(&mut self, ol: &QuillValue<QuillPointerType>, nl: &QuillValue<QuillPointerType>, len: &QuillValue<QuillIntType>) -> Result<()> {
+        self.inner.list_copy(ol, nl)
     }
 }
 
@@ -816,6 +833,25 @@ impl ChildNib {
                         values.replace(value_id, Some(value));
                     }
                 }
+
+                Instruction::ListCopy(ol_id, nl_id, len_id) => {
+                    let ol = values
+                        .get(ol_id)
+                        .unwrap()
+                        .ok_or(QuillError::BadValueAccess)?;
+                    let nl = values
+                        .get(nl_id)
+                        .unwrap()
+                        .ok_or(QuillError::BadValueAccess)?;
+                    let len = values
+                        .get(len_id)
+                        .unwrap()
+                        .ok_or(QuillError::BadValueAccess)?;
+                    let nl_ptr = PointerValue::try_from(nl).or(Err(QuillError::Convert))?;
+                    let ol_ptr = PointerValue::try_from(ol).or(Err(QuillError::Convert))?;
+                    let byte_len = builder.build_int_mul(len, BasicValueEnum::from(nl_ptr.get_type().size_of()), "byte_len");
+                    builder.build_memcpy(nl_ptr, 1, ol_ptr, 1, IntValue::try_from(byte_len).or(Err(QuillError::Convert))?)?;
+                }
             }
         }
 
@@ -955,8 +991,8 @@ impl Nib for ChildNib {
 
     fn int_add(
         &mut self,
-        lhs: QuillValue<QuillIntType>,
-        rhs: QuillValue<QuillIntType>,
+        lhs: &QuillValue<QuillIntType>,
+        rhs: &QuillValue<QuillIntType>,
     ) -> Result<QuillValue<QuillIntType>> {
         if lhs.get_type().bit_width() != rhs.get_type().bit_width() {
             return Err(QuillError::IntSize(
@@ -995,6 +1031,15 @@ impl Nib for ChildNib {
             self.id_generator += 1;
             self.instructions.push(Instruction::ListValueGet(lv.id(), value.id(), index.id()));
             Ok(value)
+        }
+    }
+
+    fn list_copy(&mut self, ol: &QuillValue<QuillPointerType>, nl: &QuillValue<QuillPointerType>, len: &QuillValue<QuillIntType>) -> Result<()> {
+        if ol.get_type().get_inner_type() != nl.get_type().get_inner_type() {
+            Err(QuillError::WrongType(format!("{:?}", nl.get_type().get_inner_type()), format!("{:?}", ol.get_type().get_inner_type())))
+        } else {
+            self.instructions.push(Instruction::ListCopy(ol.id(), nl.id(), len.id()));
+            Ok(())
         }
     }
 }

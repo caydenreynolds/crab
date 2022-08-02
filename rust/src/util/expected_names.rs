@@ -36,6 +36,9 @@ pub fn new_list_name() -> Ident {
 pub fn get_fn_name() -> Ident {
     Ident::from("get")
 }
+pub fn resize_name() -> Ident {
+    Ident::from("resize")
+}
 
 pub fn operator_add_name() -> Ident {
     Ident::from("operatorAdd")
