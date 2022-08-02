@@ -12,7 +12,6 @@ use inkwell::values::{BasicMetadataValueEnum, BasicValue, BasicValueEnum, Functi
 use log::{debug, trace};
 use std::convert::TryFrom;
 use std::fmt::Debug;
-use inkwell::values::AnyValueEnum::PointerValue;
 
 ///
 /// Enum of all the possible instructions that can be stored in a nib
@@ -410,7 +409,7 @@ impl Nib for FnNib {
         self.inner.get_list_value(lv, index, expected_type)
     }
     fn list_copy(&mut self, ol: &QuillValue<QuillPointerType>, nl: &QuillValue<QuillPointerType>, len: &QuillValue<QuillIntType>) -> Result<()> {
-        self.inner.list_copy(ol, nl)
+        self.inner.list_copy(ol, nl, len)
     }
 }
 

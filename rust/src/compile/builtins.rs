@@ -244,7 +244,7 @@ fn list_add_fn(_: &mut Quill, nib: &mut FnNib, caller: Option<StructId>, _: Vec<
     nib.set_list_value(&t_star, &element, &length)?;
 
     let one = nib.const_int(64, 1);
-    let new_len = nib.int_add(length, one)?;
+    let new_len = nib.int_add(&length, &one)?;
     nib.set_value_in_struct(&list, length_field_name(), new_len)?;
 
     // Return nothing
@@ -300,7 +300,7 @@ fn list_resize_fn(_: &mut Quill, nib: &mut FnNib, caller: Option<StructId>, _: V
     let new_t_star = nib.add_malloc(
         QuillListType::new_var_length(
             QuillPointerType::new(
-                QuillStructType::new(tmpls[0].mangle())
+                QuillStructType::new(caller.tmpls[0].mangle())
             ),
             new_capacity_value.clone(),
         )
