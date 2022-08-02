@@ -813,7 +813,7 @@ impl ChildNib {
                             "list_get_gep"
                         );
                         let value = builder.build_load(element_ptr, value);
-                        values.replace(value_id, value);
+                        values.replace(value_id, Some(value));
                     }
                 }
             }
