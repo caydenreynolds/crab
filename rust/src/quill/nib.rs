@@ -237,8 +237,8 @@ pub trait Nib: Debug {
     fn set_list_value<T: QuillType>(
         &mut self,
         lv: &QuillValue<QuillPointerType>,
-        value: QuillValue<T>,
-        index: QuillValue<QuillIntType>,
+        value: &QuillValue<T>,
+        index: &QuillValue<QuillIntType>,
     ) -> Result<()>;
 
     ///
@@ -252,7 +252,7 @@ pub trait Nib: Debug {
     /// Returns:
     /// The value fetched from the list
     ///
-    fn get_list_value<T: QuillType>(&mut self, lv: &QuillValue<QuillPointerType>, index: QuillValue<QuillIntType>, expected_type: T) -> Result<QuillValue<T>>
+    fn get_list_value<T: QuillType>(&mut self, lv: &QuillValue<QuillPointerType>, index: &QuillValue<QuillIntType>, expected_type: T) -> Result<QuillValue<T>>;
 }
 
 ///
@@ -389,10 +389,10 @@ impl Nib for FnNib {
     fn get_fn_t(&self) -> &QuillFnType {
         self.inner.get_fn_t()
     }
-    fn set_list_value<T: QuillType>(&mut self, lv: &QuillValue<QuillPointerType>, value: QuillValue<T>, index: QuillValue<QuillIntType>) -> Result<()> {
+    fn set_list_value<T: QuillType>(&mut self, lv: &QuillValue<QuillPointerType>, value: &QuillValue<T>, index: &QuillValue<QuillIntType>) -> Result<()> {
         self.inner.set_list_value(lv, value, index)
     }
-    fn get_list_value<T: QuillType>(&mut self, lv: &QuillValue<QuillPointerType>, index: QuillValue<QuillIntType>, expected_type: T) -> Result<QuillValue<T>> {
+    fn get_list_value<T: QuillType>(&mut self, lv: &QuillValue<QuillPointerType>, index: &QuillValue<QuillIntType>, expected_type: T) -> Result<QuillValue<T>> {
         self.inner.get_list_value(lv, index, expected_type)
     }
 }
@@ -812,7 +812,7 @@ impl ChildNib {
                             &[IntValue::try_from(index).or(Err(QuillError::Convert))?],
                             "list_get_gep"
                         );
-                        let value = builder.build_load(element_ptr, value);
+                        let value = builder.build_load(element_ptr, "list_get_load");
                         values.replace(value_id, Some(value));
                     }
                 }
@@ -978,7 +978,7 @@ impl Nib for ChildNib {
         &self.parent_fn
     }
 
-    fn set_list_value<T: QuillType>(&mut self, lv: &QuillValue<QuillPointerType>, value: QuillValue<T>, index: QuillValue<QuillIntType>) -> Result<()> {
+    fn set_list_value<T: QuillType>(&mut self, lv: &QuillValue<QuillPointerType>, value: &QuillValue<T>, index: &QuillValue<QuillIntType>) -> Result<()> {
         if lv.get_type().get_inner_type() != value.get_type().clone().into() {
             Err(QuillError::WrongType(format!("{:?}", lv.get_type().get_inner_type()), format!("{:?}", value.get_type())))
         } else {
@@ -987,7 +987,7 @@ impl Nib for ChildNib {
         }
     }
 
-    fn get_list_value<T: QuillType>(&mut self, lv: &QuillValue<QuillPointerType>, index: QuillValue<QuillIntType>, expected_type: T) -> Result<QuillValue<T>> {
+    fn get_list_value<T: QuillType>(&mut self, lv: &QuillValue<QuillPointerType>, index: &QuillValue<QuillIntType>, expected_type: T) -> Result<QuillValue<T>> {
         if lv.get_type().get_inner_type() != expected_type {
             Err(QuillError::WrongType(format!("{:?}", lv.get_type().get_inner_type()), format!("{:?}", expected_type)))
         } else {
