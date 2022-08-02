@@ -848,8 +848,10 @@ impl ChildNib {
                         .ok_or(QuillError::BadValueAccess)?;
                     let nl_ptr = PointerValue::try_from(nl).or(Err(QuillError::Convert))?;
                     let ol_ptr = PointerValue::try_from(ol).or(Err(QuillError::Convert))?;
+                    let len_val = IntValue::try_from(len).or(Err(QuillError::Convert))?;
                     let byte_len = builder.build_int_mul(len, BasicValueEnum::from(nl_ptr.get_type().size_of()), "byte_len");
-                    builder.build_memcpy(nl_ptr, 1, ol_ptr, 1, IntValue::try_from(byte_len).or(Err(QuillError::Convert))?)?;
+                    let byte_len_val = IntValue::try_from(byte_len).or(Err(QuillError::Convert))?;
+                    builder.build_memcpy(nl_ptr, 1, ol_ptr, 1, byte_len_val)?;
                 }
             }
         }
