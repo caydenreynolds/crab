@@ -463,6 +463,7 @@ impl<NibType: Nib> Codegen<NibType> {
     }
 
     fn build_list_prim(&mut self, exprs: Vec<Expression>) -> Result<CrabValue> {
+        trace!("Codegen::build_list_prim");
         // Get the values to add to the list
         let var_names = exprs
             .into_iter()

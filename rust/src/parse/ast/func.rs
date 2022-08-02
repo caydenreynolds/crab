@@ -268,7 +268,10 @@ impl Display for FuncSignature {
             .try_for_each(|param| write!(f, "-{}", param.crab_type))?;
         self.named_params
             .iter()
-            .try_for_each(|(_, param)| write!(f, "-{}", param.crab_type))
+            .try_for_each(|(_, param)| write!(f, "-{}", param.crab_type))?;
+        self.tmpls
+            .iter()
+            .try_for_each(|tmpl| write!(f, "-{}", tmpl))
     }
 }
 
