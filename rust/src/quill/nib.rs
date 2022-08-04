@@ -35,6 +35,7 @@ enum Instruction {
     ListValueSet(usize, usize, usize), // List id, value id, index id
     ListValueGet(usize, usize, usize), // List id, value id, index id
     ListCopy(usize, usize, usize), // Old list id, new list id, list len
+    Free(usize), // Value id
 }
 
 ///
@@ -266,6 +267,14 @@ pub trait Nib: Debug {
     /// The value fetched from the list
     ///
     fn list_copy(&mut self, ol: &QuillValue<QuillPointerType>, nl: &QuillValue<QuillPointerType>, len: &QuillValue<QuillIntType>) -> Result<()>;
+
+    ///
+    /// Free a value
+    ///
+    /// Params:
+    /// * `val` - The value to free
+    ///
+    fn free(&mut self, val: QuillValue<QuillPointerType>);
 }
 
 ///
@@ -410,6 +419,9 @@ impl Nib for FnNib {
     }
     fn list_copy(&mut self, ol: &QuillValue<QuillPointerType>, nl: &QuillValue<QuillPointerType>, len: &QuillValue<QuillIntType>) -> Result<()> {
         self.inner.list_copy(ol, nl, len)
+    }
+    fn free(&mut self, val: QuillValue<QuillPointerType>) {
+        self.inner.free(val)
     }
 }
 
@@ -853,6 +865,15 @@ impl ChildNib {
                     let byte_len_val = IntValue::try_from(byte_len).or(Err(QuillError::Convert))?;
                     builder.build_memcpy(nl_ptr, 1, ol_ptr, 1, byte_len_val).or(Err(QuillError::Memcpy))?;
                 }
+
+                Instruction::Free(val_id) => {
+                    let val = values
+                        .get(val_id)
+                        .unwrap()
+                        .ok_or(QuillError::BadValueAccess)?;
+                    let ptr = PointerValue::try_from(val).or(Err(QuillError::Convert))?;
+                    builder.build_free(ptr);
+                }
             }
         }
 
@@ -1042,5 +1063,9 @@ impl Nib for ChildNib {
             self.instructions.push(Instruction::ListCopy(ol.id(), nl.id(), len.id()));
             Ok(())
         }
+    }
+
+    fn free(&mut self, val: QuillValue<QuillPointerType>) {
+        self.instructions.push(Instruction::Free(val.id()));
     }
 }

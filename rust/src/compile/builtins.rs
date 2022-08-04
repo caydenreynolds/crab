@@ -313,6 +313,8 @@ fn list_resize_fn(_: &mut Quill, nib: &mut FnNib, caller: Option<StructId>, _: V
     nib.list_copy(&old_t_star, &new_t_star, &capacity_value)?;
     nib.set_value_in_struct(&list, primitive_field_name(), &new_t_star)?;
 
+    nib.free(old_t_star);
+
     nib.add_return(QuillFnType::void_return_value());
     Ok(())
 }
