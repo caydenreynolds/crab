@@ -1,7 +1,7 @@
 use crate::compile::{CompileError, Result};
-use crate::parse::ast::{CrabType, FuncSignature, Ident, PosParam, StructId};
+use crate::parse::ast::{CrabType, FuncSignature, Ident, StructId};
 use crate::quill::{FnNib, IntCmpType, Nib, PolyQuillType, Quill, QuillBoolType, QuillFloatType, QuillFnType, QuillIntType, QuillListType, QuillPointerType, QuillStructType, QuillVoidType};
-use crate::util::{bool_struct_name, capacity_field_name, format_i_c_name, get_fn_name, int_struct_name, length_field_name, list_struct_name, ListFunctional, magic_main_func_name, main_func_name, MapFunctional, new_list_name, operator_add_name, primitive_field_name, printf_c_name, printf_crab_name, resize_name, string_struct_name, to_string_name};
+use crate::util::{bool_struct_name, capacity_field_name, format_i_c_name, get_fn_name, int_struct_name, length_field_name, list_struct_name, ListFunctional, magic_main_func_name, main_func_name, MapFunctional, new_list_name, operator_add_name, primitive_field_name, printf_c_name, printf_crab_name, string_struct_name, to_string_name};
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 use std::convert::TryInto;
@@ -237,7 +237,7 @@ fn list_add_fn(peter: &mut Quill, nib: &mut FnNib, caller: Option<StructId>, _: 
             QuillPointerType::new(
                 QuillStructType::new(caller.tmpls[0].mangle())
             ),
-            new_capacity_value.clone(),
+            new_capacity,
         )
     );
     let old_t_star = then_nib.get_value_from_struct(
@@ -248,7 +248,6 @@ fn list_add_fn(peter: &mut Quill, nib: &mut FnNib, caller: Option<StructId>, _: 
     then_nib.list_copy(&old_t_star, &new_t_star, &capacity_value)?;
     then_nib.set_value_in_struct(&list, primitive_field_name(), &new_t_star)?;
     then_nib.free(old_t_star);
-    then_nib.add_branch(after_nib);
 
     // Do the actual if statement now
     let cond = nib.int_cmp(&length, &capacity, IntCmpType::EQ)?;
