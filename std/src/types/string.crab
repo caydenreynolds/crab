@@ -8,10 +8,20 @@ struct String {
 
 intr String {
     Printable,
+    Addable,
 }
 
 impl String {
     fn toString() -> String {
         return self
+    }
+
+    ///
+    /// Add two strings together by appending other to self
+    /// This really should return a new string with the modifications
+    /// But instead, it just modifies in place for now
+    ///
+    fn operatorAdd(String other) -> String {
+        (V) '--' (V)
     }
 }
