@@ -33,7 +33,7 @@ else
   git commit -m "Autopush from remote_build.sh"
   git push --set-upstream origin "$branch"
   echo "Wait for the push to complete..."
-  sleep 2
+  sleep 3
   popd
 fi
 

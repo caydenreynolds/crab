@@ -3,19 +3,24 @@ use crate::compile::{
 };
 use crate::parse::ast::{
     Assignment, CodeBlock, CrabAst, CrabType, DoWhileStmt, Expression, ExpressionType, FnBodyType,
-    FnCall, Ident, IfStmt, PosParam, Primitive, Statement, StructId, StructInit, WhileStmt,
+    FnCall, Ident, IfStmt, NamedArg, PosParam, Primitive, Statement, StructFieldInit, StructId,
+    StructInit, WhileStmt,
 };
 use crate::quill::{
     ArtifactType, ChildNib, FnNib, Nib, PolyQuillType, Quill, QuillBoolType, QuillFnType,
     QuillStructType, QuillValue,
 };
-use crate::util::{primitive_field_name, ListFunctional, MapFunctional, SetFunctional};
+use crate::util::{
+    int_struct_name, new_list_name, operator_add_name, primitive_field_name, ListFunctional,
+    MapFunctional, SetFunctional,
+};
 use log::{debug, trace};
 use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::convert::{TryFrom, TryInto};
 use std::path::Path;
 use std::rc::Rc;
+use uuid::Uuid;
 
 ///
 /// Compiles the given CrabAst and writes the output to out_path
@@ -86,7 +91,12 @@ pub fn compile(
                     (codegen.into_nib(), returns)
                 }
                 FnBodyType::COMPILER_PROVIDED => {
-                    add_builtin_definition(&mut peter, &mut nib)?;
+                    add_builtin_definition(
+                        &mut peter,
+                        &mut nib,
+                        func.signature.caller_id,
+                        func.signature.tmpls,
+                    )?;
                     (nib, true) // Just assume it's all good for now
                 }
             };
@@ -374,7 +384,7 @@ impl<NibType: Nib> Codegen<NibType> {
     fn build_expression(&mut self, expr: Expression, prev: Option<CrabValue>) -> Result<CrabValue> {
         trace!("Codegen::build_expression");
         let val = match expr.this {
-            ExpressionType::PRIM(prim) => Ok(self.build_primitive(prim)),
+            ExpressionType::PRIM(prim) => self.build_primitive(prim),
             ExpressionType::STRUCT_INIT(si) => Ok(self.build_struct_init(si)?),
             ExpressionType::FN_CALL(fc) => self.build_fn_call(fc, prev),
             ExpressionType::VARIABLE(id) => {
@@ -446,19 +456,85 @@ impl<NibType: Nib> Codegen<NibType> {
     /// Returns:
     /// The new quill value
     ///
-    fn build_primitive(&mut self, prim: Primitive) -> CrabValue {
+    fn build_primitive(&mut self, prim: Primitive) -> Result<CrabValue> {
         trace!("Codegen::build_primitive");
         match prim {
-            Primitive::STRING(value) => {
-                CrabValue::new(self.nib.const_string(value).into(), CrabType::PRIM_STR)
-            }
-            Primitive::BOOL(value) => {
-                CrabValue::new(self.nib.const_bool(value).into(), CrabType::PRIM_BOOL)
-            }
-            Primitive::UINT(value) => {
-                CrabValue::new(self.nib.const_int(64, value).into(), CrabType::PRIM_INT)
-            }
+            Primitive::STRING(value) => Ok(CrabValue::new(
+                self.nib.const_string(value).into(),
+                CrabType::PRIM_STR,
+            )),
+            Primitive::BOOL(value) => Ok(CrabValue::new(
+                self.nib.const_bool(value).into(),
+                CrabType::PRIM_BOOL,
+            )),
+            Primitive::UINT(value) => Ok(CrabValue::new(
+                self.nib.const_int(64, value).into(),
+                CrabType::PRIM_INT,
+            )),
+            Primitive::LIST(exprs) => self.build_list_prim(exprs),
         }
+    }
+
+    fn build_list_prim(&mut self, exprs: Vec<Expression>) -> Result<CrabValue> {
+        trace!("Codegen::build_list_prim");
+        // Get the values to add to the list
+        let var_names = exprs.into_iter().try_fold(vec![], |var_names, expr| {
+            let var_name = format!("{}", Uuid::new_v4().as_simple());
+            let ass = Assignment {
+                var_name: var_name.clone(),
+                expr,
+            };
+            self.build_assignment(ass)?;
+            Result::Ok(var_names.fpush(var_name))
+        })?;
+        let first_value = self.build_expression(
+            Expression {
+                this: ExpressionType::VARIABLE(var_names[0].clone()),
+                next: None,
+            },
+            None,
+        )?;
+
+        // Construct the vector
+        let fn_call = FnCall {
+            name: new_list_name(),
+            tmpls: vec![first_value.crab_type.clone()],
+            pos_args: vec![],
+            named_args: vec![NamedArg {
+                name: Ident::from("capacity"),
+                expr: Expression {
+                    this: ExpressionType::STRUCT_INIT(StructInit {
+                        id: CrabType::SIMPLE(int_struct_name()),
+                        fields: vec![StructFieldInit {
+                            name: primitive_field_name(),
+                            value: Expression {
+                                this: ExpressionType::PRIM(Primitive::UINT(var_names.len() as u64)),
+                                next: None,
+                            },
+                        }],
+                    }),
+                    next: None,
+                },
+            }],
+        };
+        let my_list = self.build_fn_call(fn_call, None)?;
+
+        // Add elements to the array
+        var_names.into_iter().try_for_each(|name| {
+            let add_element_call = FnCall {
+                name: operator_add_name(),
+                tmpls: vec![],
+                pos_args: vec![Expression {
+                    this: ExpressionType::VARIABLE(name),
+                    next: None,
+                }],
+                named_args: vec![],
+            };
+            self.build_fn_call(add_element_call, Some(my_list.clone()))?;
+            Result::Ok(())
+        })?;
+
+        return Ok(my_list);
     }
 
     ///
@@ -506,7 +582,7 @@ impl<NibType: Nib> Codegen<NibType> {
         let new_struct_ptr = self.nib.add_malloc(struct_t);
         fields.into_iter().try_for_each(|(name, value)| {
             self.nib
-                .set_value_in_struct(&new_struct_ptr, name, value.quill_value)
+                .set_value_in_struct(&new_struct_ptr, name, &value.quill_value)
         })?;
         Ok(CrabValue::new(new_struct_ptr.into(), struct_id))
     }

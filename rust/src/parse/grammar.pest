@@ -34,7 +34,7 @@ struct_field_init = { ident ~ "=" ~ expression }
 
 // func.rs
 function = { fn_signature ~ (compiler_provided | code_block) }
-fn_signature = { "fn" ~ ident ~ "(" ~ fn_params ~ ")" ~ return_type? }
+fn_signature = { "fn" ~ struct_id ~ "(" ~ fn_params ~ ")" ~ return_type? }
 return_type = { "->" ~ crab_type }
 fn_params = _{ ((pos_params ~ ("," ~ named_params)?) | named_params)? ~ ","? }
 pos_params = { pos_param ~ ("," ~ pos_param)* }
@@ -43,7 +43,8 @@ pos_param = { crab_type ~ ident ~ !"=" } // Use negative lookahead to ensure thi
 named_param = { crab_type ~ ident ~ "=" ~ expression }
 
 // fn_call.rs
-fn_call = { ident ~ "(" ~ fn_args? ~ ","? ~ ")" }
+fn_call = { ident ~ tmpls ~ "(" ~ fn_args? ~ ","? ~ ")" }
+tmpls = { ("<" ~ crab_type ~ ("," ~ crab_type)* ~ ","? ~ ">")? }
 fn_args = _{ ((pos_args ~ ("," ~ named_args)?) | named_args)? ~ ","? }
 pos_args = { pos_arg ~ ("," ~ pos_arg)* }
 named_args = { named_arg ~ ("," ~ named_arg)* }
@@ -68,12 +69,14 @@ expression = { ( primitive | struct_init | fn_call | ident ) ~ ("." ~ (fn_call |
 operator = { "+" | "-" | "*" | "/" | "<<" | ">>" | "==" | "<" | ">" | "<=" | ">=" }
 
 // primitive.rs
-primitive = { (uint64_primitive | string_primitive | bool_primitive) }
+primitive = { (uint64_primitive | string_primitive | bool_primitive | list_primitive) }
 uint64_primitive = @{ ASCII_DIGIT+ }
 bool_primitive = { "true" | "false" }
 string_primitive = ${ ("\"" | NEWLINE) ~ string_inner ~ "\"" }
 string_inner = @{ char* }
 char = @{ !("\"" | "\\") ~ ANY | ("\\" ~ ( "n" )) }
+// TODO: should be able to supply and empty list, but I don't have a way to infer the type right now
+list_primitive = { "[" ~ (expression ~ ("," ~ expression)*) ~ ","? ~ "]" }
 
 // Unaffiliated
 compiler_provided = { "{" ~ "(V) '--' (V)" ~ "}" }

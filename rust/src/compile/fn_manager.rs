@@ -133,7 +133,7 @@ impl FnManager {
     ) -> Result<FuncSignature> {
         let source_fn = self
             .get_source(&call.name, caller_opt.clone())?
-            .resolve(caller_opt.clone())?;
+            .resolve(caller_opt.clone(), call.tmpls.clone())?;
 
         let pos_params = match &caller_opt {
             None => vec![],
@@ -232,11 +232,10 @@ impl ImplFuncId {
             CrabType::VOID | CrabType::PRIM_INT | CrabType::PRIM_STR | CrabType::PRIM_BOOL => {
                 Err(CompileError::NotAStruct(
                     StructId::from_name(format!("{}", ct)),
-                    String::from("ImplFuncId::new()"),
+                    String::from("ImplFuncId::from_crabtype()"),
                 ))
             }
             CrabType::SIMPLE(name) | CrabType::TMPL(name, _) => Ok(name.clone()),
-            CrabType::LIST(ct) => Ok(ct.try_get_struct_name()?.clone()),
         }?;
         Ok(Self {
             func_name,

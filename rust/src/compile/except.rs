@@ -6,10 +6,13 @@ pub type Result<T> = std::result::Result<T, CompileError>;
 
 #[derive(Error, Debug)]
 pub enum CompileError {
+    #[error("Expected {0} to be templated type, but it was not")]
+    NotATmpl(CrabType),
+
     #[error("Struct {0} expected to have a caller id, but it did not")]
     NoCallerId(Ident),
 
-    #[error("A template got the wrong number of type arguments. Expected{0} and got {1}")]
+    #[error("A template got the wrong number of type arguments. Expected {0} and got {1}")]
     WrongTemplateTypeCount(usize, usize),
 
     #[error("Got a void type where one was not expected")]

@@ -3,9 +3,7 @@ use crate::compile::{CompileError, Result};
 use crate::parse::ast::{
     CrabInterface, CrabStruct, CrabType, FuncSignature, Ident, StructBody, StructId, StructIntr,
 };
-use crate::quill::{
-    PolyQuillType, QuillFnType, QuillListType, QuillPointerType, QuillStructType, QuillVoidType,
-};
+use crate::quill::{PolyQuillType, QuillFnType, QuillPointerType, QuillStructType, QuillVoidType};
 use crate::util::{ListFunctional, MapFunctional};
 use std::collections::{HashMap, HashSet};
 
@@ -141,7 +139,6 @@ impl TypeManager {
     fn get_type(&mut self, ct: &CrabType) -> Result<ManagedType> {
         let (ct_name, ct_tmpls) = match ct {
             CrabType::SIMPLE(id) => (id.clone(), vec![]),
-            CrabType::LIST(id) => (id.try_get_struct_name()?, vec![]),
             CrabType::TMPL(id, tmpls) => (id.clone(), tmpls.clone()),
             CrabType::VOID => return Err(CompileError::VoidType),
             _ => {
@@ -190,10 +187,6 @@ impl TypeManager {
             CrabType::SIMPLE(_) | CrabType::TMPL(_, _) => {
                 let name = self.get_type(ct)?.as_struct()?.id.mangle();
                 QuillPointerType::new(QuillStructType::new(name)).into()
-            }
-            //TODO: This len should be dynamic
-            CrabType::LIST(t) => {
-                QuillListType::new_const_length(self.get_quill_type(t)?, 1000).into()
             }
             _ => unreachable!(),
         })
@@ -294,9 +287,7 @@ impl TypeManager {
     ///
     pub fn get_fields(&mut self, id: &CrabType) -> Result<HashMap<String, PolyQuillType>> {
         Ok(match self.get_type(id)?.as_struct()?.body.clone() {
-            StructBody::COMPILER_PROVIDED => {
-                get_builtin_strct_definition(&id.try_get_struct_name()?)?.clone()
-            }
+            StructBody::COMPILER_PROVIDED => get_builtin_strct_definition(&id)?.clone(),
             StructBody::FIELDS(fields) => {
                 fields
                     .into_iter()

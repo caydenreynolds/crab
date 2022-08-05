@@ -60,9 +60,27 @@ impl Func {
         }
     }
 
-    pub fn resolve(self, caller_opt: Option<CrabType>) -> compile::Result<Self> {
+    pub fn resolve(
+        self,
+        caller_opt: Option<CrabType>,
+        tmpls: Vec<CrabType>,
+    ) -> compile::Result<Self> {
         match caller_opt {
-            None => Ok(self),
+            None => {
+                if tmpls.len() > 0 {
+                    let call_type = CrabType::TMPL(Ident::from(""), tmpls);
+                    let expected_tmpls = StructId {
+                        name: String::from(""),
+                        tmpls: self.signature.tmpls.clone(),
+                    };
+                    Ok(Self {
+                        signature: self.signature.resolve(call_type.clone(), &expected_tmpls)?,
+                        body: self.body.resolve(call_type, &expected_tmpls)?,
+                    })
+                } else {
+                    Ok(self)
+                }
+            }
             Some(caller) => {
                 let caller_id = self
                     .signature
@@ -96,6 +114,7 @@ impl FnBodyType {
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct FuncSignature {
     pub name: Ident,
+    pub tmpls: Vec<StructId>,
     pub return_type: CrabType,
     pub pos_params: Vec<PosParam>,
     pub named_params: BTreeMap<Ident, NamedParam>,
@@ -106,7 +125,9 @@ try_from_pair!(FuncSignature, Rule::fn_signature);
 impl AstNode for FuncSignature {
     fn from_pair(pair: Pair<Rule>) -> Result<Self> {
         let mut inner = pair.into_inner();
-        let name = Ident::from(inner.next().ok_or(ParseError::ExpectedInner)?.as_str());
+        let id = StructId::try_from(inner.next().ok_or(ParseError::ExpectedInner)?)?;
+        let name = id.name;
+        let tmpls = id.tmpls;
 
         let (pos_params, named_params, return_type) = inner.try_fold(
             (vec![], BTreeMap::new(), CrabType::VOID),
@@ -133,6 +154,7 @@ impl AstNode for FuncSignature {
 
         let new_fn = Self {
             name,
+            tmpls,
             return_type,
             pos_params,
             named_params,
@@ -156,6 +178,9 @@ impl FuncSignature {
     /// Convert this function signature to a method
     ///
     pub(super) fn method(self, caller_id: StructId) -> Self {
+        if self.tmpls.len() > 0 {
+            unimplemented!();
+        }
         Self {
             caller_id: Some(caller_id),
             ..self
@@ -215,11 +240,22 @@ impl FuncSignature {
                         ))
                     },
                 )?;
+                let new_tmpls = if self.tmpls.len() > 0 {
+                    StructId {
+                        name: Ident::from("Irrelevent"),
+                        tmpls: self.tmpls,
+                    }
+                    .resolve(tmpls)?
+                    .tmpls
+                } else {
+                    self.tmpls
+                };
                 Ok(Self {
-                    caller_id: Some(StructId::try_from(caller.clone())?),
                     pos_params,
                     named_params,
+                    tmpls: new_tmpls,
                     return_type: self.return_type.resolve(caller_id, &tmpls)?,
+                    caller_id: Some(StructId::try_from(caller.clone())?),
                     ..self
                 })
             }
@@ -233,13 +269,16 @@ impl Display for FuncSignature {
             None => "FN",
             Some(_) => "MD",
         };
-        write!(f, "_{}_{}", fn_or_md, self.name)?;
+        write!(f, "-{}-{}", fn_or_md, self.name)?;
         self.pos_params
             .iter()
-            .try_for_each(|param| write!(f, "_{}", param.crab_type))?;
+            .try_for_each(|param| write!(f, "-{}", param.crab_type))?;
         self.named_params
             .iter()
-            .try_for_each(|(_, param)| write!(f, "_{}", param.crab_type))
+            .try_for_each(|(_, param)| write!(f, "-{}", param.crab_type))?;
+        self.tmpls
+            .iter()
+            .try_for_each(|tmpl| write!(f, "-{}", tmpl))
     }
 }
 

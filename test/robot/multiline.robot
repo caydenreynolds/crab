@@ -23,3 +23,4 @@ The Crabfile "${crabfile}" is built and the results are compared against a file"
 Run Multiline Crabfiles
     [Template]  The Crabfile "${crabfile}" is built and the results are compared against a file"
     struct_tmpl.crab
+    list.crab

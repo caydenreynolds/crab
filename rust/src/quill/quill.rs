@@ -225,6 +225,13 @@ impl Quill {
             Some(_) => Err(QuillError::DuplicateExternalFn(name)),
         }
     }
+
+    pub fn has_fn(&self, name: &str) -> bool {
+        match self.functions.get(name) {
+            Some(_) => true,
+            None => false,
+        }
+    }
 }
 
 pub enum ArtifactType {

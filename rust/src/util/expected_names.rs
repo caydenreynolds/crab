@@ -3,14 +3,23 @@ use crate::parse::ast::Ident;
 pub fn int_struct_name() -> Ident {
     Ident::from("Int")
 }
-pub fn string_type_name() -> Ident {
+pub fn string_struct_name() -> Ident {
     Ident::from("String")
 }
 pub fn bool_struct_name() -> Ident {
     Ident::from("Bool")
 }
+pub fn list_struct_name() -> Ident {
+    Ident::from("List")
+}
 pub fn primitive_field_name() -> Ident {
     Ident::from("value")
+}
+pub fn length_field_name() -> Ident {
+    Ident::from("length")
+}
+pub fn capacity_field_name() -> Ident {
+    Ident::from("capacity")
 }
 pub fn main_func_name() -> Ident {
     Ident::from("main")
@@ -26,6 +35,12 @@ pub fn printf_crab_name() -> Ident {
 }
 pub fn format_i_c_name() -> Ident {
     Ident::from("__c_format_i__")
+}
+pub fn new_list_name() -> Ident {
+    Ident::from("__new_list__")
+}
+pub fn get_fn_name() -> Ident {
+    Ident::from("get")
 }
 
 pub fn operator_add_name() -> Ident {

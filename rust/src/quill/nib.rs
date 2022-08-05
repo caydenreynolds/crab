@@ -8,10 +8,15 @@ use inkwell::basic_block::BasicBlock;
 use inkwell::context::Context;
 use inkwell::module::Module;
 use inkwell::types::AnyTypeEnum;
-use inkwell::values::{BasicMetadataValueEnum, BasicValue, BasicValueEnum, FunctionValue};
+use inkwell::values::{
+    BasicMetadataValueEnum, BasicValue, BasicValueEnum, FunctionValue, IntValue, PointerValue,
+};
+use inkwell::IntPredicate;
 use log::{debug, trace};
 use std::convert::TryFrom;
 use std::fmt::Debug;
+
+pub type IntCmpType = IntPredicate;
 
 ///
 /// Enum of all the possible instructions that can be stored in a nib
@@ -30,8 +35,13 @@ enum Instruction {
     ConstString(usize, String),      // Id, value
     Malloc(usize, PolyQuillType),    // Id, type
     FnCall(String, usize, Vec<usize>), // Fn name, return id, positional params
-    FnParam(usize, String),          // Param Id, Param name
-    IntAdd(usize, usize, usize),     // Result Id, lhs Id, rhs Id
+    FnParam(usize, String),          // Param id, param name
+    IntAdd(usize, usize, usize),     // Result id, lhs id, rhs id
+    ListValueSet(usize, usize, usize), // List id, value id, index id
+    ListValueGet(usize, usize, usize), // List id, value id, index id
+    ListCopy(usize, usize, usize),   // Old list id, new list id, list len
+    Free(usize),                     // Value id
+    IntCmp(usize, usize, usize, IntCmpType), // Lhs id, rhs id, result id, comparison type
 }
 
 ///
@@ -132,7 +142,7 @@ pub trait Nib: Debug {
         &mut self,
         pv: &QuillValue<QuillPointerType>,
         name: String,
-        value: QuillValue<T>,
+        value: &QuillValue<T>,
     ) -> Result<()>;
 
     ///
@@ -212,8 +222,8 @@ pub trait Nib: Debug {
     ///
     fn int_add(
         &mut self,
-        lhs: QuillValue<QuillIntType>,
-        rhs: QuillValue<QuillIntType>,
+        lhs: &QuillValue<QuillIntType>,
+        rhs: &QuillValue<QuillIntType>,
     ) -> Result<QuillValue<QuillIntType>>;
 
     ///
@@ -223,6 +233,82 @@ pub trait Nib: Debug {
     /// The QuillFnType of this Nib
     ///
     fn get_fn_t(&self) -> &QuillFnType;
+
+    ///
+    /// Sets a value in a list
+    ///
+    /// Params:
+    /// * `lv` - A pointer to the list
+    /// * `value` - The value to set the field to
+    /// * `index` - The index in the list to set
+    ///
+    fn set_list_value<T: QuillType>(
+        &mut self,
+        lv: &QuillValue<QuillPointerType>,
+        value: &QuillValue<T>,
+        index: &QuillValue<QuillIntType>,
+    ) -> Result<()>;
+
+    ///
+    /// Gets a value from a list
+    ///
+    /// Params:
+    /// * `lv` - A pointer to the list
+    /// * `index` - The index in the list to set
+    /// * `expected_type` - The type of element expected. Must match the type in the list
+    ///
+    /// Returns:
+    /// The value fetched from the list
+    ///
+    fn get_list_value<T: QuillType>(
+        &mut self,
+        lv: &QuillValue<QuillPointerType>,
+        index: &QuillValue<QuillIntType>,
+        expected_type: T,
+    ) -> Result<QuillValue<T>>;
+
+    ///
+    /// Copies one list from another
+    ///
+    /// Params:
+    /// * `ol` - A pointer to the old list
+    /// * `nl` - A pointer to the new list set
+    ///
+    /// Returns:
+    /// The value fetched from the list
+    ///
+    fn list_copy(
+        &mut self,
+        ol: &QuillValue<QuillPointerType>,
+        nl: &QuillValue<QuillPointerType>,
+        len: &QuillValue<QuillIntType>,
+    ) -> Result<()>;
+
+    ///
+    /// Free a value
+    ///
+    /// Params:
+    /// * `val` - The value to free
+    ///
+    fn free(&mut self, val: QuillValue<QuillPointerType>);
+
+    ///
+    /// Compare two int types
+    ///
+    /// Params:
+    /// * `lhs` - The left hand value
+    /// * `rhs` - The right hand value
+    /// * `cmp_type` - The type of comparison to perform
+    ///
+    /// Returns:
+    /// The boolean result of the comparison
+    ///
+    fn int_cmp(
+        &mut self,
+        lhs: &QuillValue<QuillIntType>,
+        rhs: &QuillValue<QuillIntType>,
+        cmp_type: IntCmpType,
+    ) -> Result<QuillValue<QuillBoolType>>;
 }
 
 ///
@@ -325,7 +411,7 @@ impl Nib for FnNib {
         &mut self,
         pv: &QuillValue<QuillPointerType>,
         name: String,
-        value: QuillValue<T>,
+        value: &QuillValue<T>,
     ) -> Result<()> {
         self.inner.set_value_in_struct(pv, name, value)
     }
@@ -351,13 +437,48 @@ impl Nib for FnNib {
     }
     fn int_add(
         &mut self,
-        lhs: QuillValue<QuillIntType>,
-        rhs: QuillValue<QuillIntType>,
+        lhs: &QuillValue<QuillIntType>,
+        rhs: &QuillValue<QuillIntType>,
     ) -> Result<QuillValue<QuillIntType>> {
         self.inner.int_add(lhs, rhs)
     }
     fn get_fn_t(&self) -> &QuillFnType {
         self.inner.get_fn_t()
+    }
+    fn set_list_value<T: QuillType>(
+        &mut self,
+        lv: &QuillValue<QuillPointerType>,
+        value: &QuillValue<T>,
+        index: &QuillValue<QuillIntType>,
+    ) -> Result<()> {
+        self.inner.set_list_value(lv, value, index)
+    }
+    fn get_list_value<T: QuillType>(
+        &mut self,
+        lv: &QuillValue<QuillPointerType>,
+        index: &QuillValue<QuillIntType>,
+        expected_type: T,
+    ) -> Result<QuillValue<T>> {
+        self.inner.get_list_value(lv, index, expected_type)
+    }
+    fn list_copy(
+        &mut self,
+        ol: &QuillValue<QuillPointerType>,
+        nl: &QuillValue<QuillPointerType>,
+        len: &QuillValue<QuillIntType>,
+    ) -> Result<()> {
+        self.inner.list_copy(ol, nl, len)
+    }
+    fn free(&mut self, val: QuillValue<QuillPointerType>) {
+        self.inner.free(val)
+    }
+    fn int_cmp(
+        &mut self,
+        lhs: &QuillValue<QuillIntType>,
+        rhs: &QuillValue<QuillIntType>,
+        cmp_type: IntCmpType,
+    ) -> Result<QuillValue<QuillBoolType>> {
+        self.inner.int_cmp(lhs, rhs, cmp_type)
     }
 }
 
@@ -737,6 +858,94 @@ impl ChildNib {
                         Some(builder.build_int_add(lhs, rhs, "add").as_basic_value_enum()),
                     );
                 }
+
+                Instruction::ListValueSet(list_id, value_id, index_id) => unsafe {
+                    let list = values
+                        .get(list_id)
+                        .unwrap()
+                        .ok_or(QuillError::BadValueAccess)?;
+                    let value = values
+                        .get(value_id)
+                        .unwrap()
+                        .ok_or(QuillError::BadValueAccess)?;
+                    let index = values
+                        .get(index_id)
+                        .unwrap()
+                        .ok_or(QuillError::BadValueAccess)?;
+                    let element_ptr = builder.build_gep(
+                        PointerValue::try_from(list).or(Err(QuillError::Convert))?,
+                        &[IntValue::try_from(index).or(Err(QuillError::Convert))?],
+                        "list_set_gep",
+                    );
+                    builder.build_store(element_ptr, value);
+                },
+
+                Instruction::ListValueGet(list_id, value_id, index_id) => unsafe {
+                    let list = values
+                        .get(list_id)
+                        .unwrap()
+                        .ok_or(QuillError::BadValueAccess)?;
+                    let index = values
+                        .get(index_id)
+                        .unwrap()
+                        .ok_or(QuillError::BadValueAccess)?;
+                    let element_ptr = builder.build_gep(
+                        PointerValue::try_from(list).or(Err(QuillError::Convert))?,
+                        &[IntValue::try_from(index).or(Err(QuillError::Convert))?],
+                        "list_get_gep",
+                    );
+                    let value = builder.build_load(element_ptr, "list_get_load");
+                    values.replace(value_id, Some(value));
+                },
+
+                Instruction::ListCopy(ol_id, nl_id, len_id) => {
+                    let ol = values
+                        .get(ol_id)
+                        .unwrap()
+                        .ok_or(QuillError::BadValueAccess)?;
+                    let nl = values
+                        .get(nl_id)
+                        .unwrap()
+                        .ok_or(QuillError::BadValueAccess)?;
+                    let len = values
+                        .get(len_id)
+                        .unwrap()
+                        .ok_or(QuillError::BadValueAccess)?;
+                    let nl_ptr = PointerValue::try_from(nl).or(Err(QuillError::Convert))?;
+                    let ol_ptr = PointerValue::try_from(ol).or(Err(QuillError::Convert))?;
+                    let len_val = IntValue::try_from(len).or(Err(QuillError::Convert))?;
+                    let byte_len =
+                        builder.build_int_mul(len_val, nl_ptr.get_type().size_of(), "byte_len");
+                    let byte_len_val = IntValue::try_from(byte_len).or(Err(QuillError::Convert))?;
+                    builder
+                        .build_memcpy(nl_ptr, 1, ol_ptr, 1, byte_len_val)
+                        .or(Err(QuillError::Memcpy))?;
+                }
+
+                Instruction::Free(val_id) => {
+                    let val = values
+                        .get(val_id)
+                        .unwrap()
+                        .ok_or(QuillError::BadValueAccess)?;
+                    let ptr = PointerValue::try_from(val).or(Err(QuillError::Convert))?;
+                    builder.build_free(ptr);
+                }
+
+                Instruction::IntCmp(lhs_id, rhs_id, val_id, cmp_type) => {
+                    let lhs = values
+                        .get(lhs_id)
+                        .unwrap()
+                        .ok_or(QuillError::BadValueAccess)?;
+                    let rhs = values
+                        .get(rhs_id)
+                        .unwrap()
+                        .ok_or(QuillError::BadValueAccess)?;
+                    let lhs_int = IntValue::try_from(lhs).or(Err(QuillError::Convert))?;
+                    let rhs_int = IntValue::try_from(rhs).or(Err(QuillError::Convert))?;
+                    let cmp_result =
+                        builder.build_int_compare(cmp_type, lhs_int, rhs_int, "int_cmp");
+                    values.replace(val_id, Some(cmp_result.into()))
+                }
             }
         }
 
@@ -815,7 +1024,7 @@ impl Nib for ChildNib {
         &mut self,
         pv: &QuillValue<QuillPointerType>,
         name: String,
-        value: QuillValue<T>,
+        value: &QuillValue<T>,
     ) -> Result<()> {
         // Ensure we got a struct type
         QuillStructType::try_from(pv.get_type().get_inner_type())?;
@@ -876,8 +1085,8 @@ impl Nib for ChildNib {
 
     fn int_add(
         &mut self,
-        lhs: QuillValue<QuillIntType>,
-        rhs: QuillValue<QuillIntType>,
+        lhs: &QuillValue<QuillIntType>,
+        rhs: &QuillValue<QuillIntType>,
     ) -> Result<QuillValue<QuillIntType>> {
         if lhs.get_type().bit_width() != rhs.get_type().bit_width() {
             return Err(QuillError::IntSize(
@@ -897,5 +1106,98 @@ impl Nib for ChildNib {
 
     fn get_fn_t(&self) -> &QuillFnType {
         &self.parent_fn
+    }
+
+    fn set_list_value<T: QuillType>(
+        &mut self,
+        lv: &QuillValue<QuillPointerType>,
+        value: &QuillValue<T>,
+        index: &QuillValue<QuillIntType>,
+    ) -> Result<()> {
+        if lv.get_type().get_inner_type() != value.get_type().clone().into() {
+            Err(QuillError::WrongType(
+                format!("{:?}", lv.get_type().get_inner_type()),
+                format!("{:?}", value.get_type()),
+            ))
+        } else {
+            self.instructions
+                .push(Instruction::ListValueSet(lv.id(), value.id(), index.id()));
+            Ok(())
+        }
+    }
+
+    fn get_list_value<T: QuillType>(
+        &mut self,
+        lv: &QuillValue<QuillPointerType>,
+        index: &QuillValue<QuillIntType>,
+        expected_type: T,
+    ) -> Result<QuillValue<T>> {
+        if lv.get_type().get_inner_type() != expected_type.clone().into() {
+            Err(QuillError::WrongType(
+                format!("{:?}", lv.get_type().get_inner_type()),
+                format!("{:?}", expected_type),
+            ))
+        } else {
+            let value = QuillValue::new(self.id_generator, expected_type);
+            self.id_generator += 1;
+            self.instructions
+                .push(Instruction::ListValueGet(lv.id(), value.id(), index.id()));
+            Ok(value)
+        }
+    }
+
+    fn list_copy(
+        &mut self,
+        ol: &QuillValue<QuillPointerType>,
+        nl: &QuillValue<QuillPointerType>,
+        len: &QuillValue<QuillIntType>,
+    ) -> Result<()> {
+        // The type comparison is a little weird if we get list types, so we gotta deal with that
+        let ol_type = match ol.get_type().get_inner_type() {
+            PolyQuillType::ListType(lt) => lt.get_inner().clone(),
+            _ => ol.get_type().clone().into(),
+        };
+        let nl_type = match nl.get_type().get_inner_type() {
+            PolyQuillType::ListType(lt) => lt.get_inner().clone(),
+            _ => nl.get_type().clone().into(),
+        };
+        if ol_type != nl_type {
+            Err(QuillError::WrongType(
+                format!("{:?}", ol_type),
+                format!("{:?}", nl_type),
+            ))
+        } else {
+            self.instructions
+                .push(Instruction::ListCopy(ol.id(), nl.id(), len.id()));
+            Ok(())
+        }
+    }
+
+    fn free(&mut self, val: QuillValue<QuillPointerType>) {
+        self.instructions.push(Instruction::Free(val.id()));
+    }
+
+    fn int_cmp(
+        &mut self,
+        lhs: &QuillValue<QuillIntType>,
+        rhs: &QuillValue<QuillIntType>,
+        cmp_type: IntCmpType,
+    ) -> Result<QuillValue<QuillBoolType>> {
+        if lhs.get_type().bit_width() != rhs.get_type().bit_width() {
+            Err(QuillError::IntSize(
+                lhs.get_type().bit_width(),
+                rhs.get_type().bit_width(),
+            ))
+        } else {
+            let result = QuillValue::new(self.id_generator, QuillBoolType);
+            self.id_generator += 1;
+            self.instructions.push(Instruction::IntCmp(
+                lhs.id(),
+                rhs.id(),
+                result.id(),
+                cmp_type,
+            ));
+            Ok(result)
+        }
     }
 }
