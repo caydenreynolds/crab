@@ -6,7 +6,7 @@ use crate::parse::ast::{
     FnCall, Ident, IfStmt, NamedArg, PosParam, Primitive, Statement, StructFieldInit, StructId,
     StructInit, WhileStmt,
 };
-use crate::quill::{ArtifactType, ChildNib, FnNib, Nib, PolyQuillType, Quill, QuillBoolType, QuillFnType, QuillIntType, QuillListType, QuillStructType, QuillValue};
+use crate::quill::{ArtifactType, ChildNib, FnNib, Nib, PolyQuillType, Quill, QuillBoolType, QuillFnType, QuillStructType, QuillValue};
 use crate::util::{int_struct_name, new_list_name, operator_add_name, primitive_field_name, ListFunctional, MapFunctional, SetFunctional, string_struct_name, length_field_name, capacity_field_name};
 use log::{debug, trace};
 use std::cell::RefCell;
