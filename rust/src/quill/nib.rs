@@ -753,9 +753,10 @@ impl ChildNib {
                     let const_string = builder
                         .build_global_string_ptr(&value, "str_ptr")
                         .as_pointer_value();
+                    // Using value.len() means we don't copy the null byte
                     let string_len = context
                         .i64_type()
-                        .const_int((value.len() + 1) as u64, false);
+                        .const_int(value.len() as u64, false);
                     let string_array = builder
                         .build_array_malloc(context.i8_type(), string_len, "const_string")
                         .or(Err(QuillError::MallocErr))?;
