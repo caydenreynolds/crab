@@ -468,9 +468,9 @@ impl<NibType: Nib> Codegen<NibType> {
 
     fn build_str_prim(&mut self, string: String) -> Result<CrabValue> {
         let str_len = string.len();
-        let string_struct_name_mangled = StructId::from_name(string_struct_name()).mangle();
         let const_str = self.nib.const_string(string);
-        let string_str = self.nib.add_malloc(QuillStructType::new(string_struct_name_mangled.clone()));
+        let struct_t = self.types.borrow_mut().get_quill_struct(&CrabType::SIMPLE(string_struct_name()))?;
+        let string_str = self.nib.add_malloc(struct_t.clone());
         let length = self.nib.const_int(64, str_len as u64);
         let string_buf = self.nib.add_malloc(QuillListType::new_var_length(
             QuillIntType::new(8),
@@ -481,7 +481,7 @@ impl<NibType: Nib> Codegen<NibType> {
         self.nib.set_value_in_struct(&string_str, length_field_name(), &length)?;
         self.nib.set_value_in_struct(&string_str, capacity_field_name(), &length)?;
 
-        Ok(CrabValue::new(string_str.into(), CrabType::SIMPLE(string_struct_name_mangled)))
+        Ok(CrabValue::new(string_str.into(), CrabType::SIMPLE(string_struct_name())))
     }
 
     fn build_list_prim(&mut self, exprs: Vec<Expression>) -> Result<CrabValue> {
