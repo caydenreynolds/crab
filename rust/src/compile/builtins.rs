@@ -245,7 +245,7 @@ fn list_add_fn(_: &mut Quill, nib: &mut FnNib, caller: Option<StructId>, _: Vec<
          primitive_field_name(),
          QuillPointerType::new(QuillStructType::new(caller.tmpls[0].mangle())),
      )?;
-     // then_nib.list_copy(&old_t_star, &new_t_star, &capacity)?;
+     then_nib.list_copy(&old_t_star, &new_t_star, &capacity)?;
      // then_nib.set_value_in_struct(&list, primitive_field_name(), &new_t_star)?;
      // then_nib.free(old_t_star);
 
