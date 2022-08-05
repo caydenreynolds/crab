@@ -229,29 +229,29 @@ fn list_add_fn(_: &mut Quill, nib: &mut FnNib, caller: Option<StructId>, _: Vec<
     let capacity = nib.get_value_from_struct(&list, capacity_field_name(), QuillIntType::new(64))?;
 
     // Resize the array if needed
-    // let mut then_nib = nib.create_child();
-    // let new_capacity = then_nib.int_add(&capacity, &capacity)?;
-    // then_nib.set_value_in_struct(&list, capacity_field_name(), &new_capacity)?;
-    // let new_t_star = then_nib.add_malloc(
-    //     QuillListType::new_var_length(
-    //         QuillPointerType::new(
-    //             QuillStructType::new(caller.tmpls[0].mangle())
-    //         ),
-    //         new_capacity,
-    //     )
-    // );
-    // let old_t_star = then_nib.get_value_from_struct(
-    //     &list,
-    //     primitive_field_name(),
-    //     QuillPointerType::new(QuillStructType::new(caller.tmpls[0].mangle())),
-    // )?;
-    // then_nib.list_copy(&old_t_star, &new_t_star, &capacity)?;
-    // then_nib.set_value_in_struct(&list, primitive_field_name(), &new_t_star)?;
-    // then_nib.free(old_t_star);
-    //
-    // // Do the actual if statement now
-    // let cond = nib.int_cmp(&length, &capacity, IntCmpType::EQ)?;
-    // nib.add_cond_branch(&cond, then_nib, None);
+     let mut then_nib = nib.create_child();
+     let new_capacity = then_nib.int_add(&capacity, &capacity)?;
+     then_nib.set_value_in_struct(&list, capacity_field_name(), &new_capacity)?;
+     // let new_t_star = then_nib.add_malloc(
+     //     QuillListType::new_var_length(
+     //         QuillPointerType::new(
+     //             QuillStructType::new(caller.tmpls[0].mangle())
+     //         ),
+     //         new_capacity,
+     //     )
+     // );
+     // let old_t_star = then_nib.get_value_from_struct(
+     //     &list,
+     //     primitive_field_name(),
+     //     QuillPointerType::new(QuillStructType::new(caller.tmpls[0].mangle())),
+     // )?;
+     then_nib.list_copy(&old_t_star, &new_t_star, &capacity)?;
+     then_nib.set_value_in_struct(&list, primitive_field_name(), &new_t_star)?;
+     then_nib.free(old_t_star);
+
+    // Do the actual if statement now
+     let cond = nib.int_cmp(&length, &capacity, IntCmpType::EQ)?;
+     nib.add_cond_branch(&cond, then_nib, None);
 
     // Continue the rest of the function
     let element = nib.get_fn_param(
