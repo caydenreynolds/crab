@@ -136,15 +136,13 @@ struct Tmpls(Vec<CrabType>);
 try_from_pair!(Tmpls, Rule::tmpls);
 impl AstNode for Tmpls {
     fn from_pair(pair: Pair<Rule>) -> Result<Self>
-        where
-            Self: Sized,
+    where
+        Self: Sized,
     {
         Ok(Self(
-            pair
-                .into_inner()
-                .try_fold(vec![], |tmpls, pair| {
-                    Result::Ok(tmpls.fpush(CrabType::try_from(pair)?))
-                })?
+            pair.into_inner().try_fold(vec![], |tmpls, pair| {
+                Result::Ok(tmpls.fpush(CrabType::try_from(pair)?))
+            })?,
         ))
     }
 }

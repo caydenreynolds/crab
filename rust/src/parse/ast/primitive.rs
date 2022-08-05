@@ -1,9 +1,9 @@
 use crate::parse::ast::{AstNode, Expression};
 use crate::parse::{parse_string, ParseError, Result, Rule};
 use crate::try_from_pair;
+use crate::util::ListFunctional;
 use pest::iterators::Pair;
 use std::convert::TryFrom;
-use crate::util::ListFunctional;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum Primitive {
@@ -45,13 +45,14 @@ impl AstNode for Primitive {
 struct ListPrimitive(Vec<Expression>);
 try_from_pair!(ListPrimitive, Rule::list_primitive);
 impl AstNode for ListPrimitive {
-    fn from_pair(pair: Pair<Rule>) -> Result<Self> where Self: Sized {
+    fn from_pair(pair: Pair<Rule>) -> Result<Self>
+    where
+        Self: Sized,
+    {
         Ok(Self(
-            pair
-                .into_inner()
-                .try_fold(vec![], |exprs, pair| {
-                    Result::Ok(exprs.fpush(Expression::try_from(pair)?))
-                })?
+            pair.into_inner().try_fold(vec![], |exprs, pair| {
+                Result::Ok(exprs.fpush(Expression::try_from(pair)?))
+            })?,
         ))
     }
 }

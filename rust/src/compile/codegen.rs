@@ -1,12 +1,19 @@
 use crate::compile::{
     add_builtin_definition, add_main_func, CompileError, FnManager, Result, TypeManager, VarManager,
 };
-use crate::parse::ast::{Assignment, CodeBlock, CrabAst, CrabType, DoWhileStmt, Expression, ExpressionType, FnBodyType, FnCall, Ident, IfStmt, NamedArg, PosParam, Primitive, Statement, StructFieldInit, StructId, StructInit, WhileStmt};
+use crate::parse::ast::{
+    Assignment, CodeBlock, CrabAst, CrabType, DoWhileStmt, Expression, ExpressionType, FnBodyType,
+    FnCall, Ident, IfStmt, NamedArg, PosParam, Primitive, Statement, StructFieldInit, StructId,
+    StructInit, WhileStmt,
+};
 use crate::quill::{
     ArtifactType, ChildNib, FnNib, Nib, PolyQuillType, Quill, QuillBoolType, QuillFnType,
     QuillStructType, QuillValue,
 };
-use crate::util::{primitive_field_name, ListFunctional, MapFunctional, SetFunctional, new_list_name, int_struct_name, operator_add_name};
+use crate::util::{
+    int_struct_name, new_list_name, operator_add_name, primitive_field_name, ListFunctional,
+    MapFunctional, SetFunctional,
+};
 use log::{debug, trace};
 use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -84,7 +91,12 @@ pub fn compile(
                     (codegen.into_nib(), returns)
                 }
                 FnBodyType::COMPILER_PROVIDED => {
-                    add_builtin_definition(&mut peter, &mut nib, func.signature.caller_id, func.signature.tmpls)?;
+                    add_builtin_definition(
+                        &mut peter,
+                        &mut nib,
+                        func.signature.caller_id,
+                        func.signature.tmpls,
+                    )?;
                     (nib, true) // Just assume it's all good for now
                 }
             };
@@ -447,38 +459,38 @@ impl<NibType: Nib> Codegen<NibType> {
     fn build_primitive(&mut self, prim: Primitive) -> Result<CrabValue> {
         trace!("Codegen::build_primitive");
         match prim {
-            Primitive::STRING(value) => {
-                Ok(CrabValue::new(self.nib.const_string(value).into(), CrabType::PRIM_STR))
-            }
-            Primitive::BOOL(value) => {
-                Ok(CrabValue::new(self.nib.const_bool(value).into(), CrabType::PRIM_BOOL))
-            }
-            Primitive::UINT(value) => {
-                Ok(CrabValue::new(self.nib.const_int(64, value).into(), CrabType::PRIM_INT))
-            }
-            Primitive::LIST(exprs) => {
-                self.build_list_prim(exprs)
-            }
+            Primitive::STRING(value) => Ok(CrabValue::new(
+                self.nib.const_string(value).into(),
+                CrabType::PRIM_STR,
+            )),
+            Primitive::BOOL(value) => Ok(CrabValue::new(
+                self.nib.const_bool(value).into(),
+                CrabType::PRIM_BOOL,
+            )),
+            Primitive::UINT(value) => Ok(CrabValue::new(
+                self.nib.const_int(64, value).into(),
+                CrabType::PRIM_INT,
+            )),
+            Primitive::LIST(exprs) => self.build_list_prim(exprs),
         }
     }
 
     fn build_list_prim(&mut self, exprs: Vec<Expression>) -> Result<CrabValue> {
         trace!("Codegen::build_list_prim");
         // Get the values to add to the list
-        let var_names = exprs
-            .into_iter()
-            .try_fold(vec![], |var_names, expr| {
-                let var_name = format!("{}", Uuid::new_v4().as_simple());
-                let ass = Assignment {
-                    var_name: var_name.clone(),
-                    expr,
-                };
-                self.build_assignment(ass)?;
-                Result::Ok(var_names.fpush(var_name))
-            })?;
-        let first_value = self.build_expression(Expression {
+        let var_names = exprs.into_iter().try_fold(vec![], |var_names, expr| {
+            let var_name = format!("{}", Uuid::new_v4().as_simple());
+            let ass = Assignment {
+                var_name: var_name.clone(),
+                expr,
+            };
+            self.build_assignment(ass)?;
+            Result::Ok(var_names.fpush(var_name))
+        })?;
+        let first_value = self.build_expression(
+            Expression {
                 this: ExpressionType::VARIABLE(var_names[0].clone()),
-                next: None
+                next: None,
             },
             None,
         )?;
@@ -497,32 +509,30 @@ impl<NibType: Nib> Codegen<NibType> {
                             name: primitive_field_name(),
                             value: Expression {
                                 this: ExpressionType::PRIM(Primitive::UINT(var_names.len() as u64)),
-                                next: None
-                            }
+                                next: None,
+                            },
                         }],
                     }),
-                    next: None
-                }
-            }]
+                    next: None,
+                },
+            }],
         };
         let my_list = self.build_fn_call(fn_call, None)?;
 
         // Add elements to the array
-        var_names
-            .into_iter()
-            .try_for_each(|name| {
-                let add_element_call = FnCall {
-                    name: operator_add_name(),
-                    tmpls: vec![],
-                    pos_args: vec![Expression {
-                        this: ExpressionType::VARIABLE(name),
-                        next: None,
-                    }],
-                    named_args: vec![]
-                };
-                self.build_fn_call(add_element_call, Some(my_list.clone()))?;
-                Result::Ok(())
-            })?;
+        var_names.into_iter().try_for_each(|name| {
+            let add_element_call = FnCall {
+                name: operator_add_name(),
+                tmpls: vec![],
+                pos_args: vec![Expression {
+                    this: ExpressionType::VARIABLE(name),
+                    next: None,
+                }],
+                named_args: vec![],
+            };
+            self.build_fn_call(add_element_call, Some(my_list.clone()))?;
+            Result::Ok(())
+        })?;
 
         return Ok(my_list);
     }

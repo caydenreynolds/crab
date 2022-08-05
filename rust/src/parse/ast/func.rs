@@ -60,7 +60,11 @@ impl Func {
         }
     }
 
-    pub fn resolve(self, caller_opt: Option<CrabType>, tmpls: Vec<CrabType>) -> compile::Result<Self> {
+    pub fn resolve(
+        self,
+        caller_opt: Option<CrabType>,
+        tmpls: Vec<CrabType>,
+    ) -> compile::Result<Self> {
         match caller_opt {
             None => {
                 if tmpls.len() > 0 {
@@ -76,7 +80,7 @@ impl Func {
                 } else {
                     Ok(self)
                 }
-            },
+            }
             Some(caller) => {
                 let caller_id = self
                     .signature
@@ -237,9 +241,12 @@ impl FuncSignature {
                     },
                 )?;
                 let new_tmpls = if self.tmpls.len() > 0 {
-                    StructId { name: Ident::from("Irrelevent"), tmpls: self.tmpls }
-                        .resolve(tmpls)?
-                        .tmpls
+                    StructId {
+                        name: Ident::from("Irrelevent"),
+                        tmpls: self.tmpls,
+                    }
+                    .resolve(tmpls)?
+                    .tmpls
                 } else {
                     self.tmpls
                 };

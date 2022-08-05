@@ -29,7 +29,10 @@ impl AstNode for CrabType {
         let next = pair.into_inner().next().ok_or(ParseError::ExpectedInner)?;
         match next.as_rule() {
             Rule::simple_crab_type => Ok(Self::SIMPLE(SimpleCrabType::try_from(next)?.0)),
-            Rule::list_crab_type => Ok(Self::TMPL(list_struct_name(), vec![ListCrabType::try_from(next)?.0])),
+            Rule::list_crab_type => Ok(Self::TMPL(
+                list_struct_name(),
+                vec![ListCrabType::try_from(next)?.0],
+            )),
             Rule::tmpl_crab_type => {
                 let tct = TmplCrabType::try_from(next)?;
                 Ok(Self::TMPL(tct.0, tct.1))

@@ -3,9 +3,7 @@ use crate::compile::{CompileError, Result};
 use crate::parse::ast::{
     CrabInterface, CrabStruct, CrabType, FuncSignature, Ident, StructBody, StructId, StructIntr,
 };
-use crate::quill::{
-    PolyQuillType, QuillFnType, QuillPointerType, QuillStructType, QuillVoidType,
-};
+use crate::quill::{PolyQuillType, QuillFnType, QuillPointerType, QuillStructType, QuillVoidType};
 use crate::util::{ListFunctional, MapFunctional};
 use std::collections::{HashMap, HashSet};
 
@@ -289,9 +287,7 @@ impl TypeManager {
     ///
     pub fn get_fields(&mut self, id: &CrabType) -> Result<HashMap<String, PolyQuillType>> {
         Ok(match self.get_type(id)?.as_struct()?.body.clone() {
-            StructBody::COMPILER_PROVIDED => {
-                get_builtin_strct_definition(&id)?.clone()
-            }
+            StructBody::COMPILER_PROVIDED => get_builtin_strct_definition(&id)?.clone(),
             StructBody::FIELDS(fields) => {
                 fields
                     .into_iter()
