@@ -8,7 +8,7 @@ intr List<T> {
 }
 
 impl List<T> {
-    fn operatorAdd(T element) {
+    fn operatorAdd(T element) -> List<T> {
         (V) '--' (V)
     }
 

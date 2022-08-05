@@ -271,7 +271,7 @@ fn list_add_fn(_: &mut Quill, nib: &mut FnNib, caller: Option<StructId>, _: Vec<
     nib.set_value_in_struct(&list, length_field_name(), &new_len)?;
 
     // Return nothing
-    nib.add_return(QuillFnType::void_return_value());
+    nib.add_return(Some(&list));
 
     
     Ok(())
