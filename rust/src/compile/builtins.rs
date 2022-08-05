@@ -56,6 +56,12 @@ fn init_builtin_fn_map() -> FnNameMap {
             mangle_fn_name(&length_fn_name(), &list_struct_name()),
             list_len_fn as FnDefFn,
         ),
+        (
+            mangle_fn_name(&length_fn_name(), &string_struct_name()),
+            // Cheating a little here
+            // If either string or list undergo implementation changes, this may have to change too
+            list_len_fn as FnDefFn,
+        ),
     ]);
     map
 }

@@ -24,4 +24,8 @@ impl String {
     fn operatorAdd(String other) -> String {
         (V) '--' (V)
     }
+
+    fn len() -> Int {
+        (V) '--' (V)
+    }
 }

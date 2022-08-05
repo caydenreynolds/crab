@@ -1,0 +1,5 @@
+fn main() -> Int {
+    print("This isn't your average, everyday string test".len())
+
+    return 0
+}
