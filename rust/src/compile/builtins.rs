@@ -253,7 +253,7 @@ fn list_add_fn(peter: &mut Quill, nib: &mut FnNib, caller: Option<StructId>, _: 
         name: resize_name(),
         tmpls: vec![],
         return_type: CrabType::VOID,
-        pos_params: vec![PosParam { name: Ident::from("self"), crab_type: caller.tmpls[0].into() }],
+        pos_params: vec![PosParam { name: Ident::from("self"), crab_type: caller.tmpls[0].clone().into() }],
         named_params: Default::default(),
         caller_id: Some(caller.clone()),
     }.mangled();
