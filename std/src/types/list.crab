@@ -8,9 +8,9 @@ intr List<T> {
 }
 
 impl List<T> {
-      fn operatorAdd(T element) {
-          (V) '--' (V)
-      }
+    fn operatorAdd(T element) {
+        (V) '--' (V)
+    }
 
     fn get(Int index) -> T {
         (V) '--' (V)
@@ -20,13 +20,13 @@ impl List<T> {
 //        (V) '--' (V)
 //    }
 
-    fn append(T other) -> List<T> {
-        return self + other
-    }
+//    fn append(T other) -> List<T> {
+//        return self + other
+//    }
 
-    fn push(T other) -> List<T> {
-        return self + other
-    }
+//    fn push(T other) -> List<T> {
+//        return self + other
+//    }
 
     fn add(T other) -> List<T> {
         return self + other

@@ -5,11 +5,11 @@ fn main() -> Int {
     print(int_list.get(0))
     print(string_list.get(1))
 
-    int_list.append(6)
-    string_list = string_list + "extra_string"
+    int_list.operatorAdd(6)
+    //string_list = string_list + "extra_string"
 
     print(int_list.get(5))
-    print(string_list.get(7))
+    //print(string_list.get(7))
 
     return 0
 }

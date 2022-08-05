@@ -232,7 +232,7 @@ impl ImplFuncId {
             CrabType::VOID | CrabType::PRIM_INT | CrabType::PRIM_STR | CrabType::PRIM_BOOL => {
                 Err(CompileError::NotAStruct(
                     StructId::from_name(format!("{}", ct)),
-                    String::from("ImplFuncId::new()"),
+                    String::from("ImplFuncId::from_crabtype()"),
                 ))
             }
             CrabType::SIMPLE(name) | CrabType::TMPL(name, _) => Ok(name.clone()),
