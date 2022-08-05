@@ -1095,11 +1095,11 @@ impl Nib for ChildNib {
         // The type comparison is a little weird if we get list types, so we gotta deal with that
         let ol_type = match ol.get_type().get_inner_type() {
             PolyQuillType::ListType(lt) => lt.get_inner().clone(),
-            t => t,
+            t => ol.get_type(),
         };
         let nl_type = match nl.get_type().get_inner_type() {
             PolyQuillType::ListType(lt) => lt.get_inner().clone(),
-            t => t,
+            t => nl.get_type(),
         };
         if ol_type != nl_type {
             Err(QuillError::WrongType(format!("{:?}", ol_type), format!("{:?}", nl_type)))
