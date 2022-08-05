@@ -452,11 +452,11 @@ fn format_i(
         vec![char_star.clone().into()],
         QuillIntType::new(64),
     );
-    nib.set_value_in_struct(&self_arg, length_field_name(), &new_len)?;
+    nib.set_value_in_struct(&ret_val, length_field_name(), &new_len)?;
 
     // Set the new buffer size
     let capacity = nib.const_int(64, arbitrary_capacity as u64);
-    nib.set_value_in_struct(&self_arg, capacity_field_name(), &capacity)?;
+    nib.set_value_in_struct(&ret_val, capacity_field_name(), &capacity)?;
 
     nib.add_return(Some(&ret_val));
 
