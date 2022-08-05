@@ -401,7 +401,7 @@ fn list_len_fn(
     let list_len = nib.get_value_from_struct(&list, length_field_name(), QuillIntType::new(64))?;
     let len_str = nib.add_malloc(QuillStructType::new(int_name_mangled()));
     nib.set_value_in_struct(&len_str, primitive_field_name(), &list_len)?;
-    nib.add_return(Some(len_Str));
+    nib.add_return(Some(len_str));
 
     Ok(())
 }
