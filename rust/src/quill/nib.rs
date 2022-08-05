@@ -904,7 +904,9 @@ impl ChildNib {
                         .get(rhs_id)
                         .unwrap()
                         .ok_or(QuillError::BadValueAccess)?;
-                    let cmp_result = builder.build_int_compare(cmp_type, lhs, rhs, "int_cmp");
+                    let lhs_int = PointerValue::try_from(lhs).or(Err(QuillError::Convert))?;
+                    let rhs_int = PointerValue::try_from(rhs).or(Err(QuillError::Convert))?;
+                    let cmp_result = builder.build_int_compare(cmp_type, lhs_int, rhs_int, "int_cmp");
                     values.replace(val_id, Some(cmp_result))
                 }
             }
