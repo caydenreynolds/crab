@@ -149,16 +149,6 @@ impl TryFrom<Pair<'_, Rule>> for ExpressionType {
                             },
                         }],
                     })),
-                    Primitive::STRING(_) => Ok(Self::STRUCT_INIT(StructInit {
-                        id: CrabType::SIMPLE(string_struct_name()),
-                        fields: vec![StructFieldInit {
-                            name: primitive_field_name(),
-                            value: Expression {
-                                this: ExpressionType::PRIM(prim),
-                                next: None,
-                            },
-                        }],
-                    })),
                     Primitive::BOOL(_) => Ok(Self::STRUCT_INIT(StructInit {
                         id: CrabType::SIMPLE(bool_struct_name()),
                         fields: vec![StructFieldInit {

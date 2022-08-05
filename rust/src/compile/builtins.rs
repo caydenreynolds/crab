@@ -86,10 +86,20 @@ fn init_builtin_strct_map() -> StrctNameMap {
         ),
         (
             string_struct_name(),
-            HashMap::from([(
-                primitive_field_name(),
-                StructTypeResolver::QuillType(QuillPointerType::new(QuillIntType::new(8)).into()),
-            )]),
+            HashMap::from([
+                (
+                    primitive_field_name(),
+                    StructTypeResolver::QuillType(QuillPointerType::new(QuillIntType::new(8)).into()),
+                ),
+                (
+                    length_field_name(),
+                    StructTypeResolver::QuillType(QuillIntType::new(64).into()),
+                ),
+                (
+                    capacity_field_name(),
+                    StructTypeResolver::QuillType(QuillIntType::new(64).into()),
+                ),
+            ]),
         ),
         (
             list_struct_name(),
@@ -199,10 +209,16 @@ fn add_printf(
     _: Vec<StructId>,
 ) -> Result<()> {
     // Tell the quill we need to link to the C printf function
-    let params = vec![(
-        String::from("0"),
-        QuillPointerType::new(QuillIntType::new(8)).into(),
-    )];
+    let params = vec![
+        (
+            String::from("0"),
+            QuillPointerType::new(QuillIntType::new(8)).into(),
+        ),
+        (
+            String::from("1"),
+            QuillIntType::new(64).into(),
+        ),
+    ];
     peter.register_external_fn(
         printf_c_name(),
         QuillFnType::new(Some(QuillFloatType::new()), params),
@@ -218,9 +234,14 @@ fn add_printf(
         primitive_field_name(),
         QuillPointerType::new(QuillIntType::new(8)),
     )?;
+    let len = nib.get_value_from_struct(
+        &fn_param,
+        length_field_name(),
+        QuillIntType::new(64),
+    )?;
     nib.add_fn_call(
         printf_c_name(),
-        vec![char_star.into()],
+        vec![char_star.into(), len.into()],
         QuillFloatType::new(),
     );
 

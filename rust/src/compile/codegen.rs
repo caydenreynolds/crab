@@ -6,14 +6,8 @@ use crate::parse::ast::{
     FnCall, Ident, IfStmt, NamedArg, PosParam, Primitive, Statement, StructFieldInit, StructId,
     StructInit, WhileStmt,
 };
-use crate::quill::{
-    ArtifactType, ChildNib, FnNib, Nib, PolyQuillType, Quill, QuillBoolType, QuillFnType,
-    QuillStructType, QuillValue,
-};
-use crate::util::{
-    int_struct_name, new_list_name, operator_add_name, primitive_field_name, ListFunctional,
-    MapFunctional, SetFunctional,
-};
+use crate::quill::{ArtifactType, ChildNib, FnNib, Nib, PolyQuillType, Quill, QuillBoolType, QuillFnType, QuillIntType, QuillListType, QuillStructType, QuillValue};
+use crate::util::{int_struct_name, new_list_name, operator_add_name, primitive_field_name, ListFunctional, MapFunctional, SetFunctional, string_struct_name, length_field_name, capacity_field_name};
 use log::{debug, trace};
 use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -459,10 +453,7 @@ impl<NibType: Nib> Codegen<NibType> {
     fn build_primitive(&mut self, prim: Primitive) -> Result<CrabValue> {
         trace!("Codegen::build_primitive");
         match prim {
-            Primitive::STRING(value) => Ok(CrabValue::new(
-                self.nib.const_string(value).into(),
-                CrabType::PRIM_STR,
-            )),
+            Primitive::STRING(value) => self.build_str_prim(value),
             Primitive::BOOL(value) => Ok(CrabValue::new(
                 self.nib.const_bool(value).into(),
                 CrabType::PRIM_BOOL,
@@ -473,6 +464,24 @@ impl<NibType: Nib> Codegen<NibType> {
             )),
             Primitive::LIST(exprs) => self.build_list_prim(exprs),
         }
+    }
+
+    fn build_str_prim(&mut self, string: String) -> Result<CrabValue> {
+        let str_len = string.len();
+        let string_struct_name_mangled = StructId::from_name(string_struct_name()).mangle();
+        let const_str = self.nib.const_string(string);
+        let string_str = self.nib.add_malloc(QuillStructType::new(string_struct_name_mangled.clone()));
+        let length = self.nib.const_int(64, str_len as u64);
+        let string_buf = self.nib.add_malloc(QuillListType::new_var_length(
+            QuillIntType::new(8),
+            length,
+        ));
+        self.nib.list_copy(&const_str, &string_buf, &length)?;
+        self.nib.set_value_in_struct(&string_str, primitive_field_name(), &string_buf)?;
+        self.nib.set_value_in_struct(&string_str, length_field_name(), &length)?;
+        self.nib.set_value_in_struct(&string_str, capacity_field_name(), &length)?;
+
+        Ok(CrabValue::new(string_str.into(), CrabType::SIMPLE(string_struct_name_mangled)))
     }
 
     fn build_list_prim(&mut self, exprs: Vec<Expression>) -> Result<CrabValue> {
