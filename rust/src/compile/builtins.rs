@@ -448,8 +448,8 @@ fn format_i(
         QuillFnType::new(Some(QuillIntType::new(64)), params),
     )?;
     let new_len = nib.add_fn_call(
-        format_i_c_name(),
-        vec![char_star.clone().into(), self_int.into()],
+        strlen_c_name(),
+        vec![char_star.clone().into()],
         QuillIntType::new(64),
     );
     nib.set_value_in_struct(&self_arg, length_field_name(), &new_len)?;
