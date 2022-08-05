@@ -4,12 +4,7 @@ use crate::quill::{
     FnNib, IntCmpType, Nib, PolyQuillType, Quill, QuillBoolType, QuillFloatType, QuillFnType,
     QuillIntType, QuillListType, QuillPointerType, QuillStructType, QuillVoidType,
 };
-use crate::util::{
-    bool_struct_name, capacity_field_name, format_i_c_name, get_fn_name, int_struct_name,
-    length_field_name, list_struct_name, magic_main_func_name, main_func_name, new_list_name,
-    operator_add_name, primitive_field_name, printf_c_name, printf_crab_name, string_struct_name,
-    to_string_name, ListFunctional, MapFunctional,
-};
+use crate::util::{bool_struct_name, capacity_field_name, format_i_c_name, get_fn_name, int_struct_name, length_field_name, list_struct_name, magic_main_func_name, main_func_name, new_list_name, operator_add_name, primitive_field_name, printf_c_name, printf_crab_name, string_struct_name, to_string_name, ListFunctional, MapFunctional, strlen_c_name};
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 use std::convert::TryInto;
@@ -411,6 +406,7 @@ fn format_i(
     _: Option<StructId>,
     _: Vec<StructId>,
 ) -> Result<()> {
+    // Format the int
     let params = vec![
         (
             String::from("0"),
@@ -430,7 +426,8 @@ fn format_i(
     let self_int =
         nib.get_value_from_struct(&self_arg, primitive_field_name(), QuillIntType::new(64))?;
 
-    let char_star = nib.add_malloc(QuillListType::new_const_length(QuillIntType::new(8), 50));
+    let arbitrary_capacity = 50;
+    let char_star = nib.add_malloc(QuillListType::new_const_length(QuillIntType::new(8), arbitrary_capacity));
     let ret_val = nib.add_malloc(QuillStructType::new(string_name_mangled()));
     nib.add_fn_call(
         format_i_c_name(),
@@ -438,6 +435,28 @@ fn format_i(
         QuillVoidType::new(),
     );
     nib.set_value_in_struct(&ret_val, primitive_field_name(), &char_star)?;
+
+    // Calculate actual string length
+    let params = vec![
+        (
+            String::from("0"),
+            QuillPointerType::new(QuillIntType::new(8)).into(),
+        ),
+    ];
+    peter.register_external_fn(
+        strlen_c_name(),
+        QuillFnType::new(Some(QuillIntType::new(64)), params),
+    )?;
+    let new_len = nib.add_fn_call(
+        format_i_c_name(),
+        vec![char_star.clone().into(), self_int.into()],
+        QuillIntType::new(64),
+    );
+    nib.set_value_in_struct(&self_arg, length_field_name(), &new_len)?;
+
+    // Set the new buffer size
+    let capacity = nib.const_int(64, arbitrary_capacity as u64);
+    nib.set_value_in_struct(&self_arg, capacity_field_name(), &capacity)?;
 
     nib.add_return(Some(&ret_val));
 

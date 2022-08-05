@@ -5,7 +5,7 @@ int __c_format_i__(char* buf, long in) {
     return sprintf(buf, "%ld", in);
 }
 
-int __c_strlen__(char* cstr) {
+long __c_strlen__(char* cstr) {
     return strlen(cstr);
 }
 
