@@ -20,13 +20,13 @@ impl List<T> {
 //        (V) '--' (V)
 //    }
 
-//    fn append(T other) -> List<T> {
-//        return self + other
-//    }
+    fn append(T other) -> List<T> {
+        return self + other
+    }
 
-//    fn push(T other) -> List<T> {
-//        return self + other
-//    }
+    fn push(T other) -> List<T> {
+        return self + other
+    }
 
     fn add(T other) -> List<T> {
         return self + other
