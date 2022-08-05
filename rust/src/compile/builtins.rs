@@ -261,7 +261,7 @@ fn list_add_fn(peter: &mut Quill, nib: &mut FnNib, caller: Option<StructId>, _: 
         let mut resize_nib = FnNib::new(
             resize_sig.name,
             QuillFnType::new(
-                QuillFnType::void_return_value(),
+                QuillFnType::void_return(),
                 vec![
                     (Ident::from("self"), QuillPointerType::new(QuillStructType::new(caller.mangle())).into())
                 ]
