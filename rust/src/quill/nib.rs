@@ -12,6 +12,9 @@ use inkwell::values::{BasicMetadataValueEnum, BasicValue, BasicValueEnum, Functi
 use log::{debug, trace};
 use std::convert::TryFrom;
 use std::fmt::Debug;
+use inkwell::IntPredicate;
+
+pub type IntCmpType = IntPredicate;
 
 ///
 /// Enum of all the possible instructions that can be stored in a nib
@@ -36,6 +39,7 @@ enum Instruction {
     ListValueGet(usize, usize, usize), // List id, value id, index id
     ListCopy(usize, usize, usize), // Old list id, new list id, list len
     Free(usize), // Value id
+    IntCmp(usize, usize, usize, IntCmpType), // Lhs id, rhs id, result id, comparison type
 }
 
 ///
@@ -275,6 +279,19 @@ pub trait Nib: Debug {
     /// * `val` - The value to free
     ///
     fn free(&mut self, val: QuillValue<QuillPointerType>);
+
+    ///
+    /// Compare two int types
+    ///
+    /// Params:
+    /// * `lhs` - The left hand value
+    /// * `rhs` - The right hand value
+    /// * `cmp_type` - The type of comparison to perform
+    ///
+    /// Returns:
+    /// The boolean result of the comparison
+    ///
+    fn int_cmp(&mut self, lhs: &QuillValue<QuillIntType>, rhs: &QuillValue<QuillIntType>, cmp_type: IntCmpType) -> Result<QuillValue<QuillBoolType>>;
 }
 
 ///
@@ -422,6 +439,9 @@ impl Nib for FnNib {
     }
     fn free(&mut self, val: QuillValue<QuillPointerType>) {
         self.inner.free(val)
+    }
+    fn int_cmp(&mut self, lhs: &QuillValue<QuillIntType>, rhs: &QuillValue<QuillIntType>, cmp_type: IntCmpType) -> Result<QuillValue<QuillBoolType>> {
+        self.inner.int_cmp(lhs, rhs, cmp_type)
     }
 }
 
@@ -874,6 +894,19 @@ impl ChildNib {
                     let ptr = PointerValue::try_from(val).or(Err(QuillError::Convert))?;
                     builder.build_free(ptr);
                 }
+
+                Instruction::IntCmp(lhs_id, rhs_id, val_id, cmp_type) => {
+                    let lhs = values
+                        .get(lhs_id)
+                        .unwrap()
+                        .ok_or(QuillError::BadValueAccess)?;
+                    let rhs = values
+                        .get(rhs_id)
+                        .unwrap()
+                        .ok_or(QuillError::BadValueAccess)?;
+                    let cmp_result = builder.build_int_compare(cmp_type, lhs, rhs, "int_cmp");
+                    values.replace(val_id, Some(cmp_result))
+                }
             }
         }
 
@@ -1067,5 +1100,16 @@ impl Nib for ChildNib {
 
     fn free(&mut self, val: QuillValue<QuillPointerType>) {
         self.instructions.push(Instruction::Free(val.id()));
+    }
+
+    fn int_cmp(&mut self, lhs: &QuillValue<QuillIntType>, rhs: &QuillValue<QuillIntType>, cmp_type: IntCmpType) -> Result<QuillValue<QuillBoolType>> {
+        if lhs.get_type().bit_width() != rhs.get_type().bit_width() {
+            Err(QuillError::IntSize(lhs.get_type().bit_width(), rhs.get_type().bit_width()))
+        } else {
+            let result = QuillValue::new(self.id_generator, QuillBoolType);
+            self.id_generator += 1;
+            self.instructions.push(Instruction::IntCmp(lhs.id(), rhs.id(), result.id(), cmp_type));
+            Ok(result)
+        }
     }
 }

@@ -1,6 +1,6 @@
 use crate::compile::{CompileError, Result};
 use crate::parse::ast::{CrabType, FuncSignature, Ident, PosParam, StructId};
-use crate::quill::{FnNib, Nib, PolyQuillType, Quill, QuillBoolType, QuillFloatType, QuillFnType, QuillIntType, QuillListType, QuillPointerType, QuillStructType, QuillVoidType};
+use crate::quill::{FnNib, IntCmpType, Nib, PolyQuillType, Quill, QuillBoolType, QuillFloatType, QuillFnType, QuillIntType, QuillListType, QuillPointerType, QuillStructType, QuillVoidType};
 use crate::util::{bool_struct_name, capacity_field_name, format_i_c_name, get_fn_name, int_struct_name, length_field_name, list_struct_name, ListFunctional, magic_main_func_name, main_func_name, MapFunctional, new_list_name, operator_add_name, primitive_field_name, printf_c_name, printf_crab_name, resize_name, string_struct_name, to_string_name};
 use lazy_static::lazy_static;
 use std::collections::HashMap;
@@ -225,23 +225,48 @@ fn list_add_fn(peter: &mut Quill, nib: &mut FnNib, caller: Option<StructId>, _: 
         QuillPointerType::new(QuillStructType::new(
         StructId { name: list_struct_name(), tmpls: caller.tmpls.clone() }.mangle()
     )));
+    let length = nib.get_value_from_struct(&list, length_field_name(), QuillIntType::new(64))?;
+    let capacity = nib.get_value_from_struct(&list, capacity_field_name(), QuillIntType::new(64))?;
+
+    // Resize the array if needed
+    let mut then_nib = nib.create_child();
+    let new_capacity = then_nib.int_add(&capacity, &capacity)?;
+    then_nib.set_value_in_struct(&list, capacity_field_name(), &new_capacity)?;
+    let new_t_star = then_nib.add_malloc(
+        QuillListType::new_var_length(
+            QuillPointerType::new(
+                QuillStructType::new(caller.tmpls[0].mangle())
+            ),
+            new_capacity_value.clone(),
+        )
+    );
+    let old_t_star = then_nib.get_value_from_struct(
+        &list,
+        primitive_field_name(),
+        QuillPointerType::new(QuillStructType::new(caller.tmpls[0].mangle())),
+    )?;
+    then_nib.list_copy(&old_t_star, &new_t_star, &capacity_value)?;
+    then_nib.set_value_in_struct(&list, primitive_field_name(), &new_t_star)?;
+    then_nib.free(old_t_star);
+    then_nib.add_branch(after_nib);
+
+    // Do the actual if statement now
+    let cond = nib.int_cmp(&length, &capacity, IntCmpType::EQ)?;
+    nib.add_cond_branch(&cond, then_nib, None);
+
+    // Continue the rest of the function
     let element = nib.get_fn_param(
         Ident::from("element"),
         QuillStructType::new(
             caller.tmpls[0].mangle()
         )
     );
-
-    //TODO: call to resize if len == capacity
-    let length = nib.get_value_from_struct(&list, length_field_name(), QuillIntType::new(64))?;
-
     let t_star = nib.get_value_from_struct(
         &list,
         primitive_field_name(),
         QuillPointerType::new(QuillStructType::new(caller.tmpls[0].mangle())),
     )?;
     nib.set_list_value(&t_star, &element, &length)?;
-
     let one = nib.const_int(64, 1);
     let new_len = nib.int_add(&length, &one)?;
     nib.set_value_in_struct(&list, length_field_name(), &new_len)?;
@@ -249,27 +274,6 @@ fn list_add_fn(peter: &mut Quill, nib: &mut FnNib, caller: Option<StructId>, _: 
     // Return nothing
     nib.add_return(QuillFnType::void_return_value());
 
-    let resize_sig = FuncSignature {
-        name: resize_name(),
-        tmpls: vec![],
-        return_type: CrabType::VOID,
-        pos_params: vec![PosParam { name: Ident::from("self"), crab_type: caller.tmpls[0].clone().into() }],
-        named_params: Default::default(),
-        caller_id: Some(caller.clone()),
-    }.mangled();
-    if !peter.has_fn(&resize_sig.name) {
-        let mut resize_nib = FnNib::new(
-            resize_sig.name,
-            QuillFnType::new(
-                QuillFnType::void_return(),
-                vec![
-                    (Ident::from("self"), QuillPointerType::new(QuillStructType::new(caller.mangle())).into())
-                ]
-            )
-        );
-        list_resize_fn(peter, &mut resize_nib, Some(caller), vec![])?;
-        peter.add_fn(resize_nib);
-    }
     
     Ok(())
 }
