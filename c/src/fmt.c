@@ -10,5 +10,5 @@ int __c_strlen__(char* cstr) {
 }
 
 float __c_print_str__(char* str, long len) {
-    return printf("%.*s", len, str);
+    return printf("%.*s", (int)len, str);
 }

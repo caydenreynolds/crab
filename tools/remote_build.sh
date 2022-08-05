@@ -7,6 +7,8 @@
 #  -t --test : Run the test scripts
 #
 #  This script requires that the environment variable CRAB_BUILD_HOST is set
+#  When pushing a new branch for the first time, the remote host may not be able to find it
+#  You may have to run this script twice to get it to work in this case
 
 if [[ "$1" == "-t" ]] || [[ "$1" == "--test" ]]; then
   test="true"
@@ -33,7 +35,7 @@ else
   git commit -m "Autopush from remote_build.sh"
   git push --set-upstream origin "$branch"
   echo "Wait for the push to complete..."
-  sleep 3
+  sleep 1
   popd
 fi
 

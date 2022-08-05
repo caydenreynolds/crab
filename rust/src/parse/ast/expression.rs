@@ -3,7 +3,7 @@ use crate::parse::ast::{
 };
 use crate::parse::ParseError::ExpectedInner;
 use crate::parse::{ParseError, Result, Rule};
-use crate::util::{bool_struct_name, int_struct_name, primitive_field_name, string_struct_name};
+use crate::util::{bool_struct_name, int_struct_name, primitive_field_name};
 use crate::util::{
     operator_add_name, operator_div_name, operator_eq_name, operator_gt_name, operator_gte_name,
     operator_lsh_name, operator_lt_name, operator_lte_name, operator_mult_name, operator_rsh_name,

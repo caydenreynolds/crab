@@ -474,7 +474,7 @@ impl<NibType: Nib> Codegen<NibType> {
         let length = self.nib.const_int(64, str_len as u64);
         let string_buf = self.nib.add_malloc(QuillListType::new_var_length(
             QuillIntType::new(8),
-            length,
+            length.clone(),
         ));
         self.nib.list_copy(&const_str, &string_buf, &length)?;
         self.nib.set_value_in_struct(&string_str, primitive_field_name(), &string_buf)?;
