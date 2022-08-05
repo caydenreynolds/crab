@@ -218,7 +218,7 @@ fn add_new_list(_: &mut Quill, nib: &mut FnNib, _: Option<StructId>, tmpls: Vec<
     Ok(())
 }
 
-fn list_add_fn(peter: &mut Quill, nib: &mut FnNib, caller: Option<StructId>, _: Vec<StructId>) -> Result<()> {
+fn list_add_fn(_: &mut Quill, nib: &mut FnNib, caller: Option<StructId>, _: Vec<StructId>) -> Result<()> {
     let caller = caller.unwrap();
     let list = nib.get_fn_param(
         Ident::from("self"),
@@ -300,46 +300,6 @@ fn list_get_fn(_: &mut Quill, nib: &mut FnNib, caller: Option<StructId>, _: Vec<
     let index_value = nib.get_value_from_struct(&index, primitive_field_name(), QuillIntType::new(64))?;
     let value = nib.get_list_value(&t_star, &index_value, t_star.get_type().get_inner_type())?;
     nib.add_return(Some(&value));
-    Ok(())
-}
-
-fn list_resize_fn(_: &mut Quill, nib: &mut FnNib, caller: Option<StructId>, _: Vec<StructId>) -> Result<()> {
-    let caller = caller.unwrap();
-    let list = nib.get_fn_param(
-        Ident::from("self"),
-        QuillPointerType::new(QuillStructType::new(
-            StructId { name: list_struct_name(), tmpls: caller.tmpls.clone() }.mangle()
-        )));
-    let capacity = nib.get_value_from_struct(
-        &list,
-        capacity_field_name(),
-        QuillPointerType::new(
-            QuillStructType::new(
-                int_struct_name()
-            )
-        ))?;
-    let capacity_value = nib.get_value_from_struct(&capacity, primitive_field_name(), QuillIntType::new(64))?;
-    let new_capacity_value = nib.int_add(&capacity_value, &capacity_value)?;
-    nib.set_value_in_struct(&capacity, primitive_field_name(), &new_capacity_value)?;
-    let new_t_star = nib.add_malloc(
-        QuillListType::new_var_length(
-            QuillPointerType::new(
-                QuillStructType::new(caller.tmpls[0].mangle())
-            ),
-            new_capacity_value.clone(),
-        )
-    );
-    let old_t_star = nib.get_value_from_struct(
-        &list,
-        primitive_field_name(),
-        QuillPointerType::new(QuillStructType::new(caller.tmpls[0].mangle())),
-    )?;
-    nib.list_copy(&old_t_star, &new_t_star, &capacity_value)?;
-    nib.set_value_in_struct(&list, primitive_field_name(), &new_t_star)?;
-
-    nib.free(old_t_star);
-
-    nib.add_return(QuillFnType::void_return_value());
     Ok(())
 }
 
