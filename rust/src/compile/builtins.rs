@@ -232,19 +232,19 @@ fn list_add_fn(_: &mut Quill, nib: &mut FnNib, caller: Option<StructId>, _: Vec<
      let mut then_nib = nib.create_child();
      let new_capacity = then_nib.int_add(&capacity, &capacity)?;
      then_nib.set_value_in_struct(&list, capacity_field_name(), &new_capacity)?;
-     // let new_t_star = then_nib.add_malloc(
-     //     QuillListType::new_var_length(
-     //         QuillPointerType::new(
-     //             QuillStructType::new(caller.tmpls[0].mangle())
-     //         ),
-     //         new_capacity,
-     //     )
-     // );
-     // let old_t_star = then_nib.get_value_from_struct(
-     //     &list,
-     //     primitive_field_name(),
-     //     QuillPointerType::new(QuillStructType::new(caller.tmpls[0].mangle())),
-     // )?;
+     let new_t_star = then_nib.add_malloc(
+         QuillListType::new_var_length(
+             QuillPointerType::new(
+                 QuillStructType::new(caller.tmpls[0].mangle())
+             ),
+             new_capacity,
+         )
+     );
+     let old_t_star = then_nib.get_value_from_struct(
+         &list,
+         primitive_field_name(),
+         QuillPointerType::new(QuillStructType::new(caller.tmpls[0].mangle())),
+     )?;
      // then_nib.list_copy(&old_t_star, &new_t_star, &capacity)?;
      // then_nib.set_value_in_struct(&list, primitive_field_name(), &new_t_star)?;
      // then_nib.free(old_t_star);
