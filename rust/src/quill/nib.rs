@@ -1092,8 +1092,17 @@ impl Nib for ChildNib {
     }
 
     fn list_copy(&mut self, ol: &QuillValue<QuillPointerType>, nl: &QuillValue<QuillPointerType>, len: &QuillValue<QuillIntType>) -> Result<()> {
-        if ol.get_type().get_inner_type() != nl.get_type().get_inner_type() {
-            Err(QuillError::WrongType(format!("{:?}", nl.get_type().get_inner_type()), format!("{:?}", ol.get_type().get_inner_type())))
+        // The type comparison is a little weird if we get list types, so we gotta deal with that
+        let ol_type = match &ol.get_type().get_inner_type() {
+            PolyQuillType::ListType(lt) => lt.get_inner(),
+            t => t,
+        };
+        let nl_type = match &nl.get_type().get_inner_type() {
+            PolyQuillType::ListType(lt) => lt.get_inner(),
+            t => t,
+        };
+        if ol_type != nl_type {
+            Err(QuillError::WrongType(format!("{:?}", ol_type), format!("{:?}", nl_type)))
         } else {
             self.instructions.push(Instruction::ListCopy(ol.id(), nl.id(), len.id()));
             Ok(())
