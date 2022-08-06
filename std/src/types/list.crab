@@ -60,9 +60,15 @@ impl List<T> {
         return self + other
     }
 
-//    fn toString() {
-//        (V) '--' (V)
-//    }
+    fn toString() {
+        let i = 0
+        let result = "["
+        while ( i < self.len() ) {
+            // TODO: If T is already a string, use quotes to denote that
+            result = result + " " + self.get(i).toString() + ","
+        }
+        return result + "]"
+    }
 }
 
 fn __new_list__<T>(Int capacity=128) -> List<T> {

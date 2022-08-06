@@ -14,5 +14,8 @@ fn main() -> Int {
     print(int_list.len())
     print(string_list.len())
 
+    print(int_list)
+    print(string_list)
+
     return 0
 }

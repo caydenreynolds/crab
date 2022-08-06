@@ -9,6 +9,7 @@ struct Int {
 intr Int {
    Printable,
    Addable,
+   Comparable,
 }
 
 impl Int {
@@ -17,6 +18,10 @@ impl Int {
     }
 
     fn toString() -> String {
+        (V) '--' (V)
+    }
+
+    fn operatorLt(Int other) -> Int {
         (V) '--' (V)
     }
 }

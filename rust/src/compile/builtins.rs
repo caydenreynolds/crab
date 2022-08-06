@@ -4,7 +4,7 @@ use crate::quill::{
     FnNib, IntCmpType, Nib, PolyQuillType, Quill, QuillBoolType, QuillFloatType, QuillFnType,
     QuillIntType, QuillListType, QuillPointerType, QuillStructType, QuillVoidType,
 };
-use crate::util::{bool_struct_name, capacity_field_name, format_i_c_name, get_fn_name, int_struct_name, length_field_name, list_struct_name, magic_main_func_name, main_func_name, new_list_name, operator_add_name, primitive_field_name, printf_c_name, printf_crab_name, string_struct_name, to_string_name, ListFunctional, MapFunctional, strlen_c_name, length_fn_name};
+use crate::util::{bool_struct_name, capacity_field_name, format_i_c_name, get_fn_name, int_struct_name, length_field_name, list_struct_name, magic_main_func_name, main_func_name, new_list_name, operator_add_name, primitive_field_name, printf_c_name, printf_crab_name, string_struct_name, to_string_name, ListFunctional, MapFunctional, strlen_c_name, length_fn_name, operator_lt_name};
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 use std::convert::TryInto;
@@ -31,6 +31,10 @@ fn init_builtin_fn_map() -> FnNameMap {
         (
             mangle_fn_name(&operator_add_name(), &int_struct_name()),
             add_int as FnDefFn,
+        ),
+        (
+            mangle_fn_name(&operator_lt_name(), &int_struct_name()),
+            int_lt_fn as FnDefFn,
         ),
         (
             mangle_fn_name(&to_string_name(), &int_struct_name()),
@@ -469,6 +473,29 @@ fn list_len_fn(
     Ok(())
 }
 
+fn int_lt_fn(_: &mut Quill, nib: &mut FnNib, _: Option<StructId>, _: Vec<StructId>) -> Result<()> {
+    let self_arg = nib.get_fn_param(
+        String::from("self"),
+        QuillPointerType::new(QuillStructType::new(int_name_mangled())),
+    );
+    let other_arg = nib.get_fn_param(
+        String::from("other"),
+        QuillPointerType::new(QuillStructType::new(int_name_mangled())),
+    );
+    let ret_val = nib.add_malloc(
+        QuillStructType::new(bool_name_mangled())
+    );
+
+    let self_int =
+        nib.get_value_from_struct(&self_arg, primitive_field_name(), QuillIntType::new(64))?;
+    let other_int =
+        nib.get_value_from_struct(&other_arg, primitive_field_name(), QuillIntType::new(64))?;
+    let result = nib.int_cmp(&self_int, &other_int, IntCmpType::ULT)?;
+    nib.set_value_in_struct(&ret_val, primitive_field_name(), &result)?;
+    nib.add_return(Some(&ret_val));
+    Ok(())
+}
+
 fn add_int(_: &mut Quill, nib: &mut FnNib, _: Option<StructId>, _: Vec<StructId>) -> Result<()> {
     let self_arg = nib.get_fn_param(
         String::from("self"),
@@ -588,7 +615,7 @@ pub(super) fn add_main_func(peter: &mut Quill) -> Result<()> {
 fn int_name_mangled() -> String {
     StructId::from_name(int_struct_name()).mangle()
 }
-
 fn string_name_mangled() -> String {
     StructId::from_name(string_struct_name()).mangle()
 }
+fn bool_name_mangled() -> String { StructId::from_name(bool_struct_name()).mangle() }
