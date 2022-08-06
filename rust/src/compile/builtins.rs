@@ -297,7 +297,7 @@ fn string_add_fn(
 
     let new_len = nib.int_add(&self_len, &other_len)?;
     let new_char_star = nib.add_malloc(QuillListType::new_var_length(
-        QuillPointerType::new(QuillIntType::new(8)),
+        QuillIntType::new(8),
         new_len.clone(),
     ));
     let zero = nib.const_int(64, 0);
