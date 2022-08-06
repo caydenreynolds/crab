@@ -263,7 +263,7 @@ fn add_printf(
 fn string_add_fn(
     _: &mut Quill,
     nib: &mut FnNib,
-    caller: Option<StructId>,
+    _: Option<StructId>,
     _: Vec<StructId>,
 ) -> Result<()> {
     let self_str = nib.get_fn_param(
@@ -297,7 +297,7 @@ fn string_add_fn(
 
     let new_len = nib.int_add(&self_len, &other_len)?;
     let new_char_star = nib.add_malloc(QuillListType::new_var_length(
-        QuillPointerType::new(QuillIntType::new(64)),
+        QuillPointerType::new(QuillIntType::new(8)),
         new_len.clone(),
     ));
     let zero = nib.const_int(64, 0);
@@ -380,7 +380,7 @@ fn list_add_fn(
         primitive_field_name(),
         QuillPointerType::new(QuillStructType::new(caller.tmpls[0].mangle())),
     )?;
-    let zero = nib.const_int(64, 0);
+    let zero = then_nib.const_int(64, 0);
     then_nib.list_copy(&old_t_star, &new_t_star, &capacity, &zero)?;
     then_nib.set_value_in_struct(&list, primitive_field_name(), &new_t_star)?;
     then_nib.free(old_t_star);
