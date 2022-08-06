@@ -29,8 +29,8 @@ pub enum QuillError {
     #[error("Attempted to access a value that has not been set")]
     BadValueAccess,
 
-    #[error("Failed to convert type {0} to {1}")]
-    WrongType(String, String),
+    #[error("Failed to convert type {0} to {1} in {2}")]
+    WrongType(String, String, String),
 
     #[error("Attempted to build an instruction that requires an after in a nib that does not have an after")]
     NoAfter,

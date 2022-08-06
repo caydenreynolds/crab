@@ -562,12 +562,14 @@ impl ChildNib {
                         t => Err(QuillError::WrongType(
                             format!("{:?}", t),
                             String::from("BoolValue"),
+                            String::from("Nib::commit::ConditionalBranch"),
                         )),
                     }?;
                     if cond.get_type().get_bit_width() != 1 {
                         return Err(QuillError::WrongType(
                             format!("Integer with width {}", cond.get_type().get_bit_width()),
                             String::from("BoolValue"),
+                            String::from("Nib::commit::ConditionalBranch"),
                         ));
                     }
 
@@ -625,12 +627,14 @@ impl ChildNib {
                         t => Err(QuillError::WrongType(
                             format!("{:?}", t),
                             String::from("BoolValue"),
+                            String::from("Nib::commit::ConditionalLoop")
                         )),
                     }?;
                     if cond.get_type().get_bit_width() != 1 {
                         return Err(QuillError::WrongType(
                             format!("Integer with width {}", cond.get_type().get_bit_width()),
                             String::from("BoolValue"),
+                            String::from("Nib::commit::ConditionalLoop")
                         ));
                     }
                     builder.build_conditional_branch(
@@ -671,6 +675,7 @@ impl ChildNib {
                                     return Err(QuillError::WrongType(
                                         format!("{:?}", t),
                                         String::from("Struct pointer"),
+                                        String::from("Nib::commit::StructGet"),
                                     ))
                                 }
                             }
@@ -679,6 +684,7 @@ impl ChildNib {
                             return Err(QuillError::WrongType(
                                 format!("{:?}", t),
                                 String::from("Struct pointer"),
+                                String::from("Nib::commit::StructGet"),
                             ))
                         }
                     }
@@ -714,6 +720,7 @@ impl ChildNib {
                                     return Err(QuillError::WrongType(
                                         format!("{:?}", t),
                                         String::from("Struct pointer"),
+                                        String::from("Nib::commit::StructSet")
                                     ))
                                 }
                             }
@@ -722,6 +729,7 @@ impl ChildNib {
                             return Err(QuillError::WrongType(
                                 format!("{:?}", t),
                                 String::from("Struct pointer"),
+                                String::from("Nib::commit::StructSet")
                             ))
                         }
                     }
@@ -843,6 +851,7 @@ impl ChildNib {
                         t => Err(QuillError::WrongType(
                             format!("{:?}", t),
                             String::from("IntValue"),
+                            String::from("Nib::commit::IntAdd")
                         )),
                     }?;
                     let rhs = values
@@ -854,6 +863,7 @@ impl ChildNib {
                         t => Err(QuillError::WrongType(
                             format!("{:?}", t),
                             String::from("IntValue"),
+                            String::from("Nib::commit::IntAdd")
                         )),
                     }?;
                     values.replace(
@@ -1129,6 +1139,7 @@ impl Nib for ChildNib {
             Err(QuillError::WrongType(
                 format!("{:?}", lv.get_type().get_inner_type()),
                 format!("{:?}", value.get_type()),
+                String::from("Nib::set_list_value")
             ))
         } else {
             self.instructions
@@ -1147,6 +1158,7 @@ impl Nib for ChildNib {
             Err(QuillError::WrongType(
                 format!("{:?}", lv.get_type().get_inner_type()),
                 format!("{:?}", expected_type),
+                String::from("Nib::get_list_value"),
             ))
         } else {
             let value = QuillValue::new(self.id_generator, expected_type);
@@ -1177,6 +1189,7 @@ impl Nib for ChildNib {
             Err(QuillError::WrongType(
                 format!("{:?}", ol_type),
                 format!("{:?}", nl_type),
+                String::from("Nib::list_copy"),
             ))
         } else {
             self.instructions
