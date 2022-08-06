@@ -193,9 +193,10 @@ pub(super) fn add_builtin_definition(
         .or(Some(StructId::from_name(Ident::from(""))))
         .unwrap()
         .name;
+    let fn_name = mangle_fn_name(fn_name, &caller_name);
     FN_BUILTIN_NAME_MAP
-        .get(&mangle_fn_name(fn_name, &caller_name))
-        .ok_or(CompileError::CouldNotFindFunction(String::from(fn_name)))?(
+        .get(&fn_name)
+        .ok_or(CompileError::CouldNotFindFunction(fn_name))?(
         peter, nib, caller_opt, tmpls,
     )
 }
