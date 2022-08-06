@@ -307,7 +307,11 @@ macro_rules! poly_type_convert {
             fn try_from(value: PolyQuillType) -> Result<Self> {
                 match value {
                     PolyQuillType::$poly_quill_type(pt) => Ok(pt),
-                    _ => Err(QuillError::WrongType(format!("{:?}", value), String::from(stringify!($quill_type))))
+                    _ => Err(
+                        QuillError::WrongType(format!("{:?}", value),
+                        String::from(stringify!($quill_type))),
+                        String::from(format!("{}::try_from(PolyQuillType)", stringify!($quill_type))),
+                    )
                 }
             }
         }
