@@ -66,6 +66,7 @@ impl List<T> {
         while i < self.len() {
             // TODO: If T is already a string, use quotes to denote that
             result = result + " " + self.get(i) + ","
+            i = i + 1
         }
         return result + "]"
     }
