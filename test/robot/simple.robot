@@ -19,4 +19,3 @@ Run Simple Crabfiles
     optional_param.crab             foobar
     if.crab                         passed
     func_tmpl.crab                  contained!, 1337
-    advanced_string.crab            45
