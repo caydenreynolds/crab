@@ -3,7 +3,7 @@ struct List<T> {
 }
 
 intr List<T> {
-//   Printable,
+   Printable,
    Addable,
 }
 
