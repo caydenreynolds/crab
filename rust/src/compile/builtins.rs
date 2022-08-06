@@ -392,7 +392,7 @@ fn list_add_fn(
     // Continue the rest of the function
     let element = nib.get_fn_param(
         Ident::from("element"),
-        QuillStructType::new(caller.tmpls[0].mangle()),
+        QuillPointerType::new(QuillStructType::new(caller.tmpls[0].mangle())),
     );
     let t_star = nib.get_value_from_struct(
         &list,
