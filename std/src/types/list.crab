@@ -63,7 +63,7 @@ impl List<T> {
     fn toString() {
         let i = 0
         let result = "["
-        while ( i < self.len() ) {
+        while i < self.len() {
             // TODO: If T is already a string, use quotes to denote that
             result = result + " " + self.get(i).toString() + ","
         }
