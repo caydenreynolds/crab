@@ -62,6 +62,10 @@ fn init_builtin_fn_map() -> FnNameMap {
             // If either string or list undergo implementation changes, this may have to change too
             list_len_fn as FnDefFn,
         ),
+        (
+            mangle_fn_name(&operator_add_name(), &string_struct_name()),
+            string_add_fn as FnDefFn,
+        )
     ]);
     map
 }
@@ -256,6 +260,58 @@ fn add_printf(
     Ok(())
 }
 
+fn string_add_fn(
+    _: &mut Quill,
+    nib: &mut FnNib,
+    caller: Option<StructId>,
+    _: Vec<StructId>,
+) -> Result<()> {
+    let self_str = nib.get_fn_param(
+        String::from("self"),
+        QuillPointerType::new(QuillStructType::new(string_struct_name())),
+    );
+    let other_str = nib.get_fn_param(
+        String::from("other"),
+        QuillPointerType::new(QuillStructType::new(string_struct_name())),
+    );
+    let self_char_star = nib.get_value_from_struct(
+        &self_str,
+        primitive_field_name(),
+        QuillPointerType::new(QuillIntType::new(8)),
+    )?;
+    let self_len = nib.get_value_from_struct(
+        &self_str,
+        length_field_name(),
+        QuillIntType::new(64),
+    )?;
+    let other_char_star = nib.get_value_from_struct(
+        &other_str,
+        primitive_field_name(),
+        QuillPointerType::new(QuillIntType::new(8)),
+    )?;
+    let other_len = nib.get_value_from_struct(
+        &other_str,
+        length_field_name(),
+        QuillIntType::new(64),
+    )?;
+
+    let new_len = nib.int_add(&self_len, &other_len)?;
+    let new_char_star = nib.add_malloc(QuillListType::new_var_length(
+        QuillPointerType::new(QuillIntType::new(64)),
+        new_len.clone(),
+    ));
+    let zero = nib.const_int(64, 0);
+    nib.list_copy(&self_char_star, &new_char_star, &self_len, &zero)?;
+    nib.list_copy(&other_char_star, &new_char_star, &other_len, &self_len)?;
+    let new_list = nib.add_malloc(QuillStructType::new(string_name_mangled()));
+    nib.set_value_in_struct(&new_list, primitive_field_name(), &new_char_star)?;
+    nib.set_value_in_struct(&new_list, capacity_field_name(), &new_len)?;
+    nib.set_value_in_struct(&new_list, length_field_name(), &new_len)?;
+
+    nib.add_return(Some(&new_list));
+    Ok(())
+}
+
 fn add_new_list(
     _: &mut Quill,
     nib: &mut FnNib,
@@ -324,7 +380,8 @@ fn list_add_fn(
         primitive_field_name(),
         QuillPointerType::new(QuillStructType::new(caller.tmpls[0].mangle())),
     )?;
-    then_nib.list_copy(&old_t_star, &new_t_star, &capacity)?;
+    let zero = nib.const_int(64, 0);
+    then_nib.list_copy(&old_t_star, &new_t_star, &capacity, &zero)?;
     then_nib.set_value_in_struct(&list, primitive_field_name(), &new_t_star)?;
     then_nib.free(old_t_star);
 

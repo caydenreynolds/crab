@@ -39,7 +39,7 @@ enum Instruction {
     IntAdd(usize, usize, usize),     // Result id, lhs id, rhs id
     ListValueSet(usize, usize, usize), // List id, value id, index id
     ListValueGet(usize, usize, usize), // List id, value id, index id
-    ListCopy(usize, usize, usize),   // Old list id, new list id, list len
+    ListCopy(usize, usize, usize, usize),   // Old list id, new list id, list len, dest index id
     Free(usize),                     // Value id
     IntCmp(usize, usize, usize, IntCmpType), // Lhs id, rhs id, result id, comparison type
 }
@@ -282,6 +282,7 @@ pub trait Nib: Debug {
         ol: &QuillValue<QuillPointerType>,
         nl: &QuillValue<QuillPointerType>,
         len: &QuillValue<QuillIntType>,
+        dest_index: &QuillValue<QuillIntType>,
     ) -> Result<()>;
 
     ///
@@ -466,8 +467,9 @@ impl Nib for FnNib {
         ol: &QuillValue<QuillPointerType>,
         nl: &QuillValue<QuillPointerType>,
         len: &QuillValue<QuillIntType>,
+        dest_index: &QuillValue<QuillIntType>,
     ) -> Result<()> {
-        self.inner.list_copy(ol, nl, len)
+        self.inner.list_copy(ol, nl, len, dest_index)
     }
     fn free(&mut self, val: QuillValue<QuillPointerType>) {
         self.inner.free(val)
@@ -899,28 +901,35 @@ impl ChildNib {
                     values.replace(value_id, Some(value));
                 },
 
-                Instruction::ListCopy(ol_id, nl_id, len_id) => {
-                    let ol = values
-                        .get(ol_id)
-                        .unwrap()
-                        .ok_or(QuillError::BadValueAccess)?;
-                    let nl = values
-                        .get(nl_id)
-                        .unwrap()
-                        .ok_or(QuillError::BadValueAccess)?;
-                    let len = values
-                        .get(len_id)
-                        .unwrap()
-                        .ok_or(QuillError::BadValueAccess)?;
-                    let nl_ptr = PointerValue::try_from(nl).or(Err(QuillError::Convert))?;
-                    let ol_ptr = PointerValue::try_from(ol).or(Err(QuillError::Convert))?;
-                    let len_val = IntValue::try_from(len).or(Err(QuillError::Convert))?;
-                    let byte_len =
-                        builder.build_int_mul(len_val, nl_ptr.get_type().size_of(), "byte_len");
-                    let byte_len_val = IntValue::try_from(byte_len).or(Err(QuillError::Convert))?;
-                    builder
-                        .build_memcpy(nl_ptr, 1, ol_ptr, 1, byte_len_val)
-                        .or(Err(QuillError::Memcpy))?;
+                Instruction::ListCopy(ol_id, nl_id, len_id, dest_index_id) => {
+                    unsafe {
+                        let ol = values
+                            .get(ol_id)
+                            .unwrap()
+                            .ok_or(QuillError::BadValueAccess)?;
+                        let nl = values
+                            .get(nl_id)
+                            .unwrap()
+                            .ok_or(QuillError::BadValueAccess)?;
+                        let len = values
+                            .get(len_id)
+                            .unwrap()
+                            .ok_or(QuillError::BadValueAccess)?;
+                        let dest_index = values
+                            .get(dest_index_id)
+                            .unwrap()
+                            .ok_or(QuillError::BadValueAccess)?;
+                        let nl_ptr = PointerValue::try_from(nl).or(Err(QuillError::Convert))?;
+                        let ol_ptr = PointerValue::try_from(ol).or(Err(QuillError::Convert))?;
+                        let len_val = IntValue::try_from(len).or(Err(QuillError::Convert))?;
+                        let byte_len =
+                            builder.build_int_mul(len_val, nl_ptr.get_type().size_of(), "byte_len");
+                        let byte_len_val = IntValue::try_from(byte_len).or(Err(QuillError::Convert))?;
+                        let dest_ptr = builder.build_gep(nl_ptr, &[IntValue::try_from(dest_index)?], "dest_index");
+                        builder
+                            .build_memcpy(dest_ptr, 1, ol_ptr, 1, byte_len_val)
+                            .or(Err(QuillError::Memcpy))?;
+                    }
                 }
 
                 Instruction::Free(val_id) => {
@@ -1152,6 +1161,7 @@ impl Nib for ChildNib {
         ol: &QuillValue<QuillPointerType>,
         nl: &QuillValue<QuillPointerType>,
         len: &QuillValue<QuillIntType>,
+        dest_index: &QuillValue<QuillIntType>,
     ) -> Result<()> {
         // The type comparison is a little weird if we get list types, so we gotta deal with that
         let ol_type = match ol.get_type().get_inner_type() {
@@ -1169,7 +1179,7 @@ impl Nib for ChildNib {
             ))
         } else {
             self.instructions
-                .push(Instruction::ListCopy(ol.id(), nl.id(), len.id()));
+                .push(Instruction::ListCopy(ol.id(), nl.id(), len.id(), dest_index.id()));
             Ok(())
         }
     }
