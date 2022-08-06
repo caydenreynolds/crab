@@ -378,7 +378,7 @@ fn list_add_fn(
     let old_t_star = then_nib.get_value_from_struct(
         &list,
         primitive_field_name(),
-        QuillPointerType::new(QuillStructType::new(caller.tmpls[0].mangle())),
+        QuillPointerType::new(QuillPointerType::new(QuillStructType::new(caller.tmpls[0].mangle()))),
     )?;
     let zero = then_nib.const_int(64, 0);
     then_nib.list_copy(&old_t_star, &new_t_star, &capacity, &zero)?;
