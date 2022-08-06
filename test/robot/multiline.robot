@@ -25,3 +25,4 @@ Run Multiline Crabfiles
     struct_tmpl.crab
     list.crab
     advanced_string.crab
+    if.crab

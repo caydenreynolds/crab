@@ -965,8 +965,7 @@ impl ChildNib {
                     let rhs_int = IntValue::try_from(rhs).or(Err(QuillError::Convert))?;
                     let cmp_result =
                         builder.build_int_compare(cmp_type, lhs_int, rhs_int, "int_cmp");
-                    let cmp_casted = builder.build_int_cast(cmp_result, context.custom_width_int_type(1), "cast_to_bool");
-                    values.replace(val_id, Some(cmp_casted.into()))
+                    values.replace(val_id, Some(cmp_result.into()))
                 }
             }
         }

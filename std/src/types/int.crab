@@ -21,7 +21,7 @@ impl Int {
         (V) '--' (V)
     }
 
-    fn operatorLt(Int other) -> Int {
+    fn operatorLt(Int other) -> Bool {
         (V) '--' (V)
     }
 }
