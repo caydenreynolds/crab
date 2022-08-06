@@ -60,12 +60,12 @@ impl List<T> {
         return self + other
     }
 
-    fn toString() {
+    fn toString() -> String {
         let i = 0
         let result = "["
         while i < self.len() {
             // TODO: If T is already a string, use quotes to denote that
-            result = result + " " + self.get(i).toString() + ","
+            result = result + " " + self.get(i) + ","
         }
         return result + "]"
     }

@@ -16,10 +16,14 @@ impl String {
         return self
     }
 
+    fn operatorAdd(Printable other) -> String {
+        return self.__inner_add__(other.toString())
+    }
+
     ///
     /// Returns a new string that is equal to other appended to self
     ///
-    fn operatorAdd(String other) -> String {
+    fn __inner_add__(String other) -> String {
         (V) '--' (V)
     }
 

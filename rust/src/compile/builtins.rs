@@ -4,7 +4,7 @@ use crate::quill::{
     FnNib, IntCmpType, Nib, PolyQuillType, Quill, QuillBoolType, QuillFloatType, QuillFnType,
     QuillIntType, QuillListType, QuillPointerType, QuillStructType, QuillVoidType,
 };
-use crate::util::{bool_struct_name, capacity_field_name, format_i_c_name, get_fn_name, int_struct_name, length_field_name, list_struct_name, magic_main_func_name, main_func_name, new_list_name, operator_add_name, primitive_field_name, printf_c_name, printf_crab_name, string_struct_name, to_string_name, ListFunctional, MapFunctional, strlen_c_name, length_fn_name, operator_lt_name};
+use crate::util::{bool_struct_name, capacity_field_name, format_i_c_name, get_fn_name, int_struct_name, length_field_name, list_struct_name, magic_main_func_name, main_func_name, new_list_name, operator_add_name, primitive_field_name, printf_c_name, printf_crab_name, string_struct_name, to_string_name, ListFunctional, MapFunctional, strlen_c_name, length_fn_name, operator_lt_name, inner_add_fn_name};
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 use std::convert::TryInto;
@@ -67,7 +67,7 @@ fn init_builtin_fn_map() -> FnNameMap {
             list_len_fn as FnDefFn,
         ),
         (
-            mangle_fn_name(&operator_add_name(), &string_struct_name()),
+            mangle_fn_name(&inner_add_fn_name(), &string_struct_name()),
             string_add_fn as FnDefFn,
         )
     ]);

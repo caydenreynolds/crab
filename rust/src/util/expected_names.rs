@@ -44,6 +44,7 @@ pub fn get_fn_name() -> Ident {
     Ident::from("get")
 }
 pub fn length_fn_name() -> Ident { Ident::from("len") }
+pub fn inner_add_fn_name() -> Ident { Ident::from("__inner_add__") }
 
 pub fn operator_add_name() -> Ident {
     Ident::from("operatorAdd")
