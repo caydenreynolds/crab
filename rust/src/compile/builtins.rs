@@ -397,7 +397,7 @@ fn list_add_fn(
     let t_star = nib.get_value_from_struct(
         &list,
         primitive_field_name(),
-        QuillPointerType::new(QuillStructType::new(caller.tmpls[0].mangle())),
+        QuillPointerType::new(QuillPointerType::new(QuillStructType::new(caller.tmpls[0].mangle()))),
     )?;
     nib.set_list_value(&t_star, &element, &length)?;
     let one = nib.const_int(64, 1);
@@ -434,7 +434,7 @@ fn list_get_fn(
     let t_star = nib.get_value_from_struct(
         &list,
         primitive_field_name(),
-        QuillPointerType::new(QuillStructType::new(caller.tmpls[0].mangle())),
+        QuillPointerType::new(QuillPointerType::new(QuillStructType::new(caller.tmpls[0].mangle()))),
     )?;
     let index_value =
         nib.get_value_from_struct(&index, primitive_field_name(), QuillIntType::new(64))?;
