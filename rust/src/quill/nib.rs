@@ -921,11 +921,12 @@ impl ChildNib {
                             .ok_or(QuillError::BadValueAccess)?;
                         let nl_ptr = PointerValue::try_from(nl).or(Err(QuillError::Convert))?;
                         let ol_ptr = PointerValue::try_from(ol).or(Err(QuillError::Convert))?;
+                        let dest_index_int = IntValue::try_from(dest_index).or(Err(QuillError::Convert))?;
                         let len_val = IntValue::try_from(len).or(Err(QuillError::Convert))?;
                         let byte_len =
                             builder.build_int_mul(len_val, nl_ptr.get_type().size_of(), "byte_len");
                         let byte_len_val = IntValue::try_from(byte_len).or(Err(QuillError::Convert))?;
-                        let dest_ptr = builder.build_gep(nl_ptr, &[IntValue::try_from(dest_index)?], "dest_index");
+                        let dest_ptr = builder.build_gep(nl_ptr, &[dest_index_int], "dest_index");
                         builder
                             .build_memcpy(dest_ptr, 1, ol_ptr, 1, byte_len_val)
                             .or(Err(QuillError::Memcpy))?;
