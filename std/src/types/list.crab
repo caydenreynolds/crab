@@ -65,7 +65,9 @@ impl List<T> {
         let result = "["
         while i < self.len() {
             // TODO: If T is already a string, use quotes to denote that
-            result = result + " " + self.get(i) + ","
+            result = result + " "
+            result = result + self.get(i)
+            result = result + ","
             i = i + 1
         }
         return result + "]"

@@ -82,7 +82,9 @@ impl AstNode for Expression {
         let mut inner = inner.skip(expr.get_depth() - 1);
 
         // If there is an operator, add the appropriate function call to the end of the expression chain
-        //TODO: Order of operations
+        // TODO: Order of operations
+        // TODO: Because operators do not take hte proper order when several additions are chained in one expression
+        // TODO: Types may not resolve properly when the operands have different types
         if let Some(operator_pair) = inner.next() {
             let operator = Operator::try_from(operator_pair)?;
             let arg = Expression::try_from(inner.next().ok_or(ExpectedInner)?)?;
