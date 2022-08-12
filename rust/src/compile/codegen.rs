@@ -388,8 +388,8 @@ impl<NibType: Nib> Codegen<NibType> {
             ExpressionType::VARIABLE(id) => {
                 match prev {
                     None => {
-                        let ptr: QuillValue<QuillPointerType> = self.vars.get(&id)?.clone().try_into()?;
-                        let loaded = self.nib.add_load(&ptr, QuillPointerType::new(QuillStructType::new(ptr.crab_type.try_get_struct_name()?)))?;
+                        let ptr = self.vars.get(&id)?;
+                        let loaded = self.nib.add_load(&ptr.quill_value.clone().try_into()?, QuillPointerType::new(QuillStructType::new(ptr.crab_type.try_get_struct_name()?)))?;
                         Ok(loaded)
                     },
                     Some(prev) => {

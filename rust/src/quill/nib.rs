@@ -193,7 +193,7 @@ pub trait Nib: Debug {
     /// Returns:
     /// A pointer to the created value
     ///
-    fn add_alloca<T: QuillType>(&mut self, t: &T) -> QuillValue<QuillPointerType>;
+    fn add_alloca<T: QuillType>(&mut self, t: T) -> QuillValue<QuillPointerType>;
 
     ///
     /// Adds a malloc instruction to the Nib
@@ -462,7 +462,7 @@ impl Nib for FnNib {
     fn const_string(&mut self, value: String) -> QuillValue<QuillPointerType> {
         self.inner.const_string(value)
     }
-    fn add_alloca<T: QuillType>(&mut self, t: &T) -> QuillValue<QuillPointerType> {
+    fn add_alloca<T: QuillType>(&mut self, t: T) -> QuillValue<QuillPointerType> {
         self.inner.add_alloca(t)
     }
     fn add_malloc<T: QuillType>(&mut self, t: T) -> QuillValue<QuillPointerType> {
@@ -1160,7 +1160,7 @@ impl Nib for ChildNib {
         v
     }
 
-    fn add_alloca<T: QuillType>(&mut self, t: &T) -> QuillValue<QuillPointerType> {
+    fn add_alloca<T: QuillType>(&mut self, t: T) -> QuillValue<QuillPointerType> {
         self.instructions
             .push(Instruction::Alloca(self.id_generator, t.clone().into()));
         let v = QuillValue::new(self.id_generator, QuillPointerType::new(t));
