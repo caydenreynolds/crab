@@ -225,7 +225,7 @@ impl<NibType: Nib> Codegen<NibType> {
         trace!("Codegen::build_assignment");
         let value = self.build_expression(ass.expr, None)?;
         let ptr = self.nib.add_alloca(value.quill_value.get_type());
-        self.nib.add_store(&ptr, &value)?;
+        self.nib.add_store(&ptr, &value.quill_value.get_type())?;
         self.vars.assign(ass.var_name, CrabValue::new(ptr.into(), value.crab_type))?;
         Ok(false)
     }
@@ -247,7 +247,7 @@ impl<NibType: Nib> Codegen<NibType> {
         trace!("Codegen::build_reassignment");
         let value = self.build_expression(reass.expr, None)?;
         let ptr = self.nib.add_alloca(value.quill_value.get_type());
-        self.nib.add_store(&ptr, &value)?;
+        self.nib.add_store(&ptr, &value.quill_value.get_type())?;
         self.vars.reassign(reass.var_name, CrabValue::new(ptr.into(), value.crab_type))?;
         Ok(false)
     }

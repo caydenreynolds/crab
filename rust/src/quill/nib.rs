@@ -12,7 +12,7 @@ use inkwell::values::{
     BasicMetadataValueEnum, BasicValue, BasicValueEnum, FunctionValue, IntValue, PointerValue,
 };
 use inkwell::{AddressSpace, IntPredicate};
-use log::{debug, trace};
+use log::trace;
 use std::convert::TryFrom;
 use std::fmt::Debug;
 
