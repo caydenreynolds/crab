@@ -6,7 +6,7 @@ use crate::parse::ast::{
     FnCall, Ident, IfStmt, NamedArg, PosParam, Primitive, Statement, StructFieldInit, StructId,
     StructInit, WhileStmt,
 };
-use crate::quill::{ArtifactType, ChildNib, FnNib, Nib, PolyQuillType, Quill, QuillBoolType, QuillFnType, QuillStructType, QuillValue};
+use crate::quill::{ArtifactType, ChildNib, FnNib, Nib, PolyQuillType, Quill, QuillBoolType, QuillFnType, QuillPointerType, QuillStructType, QuillValue};
 use crate::util::{int_struct_name, new_list_name, operator_add_name, primitive_field_name, ListFunctional, MapFunctional, SetFunctional, string_struct_name, length_field_name, capacity_field_name};
 use log::{debug, trace};
 use std::cell::RefCell;
@@ -224,7 +224,9 @@ impl<NibType: Nib> Codegen<NibType> {
     fn build_assignment(&mut self, ass: Assignment) -> Result<bool> {
         trace!("Codegen::build_assignment");
         let value = self.build_expression(ass.expr, None)?;
-        self.vars.assign(ass.var_name, value)?;
+        let ptr = self.nib.add_alloca(value.quill_value.get_type());
+        self.nib.add_store(&ptr, &value)?;
+        self.vars.assign(ass.var_name, CrabValue::new(ptr.into(), value.crab_type))?;
         Ok(false)
     }
 
@@ -244,7 +246,9 @@ impl<NibType: Nib> Codegen<NibType> {
     fn build_reassignment(&mut self, reass: Assignment) -> Result<bool> {
         trace!("Codegen::build_reassignment");
         let value = self.build_expression(reass.expr, None)?;
-        self.vars.reassign(reass.var_name, value)?;
+        let ptr = self.nib.add_alloca(value.quill_value.get_type());
+        self.nib.add_store(&ptr, &value)?;
+        self.vars.reassign(reass.var_name, CrabValue::new(ptr.into(), value.crab_type))?;
         Ok(false)
     }
 
@@ -383,7 +387,11 @@ impl<NibType: Nib> Codegen<NibType> {
             ExpressionType::FN_CALL(fc) => self.build_fn_call(fc, prev),
             ExpressionType::VARIABLE(id) => {
                 match prev {
-                    None => Ok(self.vars.get(&id)?.clone()),
+                    None => {
+                        let ptr: QuillValue<QuillPointerType> = self.vars.get(&id)?.clone().try_into()?;
+                        let loaded = self.nib.add_load(&ptr, QuillPointerType::new(QuillStructType::new(ptr.crab_type.try_get_struct_name()?)))?;
+                        Ok(loaded)
+                    },
                     Some(prev) => {
                         // Figure out what type of value we should get from the struct
                         let prev_strct = match prev.quill_value.get_type() {

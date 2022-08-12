@@ -11,7 +11,7 @@ use inkwell::types::AnyTypeEnum;
 use inkwell::values::{
     BasicMetadataValueEnum, BasicValue, BasicValueEnum, FunctionValue, IntValue, PointerValue,
 };
-use inkwell::IntPredicate;
+use inkwell::{AddressSpace, IntPredicate};
 use log::{debug, trace};
 use std::convert::TryFrom;
 use std::fmt::Debug;
@@ -23,24 +23,27 @@ pub type IntCmpType = IntPredicate;
 ///
 #[derive(Debug, Clone)]
 enum Instruction {
-    Return(Option<usize>),                                // Return value
+    Return(Option<usize>), // Return value
     ConditionalBranch(usize, ChildNib, Option<ChildNib>), // Condition id, t_branch, f_branch
-    UnconditionalBranch(ChildNib),                        // Child to branch to
-    ConditionalLoop(usize),                               // Condition id
+    UnconditionalBranch(ChildNib), // Child to branch to
+    ConditionalLoop(usize), // Condition id
     Unreachable,
     StructGet(usize, usize, String), // Source id, destination id, name of element to get
     StructSet(usize, usize, String), // Struct id, source id, name of element to set
-    ConstInt(usize, u32, u64),       // Value id, bit width, value
-    ConstBool(usize, bool),          // Value id, bool value
-    ConstString(usize, String),      // Id, value
-    Malloc(usize, PolyQuillType),    // Id, type
+    ConstInt(usize, u32, u64), // Value id, bit width, value
+    ConstBool(usize, bool), // Value id, bool value
+    ConstString(usize, String), // Id, value
+    Alloca(usize, PolyQuillType), // Ptr id, type
+    Malloc(usize, PolyQuillType), // Ptr id, type
+    Store(usize, usize), // Ptr id, val id
+    Load(usize, usize), // Ptr id, val id
     FnCall(String, usize, Vec<usize>), // Fn name, return id, positional params
-    FnParam(usize, String),          // Param id, param name
-    IntAdd(usize, usize, usize),     // Result id, lhs id, rhs id
+    FnParam(usize, String), // Param id, param name
+    IntAdd(usize, usize, usize), // Result id, lhs id, rhs id
     ListValueSet(usize, usize, usize), // List id, value id, index id
     ListValueGet(usize, usize, usize), // List id, value id, index id
-    ListCopy(usize, usize, usize, usize),   // Old list id, new list id, list len, dest index id
-    Free(usize),                     // Value id
+    ListCopy(usize, usize, usize, usize), // Old list id, new list id, list len, dest index id
+    Free(usize), // Value id
     IntCmp(usize, usize, usize, IntCmpType), // Lhs id, rhs id, result id, comparison type
 }
 
@@ -181,7 +184,20 @@ pub trait Nib: Debug {
     fn const_string(&mut self, value: String) -> QuillValue<QuillPointerType>;
 
     ///
+    /// Adds an alloca instruction to the Nib
+    /// This allocates stack memory
+    ///
+    /// Params:
+    /// * `t` - The type to malloc
+    ///
+    /// Returns:
+    /// A pointer to the created value
+    ///
+    fn add_alloca<T: QuillType>(&mut self, t: T) -> QuillValue<QuillPointerType>;
+
+    ///
     /// Adds a malloc instruction to the Nib
+    /// This allocates heap memory
     ///
     /// Params:
     /// * `t` - The type to malloc
@@ -190,6 +206,27 @@ pub trait Nib: Debug {
     /// A pointer to the created value
     ///
     fn add_malloc<T: QuillType>(&mut self, t: T) -> QuillValue<QuillPointerType>;
+
+    ///
+    /// Stores a value into a pointer
+    ///
+    /// Params:
+    /// * `ptr` - The pointer to store the value into
+    /// * `value` - The value to store
+    ///
+    fn add_store<T: QuillType>(&mut self, ptr: &QuillValue<QuillPointerType>, value: &QuillValue<T>) -> Result<()>;
+
+    ///
+    /// Loads a value from a pointer
+    ///
+    /// Params:
+    /// * `ptr` - The pointer to load the value from
+    /// * `t` - The type of the value to fetch
+    ///
+    /// Returns:
+    /// The loaded value
+    ///
+    fn add_load<T: QuillType>(&mut self, ptr: &QuillValue<QuillPointerType>, expected_type: T) -> Result<QuillValue<T>>;
 
     ///
     /// Add a function call to the Nib
@@ -425,8 +462,17 @@ impl Nib for FnNib {
     fn const_string(&mut self, value: String) -> QuillValue<QuillPointerType> {
         self.inner.const_string(value)
     }
+    fn add_alloca<T: QuillType>(&mut self, t: T) -> QuillValue<QuillPointerType> {
+        self.inner.add_alloca(t)
+    }
     fn add_malloc<T: QuillType>(&mut self, t: T) -> QuillValue<QuillPointerType> {
         self.inner.add_malloc(t)
+    }
+    fn add_store<T: QuillType>(&mut self, ptr: &QuillValue<QuillPointerType>, value: &QuillValue<T>) -> Result<()> {
+        self.inner.add_store(ptr, value)
+    }
+    fn add_load<T: QuillType>(&mut self, ptr: &QuillValue<QuillPointerType>, expected_type: T) -> Result<QuillValue<T>> {
+        self.inner.add_load(ptr, expected_type)
     }
     fn add_fn_call<T: QuillType>(
         &mut self,
@@ -776,6 +822,22 @@ impl ChildNib {
                     values.replace(id, Some(string_array.as_basic_value_enum()));
                 }
 
+                Instruction::Alloca(dest_id, q_type) => match q_type {
+                    PolyQuillType::PointerType(pt) => {
+                        match pt.get_inner_type() {
+                            PolyQuillType::StructType(qst) => {
+                                let l_t = module.get_struct_type(&qst.get_name())
+                                    .ok_or(QuillError::NoStruct(qst.get_name()))?
+                                    .ptr_type(AddressSpace::Generic);
+                                let ptr = builder.build_alloca(l_t, "struct_alloca");
+                                values.replace(dest_id, Some(ptr.as_basic_value_enum()));
+                            },
+                            _ => todo!(),
+                        }
+                    },
+                    _ => todo!(),
+                },
+
                 Instruction::Malloc(dest_id, q_type) => match q_type {
                     PolyQuillType::StructType(t) => {
                         let l_t = module
@@ -784,11 +846,6 @@ impl ChildNib {
                         let ptr = builder
                             .build_malloc(l_t, "struct_malloc")
                             .or(Err(QuillError::MallocErr))?;
-                        debug!(
-                            "values len: {}, id generator: {}",
-                            values.len(),
-                            self.id_generator
-                        );
                         values.replace(dest_id, Some(ptr.as_basic_value_enum()));
                     }
                     PolyQuillType::ListType(t) => {
@@ -808,12 +865,35 @@ impl ChildNib {
                             .or(Err(QuillError::MallocErr))?;
                         values.replace(dest_id, Some(ptr.as_basic_value_enum()));
                     }
-                    PolyQuillType::BoolType(_) => unimplemented!(),
-                    PolyQuillType::IntType(_) => unimplemented!(),
-                    PolyQuillType::FloatType(_) => unimplemented!(),
-                    PolyQuillType::FnType(_) => unimplemented!(),
-                    PolyQuillType::PointerType(_) => unimplemented!(),
-                    PolyQuillType::VoidType(_) => unimplemented!(),
+                    PolyQuillType::BoolType(_) => todo!(),
+                    PolyQuillType::IntType(_) => todo!(),
+                    PolyQuillType::FloatType(_) => todo!(),
+                    PolyQuillType::FnType(_) => todo!(),
+                    PolyQuillType::PointerType(_) => todo!(),
+                    PolyQuillType::VoidType(_) => todo!(),
+                },
+
+                Instruction::Store(ptr_id, value_id) => {
+                    let ptr = values
+                        .get(ptr_id)
+                        .unwrap()
+                        .ok_or(QuillError::BadValueAccess)?;
+                    let ptr_ptr = PointerValue::try_from(ptr).or(Err(QuillError::Convert))?;
+                    let value = values
+                        .get(value_id)
+                        .unwrap()
+                        .ok_or(QuillError::BadValueAccess)?;
+                    builder.build_store(ptr_ptr, value);
+                },
+
+                Instruction::Load(ptr_id, value_id) => {
+                    let ptr = values
+                        .get(ptr_id)
+                        .unwrap()
+                        .ok_or(QuillError::BadValueAccess)?;
+                    let ptr_ptr = PointerValue::try_from(ptr).or(Err(QuillError::Convert))?;
+                    let value = builder.build_load(ptr_ptr, value);
+                    values.replace(value_id, Some(value));
                 },
 
                 Instruction::FnCall(name, ret_id, pos_args) => {
@@ -1080,12 +1160,48 @@ impl Nib for ChildNib {
         v
     }
 
+    fn add_alloca<T: QuillType>(&mut self, t: T) -> QuillValue<QuillPointerType> {
+        self.instructions
+            .push(Instruction::Alloca(self.id_generator, t.clone().into()));
+        let v = QuillValue::new(self.id_generator, QuillPointerType::new(t));
+        self.id_generator += 1;
+        v
+    }
+
     fn add_malloc<T: QuillType>(&mut self, t: T) -> QuillValue<QuillPointerType> {
         self.instructions
             .push(Instruction::Malloc(self.id_generator, t.clone().into()));
         let v = QuillValue::new(self.id_generator, QuillPointerType::new(t));
         self.id_generator += 1;
         v
+    }
+
+    fn add_store<T: QuillType>(&mut self, ptr: &QuillValue<QuillPointerType>, value: &QuillValue<T>) -> Result<()> {
+        if ptr.get_type().get_inner_type() != value.get_type() {
+            Err(QuillError::WrongType(
+                format!("{:?}", ptr.get_type().get_inner_type()),
+                format!("{:?}", value.get_type()),
+                String::from("Nib::add_store"),
+            ))
+        } else {
+            self.instructions.push(Instruction::Store(ptr.id(), value.id()));
+            Ok(())
+        }
+    }
+
+    fn add_load<T: QuillType>(&mut self, ptr: &QuillValue<QuillPointerType>, expected_type: T) -> Result<QuillValue<T>> {
+        if ptr.get_type().get_inner_type() != expected_type {
+            Err(QuillError::WrongType(
+                format!("{:?}", ptr.get_type().get_inner_type()),
+                format!("{:?}", value),
+                String::from("Nib::add_load"),
+            ))
+        } else {
+            let v = QuillValue::new(self.id_generator, expected_type);
+            self.instructions.push(Instruction::Load(ptr.id(), self.id_generator));
+            self.id_generator += 1;
+            Ok(v)
+        }
     }
 
     fn add_fn_call<T: QuillType>(
