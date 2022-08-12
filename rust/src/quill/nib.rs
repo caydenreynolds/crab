@@ -193,7 +193,7 @@ pub trait Nib: Debug {
     /// Returns:
     /// A pointer to the created value
     ///
-    fn add_alloca<T: QuillType>(&mut self, t: T) -> QuillValue<QuillPointerType>;
+    fn add_alloca<T: QuillType>(&mut self, t: &T) -> QuillValue<QuillPointerType>;
 
     ///
     /// Adds a malloc instruction to the Nib
@@ -462,7 +462,7 @@ impl Nib for FnNib {
     fn const_string(&mut self, value: String) -> QuillValue<QuillPointerType> {
         self.inner.const_string(value)
     }
-    fn add_alloca<T: QuillType>(&mut self, t: T) -> QuillValue<QuillPointerType> {
+    fn add_alloca<T: QuillType>(&mut self, t: &T) -> QuillValue<QuillPointerType> {
         self.inner.add_alloca(t)
     }
     fn add_malloc<T: QuillType>(&mut self, t: T) -> QuillValue<QuillPointerType> {
@@ -892,7 +892,7 @@ impl ChildNib {
                         .unwrap()
                         .ok_or(QuillError::BadValueAccess)?;
                     let ptr_ptr = PointerValue::try_from(ptr).or(Err(QuillError::Convert))?;
-                    let value = builder.build_load(ptr_ptr, value);
+                    let value = builder.build_load(ptr_ptr, "load");
                     values.replace(value_id, Some(value));
                 },
 
@@ -1160,7 +1160,7 @@ impl Nib for ChildNib {
         v
     }
 
-    fn add_alloca<T: QuillType>(&mut self, t: T) -> QuillValue<QuillPointerType> {
+    fn add_alloca<T: QuillType>(&mut self, t: &T) -> QuillValue<QuillPointerType> {
         self.instructions
             .push(Instruction::Alloca(self.id_generator, t.clone().into()));
         let v = QuillValue::new(self.id_generator, QuillPointerType::new(t));
@@ -1193,7 +1193,7 @@ impl Nib for ChildNib {
         if ptr.get_type().get_inner_type() != expected_type {
             Err(QuillError::WrongType(
                 format!("{:?}", ptr.get_type().get_inner_type()),
-                format!("{:?}", value),
+                format!("{:?}", expected_type),
                 String::from("Nib::add_load"),
             ))
         } else {
