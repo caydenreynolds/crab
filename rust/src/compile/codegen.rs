@@ -388,8 +388,24 @@ impl<NibType: Nib> Codegen<NibType> {
             ExpressionType::VARIABLE(id) => {
                 match prev {
                     None => {
+                        // This is a pretty chonky couple lines of code, so it deserves a comment
+                        // TODO: None of this would be necessary if we used the following memory strategy:
+                        // TODO:  * Only alloc local var
+                        // TODO:  * Only malloc vars that pass a function boundary (this includes params and return values)
+                        // TODO:  * Everything else gets neither alloced nor malloced, and goes into whatever llvm's memory pipeline is
+                        // But I'm tired and I don't want to put in that big of a change right now
+                        // SO:
+                        // First, get the variable from the variable manager
+                        // Then, try to load the variable as if it were a local variable
+                        // If that fails, try to load the variable as if it were a function parameter
+                        // If that fails, report an error
+                        // If either of those steps succeed, proceed with the loaded value
                         let ptr = self.vars.get(&id)?;
-                        let loaded = self.nib.add_load(&ptr.quill_value.clone().try_into()?, QuillPointerType::new(QuillStructType::new(StructId::try_from(ptr.crab_type.clone())?.mangle())))?;
+                        let local_loaded_res = self.nib.add_load(&ptr.quill_value.clone().try_into()?, QuillPointerType::new(QuillStructType::new(StructId::try_from(ptr.crab_type.clone())?.mangle())));
+                        let loaded = match local_loaded_res {
+                            Ok(local_loaded) => Ok(local_loaded),
+                            Err(_) => self.nib.add_load(&ptr.quill_value.clone().try_into()?, QuillPointerType::new(QuillStructType::new(StructId::try_from(ptr.crab_type.clone())?.mangle())))
+                        }?;
                         Ok(CrabValue::new(loaded.into(), ptr.crab_type.clone()))
                     },
                     Some(prev) => {
