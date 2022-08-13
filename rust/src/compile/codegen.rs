@@ -248,7 +248,7 @@ impl<NibType: Nib> Codegen<NibType> {
         let value = self.build_expression(reass.expr, None)?;
         let ptr = self.vars.get(&reass.var_name)?;
         self.nib.add_store(&ptr.quill_value.clone().try_into()?, &value.quill_value)?;
-        self.vars.reassign(reass.var_name, CrabValue::new(ptr.into(), value.crab_type))?;
+        self.vars.reassign(reass.var_name, CrabValue::new(ptr.quill_value.clone().into(), value.crab_type))?;
         Ok(false)
     }
 
