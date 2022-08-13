@@ -389,7 +389,7 @@ impl<NibType: Nib> Codegen<NibType> {
                 match prev {
                     None => {
                         let ptr = self.vars.get(&id)?;
-                        let loaded = self.nib.add_load(&ptr.quill_value.clone().try_into()?, QuillPointerType::new(QuillStructType::new(ptr.crab_type.try_get_struct_name()?)))?;
+                        let loaded = self.nib.add_load(&ptr.quill_value.clone().try_into()?, QuillPointerType::new(QuillStructType::new(StructId::try_from(ptr.crab_type)?.mangle())))?;
                         Ok(CrabValue::new(loaded.into(), ptr.crab_type.clone()))
                     },
                     Some(prev) => {
