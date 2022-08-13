@@ -1177,7 +1177,7 @@ impl Nib for ChildNib {
     }
 
     fn add_store<T: QuillType>(&mut self, ptr: &QuillValue<QuillPointerType>, value: &QuillValue<T>) -> Result<()> {
-        if ptr.get_type().get_inner_type() != value.get_type().into() {
+        if ptr.get_type().get_inner_type() != value.get_type().clone().into() {
             Err(QuillError::WrongType(
                 format!("{:?}", ptr.get_type().get_inner_type()),
                 format!("{:?}", value.get_type()),

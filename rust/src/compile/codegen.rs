@@ -390,7 +390,7 @@ impl<NibType: Nib> Codegen<NibType> {
                     None => {
                         let ptr = self.vars.get(&id)?;
                         let loaded = self.nib.add_load(&ptr.quill_value.clone().try_into()?, QuillPointerType::new(QuillStructType::new(ptr.crab_type.try_get_struct_name()?)))?;
-                        Ok(loaded)
+                        Ok(CrabValue::new(loaded.into(), ptr.crab_type.clone()))
                     },
                     Some(prev) => {
                         // Figure out what type of value we should get from the struct
