@@ -1190,7 +1190,7 @@ impl Nib for ChildNib {
     }
 
     fn add_load<T: QuillType>(&mut self, ptr: &QuillValue<QuillPointerType>, expected_type: T) -> Result<QuillValue<T>> {
-        if ptr.get_type().get_inner_type() != expected_type.clone().into() {
+        if ptr.get_type() != expected_type.clone().into() {
             Err(QuillError::WrongType(
                 format!("{:?}", ptr.get_type().get_inner_type()),
                 format!("{:?}", expected_type),
