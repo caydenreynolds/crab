@@ -226,7 +226,7 @@ pub trait Nib: Debug {
     /// Returns:
     /// The loaded value
     ///
-    fn add_load<T: QuillType>(&mut self, ptr: &QuillValue<QuillPointerType>, expected_type: T) -> Result<QuillValue<QuillPointerType>>;
+    fn add_load<T: QuillType>(&mut self, ptr: &QuillValue<QuillPointerType>, expected_type: T) -> Result<QuillValue<T>>;
 
     ///
     /// Add a function call to the Nib
@@ -471,7 +471,7 @@ impl Nib for FnNib {
     fn add_store<T: QuillType>(&mut self, ptr: &QuillValue<QuillPointerType>, value: &QuillValue<T>) -> Result<()> {
         self.inner.add_store(ptr, value)
     }
-    fn add_load<T: QuillType>(&mut self, ptr: &QuillValue<QuillPointerType>, expected_type: T) -> Result<QuillValue<QuillPointerType>> {
+    fn add_load<T: QuillType>(&mut self, ptr: &QuillValue<QuillPointerType>, expected_type: T) -> Result<QuillValue<T>> {
         self.inner.add_load(ptr, expected_type)
     }
     fn add_fn_call<T: QuillType>(
@@ -1189,7 +1189,7 @@ impl Nib for ChildNib {
         }
     }
 
-    fn add_load<T: QuillType>(&mut self, ptr: &QuillValue<QuillPointerType>, expected_type: T) -> Result<QuillValue<QuillPointerType>> {
+    fn add_load<T: QuillType>(&mut self, ptr: &QuillValue<QuillPointerType>, expected_type: T) -> Result<QuillValue<T>> {
         if ptr.get_type().get_inner_type() != expected_type.clone().into() {
             Err(QuillError::WrongType(
                 format!("{:?}", ptr.get_type().get_inner_type()),
@@ -1197,7 +1197,7 @@ impl Nib for ChildNib {
                 String::from("Nib::add_load"),
             ))
         } else {
-            let v = QuillValue::new(self.id_generator, QuillPointerType::new(expected_type));
+            let v = QuillValue::new(self.id_generator, expected_type);
             self.instructions.push(Instruction::Load(ptr.id(), self.id_generator));
             self.id_generator += 1;
             Ok(v)
