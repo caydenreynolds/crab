@@ -404,7 +404,7 @@ impl<NibType: Nib> Codegen<NibType> {
                         let local_loaded_res = self.nib.add_load(&ptr.quill_value.clone().try_into()?, QuillPointerType::new(QuillStructType::new(StructId::try_from(ptr.crab_type.clone())?.mangle())));
                         let loaded = match local_loaded_res {
                             Ok(local_loaded) => Ok(local_loaded),
-                            Err(_) => self.nib.add_load(&ptr.quill_value.clone().try_into()?, QuillPointerType::new(QuillStructType::new(StructId::try_from(ptr.crab_type.clone())?.mangle())))
+                            Err(_) => ptr.quill_value.clone().try_into(),
                         }?;
                         Ok(CrabValue::new(loaded.into(), ptr.crab_type.clone()))
                     },
