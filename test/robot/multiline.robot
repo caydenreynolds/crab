@@ -26,3 +26,4 @@ Run Multiline Crabfiles
     list.crab
     advanced_string.crab
     if.crab
+    loop.crab
