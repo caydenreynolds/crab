@@ -4,5 +4,5 @@ am
 extra_string
 6
 7
-[1, 2, 3, 4, 5, 6,]
-[I, am, a, list, of, strings, extra_string,]
+[ 1, 2, 3, 4, 5, 6, ]
+[ I, am, a, list, of, strings, extra_string, ]

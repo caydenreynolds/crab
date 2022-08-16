@@ -70,7 +70,7 @@ impl List<T> {
             result = result + ","
             i = i + 1
         }
-        return result + "]"
+        return result + " ]"
     }
 }
 

@@ -1,5 +1,7 @@
 fn main() -> Int {
     print("This isn't your average, everyday string test".len())
-    print("String1" + "String2")
+    let short_string = "short" + " " + "string"
+    print(short_string.len())
+    print(short_string)
     return 0
 }

@@ -23,27 +23,27 @@ pub type IntCmpType = IntPredicate;
 ///
 #[derive(Debug, Clone)]
 enum Instruction {
-    Return(Option<usize>), // Return value
+    Return(Option<usize>),                                // Return value
     ConditionalBranch(usize, ChildNib, Option<ChildNib>), // Condition id, t_branch, f_branch
-    UnconditionalBranch(ChildNib), // Child to branch to
-    ConditionalLoop(usize), // Condition id
+    UnconditionalBranch(ChildNib),                        // Child to branch to
+    ConditionalLoop(usize),                               // Condition id
     Unreachable,
     StructGet(usize, usize, String), // Source id, destination id, name of element to get
     StructSet(usize, usize, String), // Struct id, source id, name of element to set
-    ConstInt(usize, u32, u64), // Value id, bit width, value
-    ConstBool(usize, bool), // Value id, bool value
-    ConstString(usize, String), // Id, value
-    Alloca(usize, PolyQuillType), // Ptr id, type
-    Malloc(usize, PolyQuillType), // Ptr id, type
-    Store(usize, usize), // Ptr id, val id
-    Load(usize, usize), // Ptr id, val id
+    ConstInt(usize, u32, u64),       // Value id, bit width, value
+    ConstBool(usize, bool),          // Value id, bool value
+    ConstString(usize, String),      // Id, value
+    Alloca(usize, PolyQuillType),    // Ptr id, type
+    Malloc(usize, PolyQuillType),    // Ptr id, type
+    Store(usize, usize),             // Ptr id, val id
+    Load(usize, usize),              // Ptr id, val id
     FnCall(String, usize, Vec<usize>), // Fn name, return id, positional params
-    FnParam(usize, String), // Param id, param name
-    IntAdd(usize, usize, usize), // Result id, lhs id, rhs id
+    FnParam(usize, String),          // Param id, param name
+    IntAdd(usize, usize, usize),     // Result id, lhs id, rhs id
     ListValueSet(usize, usize, usize), // List id, value id, index id
     ListValueGet(usize, usize, usize), // List id, value id, index id
     ListCopy(usize, usize, usize, usize), // Old list id, new list id, list len, dest index id
-    Free(usize), // Value id
+    Free(usize),                     // Value id
     IntCmp(usize, usize, usize, IntCmpType), // Lhs id, rhs id, result id, comparison type
 }
 
@@ -214,7 +214,11 @@ pub trait Nib: Debug {
     /// * `ptr` - The pointer to store the value into
     /// * `value` - The value to store
     ///
-    fn add_store<T: QuillType>(&mut self, ptr: &QuillValue<QuillPointerType>, value: &QuillValue<T>) -> Result<()>;
+    fn add_store<T: QuillType>(
+        &mut self,
+        ptr: &QuillValue<QuillPointerType>,
+        value: &QuillValue<T>,
+    ) -> Result<()>;
 
     ///
     /// Loads a value from a pointer
@@ -226,7 +230,11 @@ pub trait Nib: Debug {
     /// Returns:
     /// The loaded value
     ///
-    fn add_load<T: QuillType>(&mut self, ptr: &QuillValue<QuillPointerType>, expected_type: T) -> Result<QuillValue<T>>;
+    fn add_load<T: QuillType>(
+        &mut self,
+        ptr: &QuillValue<QuillPointerType>,
+        expected_type: T,
+    ) -> Result<QuillValue<T>>;
 
     ///
     /// Add a function call to the Nib
@@ -468,10 +476,18 @@ impl Nib for FnNib {
     fn add_malloc<T: QuillType>(&mut self, t: T) -> QuillValue<QuillPointerType> {
         self.inner.add_malloc(t)
     }
-    fn add_store<T: QuillType>(&mut self, ptr: &QuillValue<QuillPointerType>, value: &QuillValue<T>) -> Result<()> {
+    fn add_store<T: QuillType>(
+        &mut self,
+        ptr: &QuillValue<QuillPointerType>,
+        value: &QuillValue<T>,
+    ) -> Result<()> {
         self.inner.add_store(ptr, value)
     }
-    fn add_load<T: QuillType>(&mut self, ptr: &QuillValue<QuillPointerType>, expected_type: T) -> Result<QuillValue<T>> {
+    fn add_load<T: QuillType>(
+        &mut self,
+        ptr: &QuillValue<QuillPointerType>,
+        expected_type: T,
+    ) -> Result<QuillValue<T>> {
         self.inner.add_load(ptr, expected_type)
     }
     fn add_fn_call<T: QuillType>(
@@ -673,14 +689,14 @@ impl ChildNib {
                         t => Err(QuillError::WrongType(
                             format!("{:?}", t),
                             String::from("BoolValue"),
-                            String::from("Nib::commit::ConditionalLoop")
+                            String::from("Nib::commit::ConditionalLoop"),
                         )),
                     }?;
                     if cond.get_type().get_bit_width() != 1 {
                         return Err(QuillError::WrongType(
                             format!("Integer with width {}", cond.get_type().get_bit_width()),
                             String::from("BoolValue"),
-                            String::from("Nib::commit::ConditionalLoop")
+                            String::from("Nib::commit::ConditionalLoop"),
                         ));
                     }
                     builder.build_conditional_branch(
@@ -766,7 +782,7 @@ impl ChildNib {
                                     return Err(QuillError::WrongType(
                                         format!("{:?}", t),
                                         String::from("Struct pointer"),
-                                        String::from("Nib::commit::StructSet")
+                                        String::from("Nib::commit::StructSet"),
                                     ))
                                 }
                             }
@@ -775,7 +791,7 @@ impl ChildNib {
                             return Err(QuillError::WrongType(
                                 format!("{:?}", t),
                                 String::from("Struct pointer"),
-                                String::from("Nib::commit::StructSet")
+                                String::from("Nib::commit::StructSet"),
                             ))
                         }
                     }
@@ -810,9 +826,7 @@ impl ChildNib {
                         .build_global_string_ptr(&value, "str_ptr")
                         .as_pointer_value();
                     // Using value.len() means we don't copy the null byte
-                    let string_len = context
-                        .i64_type()
-                        .const_int(value.len() as u64, false);
+                    let string_len = context.i64_type().const_int(value.len() as u64, false);
                     let string_array = builder
                         .build_array_malloc(context.i8_type(), string_len, "const_string")
                         .or(Err(QuillError::MallocErr))?;
@@ -823,17 +837,16 @@ impl ChildNib {
                 }
 
                 Instruction::Alloca(dest_id, q_type) => match q_type {
-                    PolyQuillType::PointerType(pt) => {
-                        match pt.get_inner_type() {
-                            PolyQuillType::StructType(qst) => {
-                                let l_t = module.get_struct_type(&qst.get_name())
-                                    .ok_or(QuillError::NoStruct(qst.get_name()))?
-                                    .ptr_type(AddressSpace::Generic);
-                                let ptr = builder.build_alloca(l_t, "struct_alloca");
-                                values.replace(dest_id, Some(ptr.as_basic_value_enum()));
-                            },
-                            _ => todo!(),
+                    PolyQuillType::PointerType(pt) => match pt.get_inner_type() {
+                        PolyQuillType::StructType(qst) => {
+                            let l_t = module
+                                .get_struct_type(&qst.get_name())
+                                .ok_or(QuillError::NoStruct(qst.get_name()))?
+                                .ptr_type(AddressSpace::Generic);
+                            let ptr = builder.build_alloca(l_t, "struct_alloca");
+                            values.replace(dest_id, Some(ptr.as_basic_value_enum()));
                         }
+                        _ => todo!(),
                     },
                     _ => todo!(),
                 },
@@ -884,7 +897,7 @@ impl ChildNib {
                         .unwrap()
                         .ok_or(QuillError::BadValueAccess)?;
                     builder.build_store(ptr_ptr, value);
-                },
+                }
 
                 Instruction::Load(ptr_id, value_id) => {
                     let ptr = values
@@ -894,7 +907,7 @@ impl ChildNib {
                     let ptr_ptr = PointerValue::try_from(ptr).or(Err(QuillError::Convert))?;
                     let value = builder.build_load(ptr_ptr, "load");
                     values.replace(value_id, Some(value));
-                },
+                }
 
                 Instruction::FnCall(name, ret_id, pos_args) => {
                     let fn_l_t = module
@@ -931,7 +944,7 @@ impl ChildNib {
                         t => Err(QuillError::WrongType(
                             format!("{:?}", t),
                             String::from("IntValue"),
-                            String::from("Nib::commit::IntAdd")
+                            String::from("Nib::commit::IntAdd"),
                         )),
                     }?;
                     let rhs = values
@@ -943,7 +956,7 @@ impl ChildNib {
                         t => Err(QuillError::WrongType(
                             format!("{:?}", t),
                             String::from("IntValue"),
-                            String::from("Nib::commit::IntAdd")
+                            String::from("Nib::commit::IntAdd"),
                         )),
                     }?;
                     values.replace(
@@ -991,37 +1004,39 @@ impl ChildNib {
                     values.replace(value_id, Some(value));
                 },
 
-                Instruction::ListCopy(ol_id, nl_id, len_id, dest_index_id) => {
-                    unsafe {
-                        let ol = values
-                            .get(ol_id)
-                            .unwrap()
-                            .ok_or(QuillError::BadValueAccess)?;
-                        let nl = values
-                            .get(nl_id)
-                            .unwrap()
-                            .ok_or(QuillError::BadValueAccess)?;
-                        let len = values
-                            .get(len_id)
-                            .unwrap()
-                            .ok_or(QuillError::BadValueAccess)?;
-                        let dest_index = values
-                            .get(dest_index_id)
-                            .unwrap()
-                            .ok_or(QuillError::BadValueAccess)?;
-                        let nl_ptr = PointerValue::try_from(nl).or(Err(QuillError::Convert))?;
-                        let ol_ptr = PointerValue::try_from(ol).or(Err(QuillError::Convert))?;
-                        let dest_index_int = IntValue::try_from(dest_index).or(Err(QuillError::Convert))?;
-                        let len_val = IntValue::try_from(len).or(Err(QuillError::Convert))?;
-                        let byte_len =
-                            builder.build_int_mul(len_val, nl_ptr.get_type().size_of(), "byte_len");
-                        let byte_len_val = IntValue::try_from(byte_len).or(Err(QuillError::Convert))?;
-                        let dest_ptr = builder.build_gep(nl_ptr, &[dest_index_int], "dest_index");
-                        builder
-                            .build_memcpy(dest_ptr, 1, ol_ptr, 1, byte_len_val)
-                            .or(Err(QuillError::Memcpy))?;
-                    }
-                }
+                Instruction::ListCopy(ol_id, nl_id, len_id, dest_index_id) => unsafe {
+                    let ol = values
+                        .get(ol_id)
+                        .unwrap()
+                        .ok_or(QuillError::BadValueAccess)?;
+                    let nl = values
+                        .get(nl_id)
+                        .unwrap()
+                        .ok_or(QuillError::BadValueAccess)?;
+                    let len = values
+                        .get(len_id)
+                        .unwrap()
+                        .ok_or(QuillError::BadValueAccess)?;
+                    let dest_index = values
+                        .get(dest_index_id)
+                        .unwrap()
+                        .ok_or(QuillError::BadValueAccess)?;
+                    let nl_ptr = PointerValue::try_from(nl).or(Err(QuillError::Convert))?;
+                    let ol_ptr = PointerValue::try_from(ol).or(Err(QuillError::Convert))?;
+                    let dest_index_int =
+                        IntValue::try_from(dest_index).or(Err(QuillError::Convert))?;
+                    let len_val = IntValue::try_from(len).or(Err(QuillError::Convert))?;
+                    let byte_len = builder.build_int_mul(
+                        len_val,
+                        nl_ptr.get_type().get_element_type().size_of().unwrap(),
+                        "byte_len",
+                    );
+                    let byte_len_val = IntValue::try_from(byte_len).or(Err(QuillError::Convert))?;
+                    let dest_ptr = builder.build_gep(nl_ptr, &[dest_index_int], "dest_index");
+                    builder
+                        .build_memcpy(dest_ptr, 1, ol_ptr, 1, byte_len_val)
+                        .or(Err(QuillError::Memcpy))?;
+                },
 
                 Instruction::Free(val_id) => {
                     let val = values
@@ -1176,7 +1191,11 @@ impl Nib for ChildNib {
         v
     }
 
-    fn add_store<T: QuillType>(&mut self, ptr: &QuillValue<QuillPointerType>, value: &QuillValue<T>) -> Result<()> {
+    fn add_store<T: QuillType>(
+        &mut self,
+        ptr: &QuillValue<QuillPointerType>,
+        value: &QuillValue<T>,
+    ) -> Result<()> {
         if ptr.get_type().get_inner_type() != value.get_type().clone().into() {
             Err(QuillError::WrongType(
                 format!("{:?}", ptr.get_type().get_inner_type()),
@@ -1184,12 +1203,17 @@ impl Nib for ChildNib {
                 String::from("Nib::add_store"),
             ))
         } else {
-            self.instructions.push(Instruction::Store(ptr.id(), value.id()));
+            self.instructions
+                .push(Instruction::Store(ptr.id(), value.id()));
             Ok(())
         }
     }
 
-    fn add_load<T: QuillType>(&mut self, ptr: &QuillValue<QuillPointerType>, expected_type: T) -> Result<QuillValue<T>> {
+    fn add_load<T: QuillType>(
+        &mut self,
+        ptr: &QuillValue<QuillPointerType>,
+        expected_type: T,
+    ) -> Result<QuillValue<T>> {
         if ptr.get_type().get_inner_type() != expected_type.clone().into() {
             Err(QuillError::WrongType(
                 format!("{:?}", ptr.get_type().get_inner_type()),
@@ -1198,7 +1222,8 @@ impl Nib for ChildNib {
             ))
         } else {
             let v = QuillValue::new(self.id_generator, expected_type);
-            self.instructions.push(Instruction::Load(ptr.id(), self.id_generator));
+            self.instructions
+                .push(Instruction::Load(ptr.id(), self.id_generator));
             self.id_generator += 1;
             Ok(v)
         }
@@ -1255,7 +1280,7 @@ impl Nib for ChildNib {
             Err(QuillError::WrongType(
                 format!("{:?}", lv.get_type().get_inner_type()),
                 format!("{:?}", value.get_type()),
-                String::from("Nib::set_list_value")
+                String::from("Nib::set_list_value"),
             ))
         } else {
             self.instructions
@@ -1308,8 +1333,12 @@ impl Nib for ChildNib {
                 String::from("Nib::list_copy"),
             ))
         } else {
-            self.instructions
-                .push(Instruction::ListCopy(ol.id(), nl.id(), len.id(), dest_index.id()));
+            self.instructions.push(Instruction::ListCopy(
+                ol.id(),
+                nl.id(),
+                len.id(),
+                dest_index.id(),
+            ));
             Ok(())
         }
     }

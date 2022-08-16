@@ -4,7 +4,13 @@ use crate::quill::{
     FnNib, IntCmpType, Nib, PolyQuillType, Quill, QuillBoolType, QuillFloatType, QuillFnType,
     QuillIntType, QuillListType, QuillPointerType, QuillStructType, QuillVoidType,
 };
-use crate::util::{bool_struct_name, capacity_field_name, format_i_c_name, get_fn_name, int_struct_name, length_field_name, list_struct_name, magic_main_func_name, main_func_name, new_list_name, operator_add_name, primitive_field_name, printf_c_name, printf_crab_name, string_struct_name, to_string_name, ListFunctional, MapFunctional, strlen_c_name, length_fn_name, operator_lt_name, inner_add_fn_name};
+use crate::util::{
+    bool_struct_name, capacity_field_name, format_i_c_name, get_fn_name, inner_add_fn_name,
+    int_struct_name, length_field_name, length_fn_name, list_struct_name, magic_main_func_name,
+    main_func_name, new_list_name, operator_add_name, operator_lt_name, primitive_field_name,
+    printf_c_name, printf_crab_name, string_struct_name, strlen_c_name, to_string_name,
+    ListFunctional, MapFunctional,
+};
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 use std::convert::TryInto;
@@ -69,7 +75,7 @@ fn init_builtin_fn_map() -> FnNameMap {
         (
             mangle_fn_name(&inner_add_fn_name(), &string_struct_name()),
             string_add_fn as FnDefFn,
-        )
+        ),
     ]);
     map
 }
@@ -102,7 +108,9 @@ fn init_builtin_strct_map() -> StrctNameMap {
             HashMap::from([
                 (
                     primitive_field_name(),
-                    StructTypeResolver::QuillType(QuillPointerType::new(QuillIntType::new(8)).into()),
+                    StructTypeResolver::QuillType(
+                        QuillPointerType::new(QuillIntType::new(8)).into(),
+                    ),
                 ),
                 (
                     length_field_name(),
@@ -196,9 +204,7 @@ pub(super) fn add_builtin_definition(
     let fn_name = mangle_fn_name(fn_name, &caller_name);
     FN_BUILTIN_NAME_MAP
         .get(&fn_name)
-        .ok_or(CompileError::CouldNotFindFunction(fn_name))?(
-        peter, nib, caller_opt, tmpls,
-    )
+        .ok_or(CompileError::CouldNotFindFunction(fn_name))?(peter, nib, caller_opt, tmpls)
 }
 
 pub(super) fn get_builtin_strct_definition(
@@ -228,10 +234,7 @@ fn add_printf(
             String::from("0"),
             QuillPointerType::new(QuillIntType::new(8)).into(),
         ),
-        (
-            String::from("1"),
-            QuillIntType::new(64).into(),
-        ),
+        (String::from("1"), QuillIntType::new(64).into()),
     ];
     peter.register_external_fn(
         printf_c_name(),
@@ -248,11 +251,7 @@ fn add_printf(
         primitive_field_name(),
         QuillPointerType::new(QuillIntType::new(8)),
     )?;
-    let len = nib.get_value_from_struct(
-        &fn_param,
-        length_field_name(),
-        QuillIntType::new(64),
-    )?;
+    let len = nib.get_value_from_struct(&fn_param, length_field_name(), QuillIntType::new(64))?;
     nib.add_fn_call(
         printf_c_name(),
         vec![char_star.into(), len.into()],
@@ -284,21 +283,15 @@ fn string_add_fn(
         primitive_field_name(),
         QuillPointerType::new(QuillIntType::new(8)),
     )?;
-    let self_len = nib.get_value_from_struct(
-        &self_str,
-        length_field_name(),
-        QuillIntType::new(64),
-    )?;
+    let self_len =
+        nib.get_value_from_struct(&self_str, length_field_name(), QuillIntType::new(64))?;
     let other_char_star = nib.get_value_from_struct(
         &other_str,
         primitive_field_name(),
         QuillPointerType::new(QuillIntType::new(8)),
     )?;
-    let other_len = nib.get_value_from_struct(
-        &other_str,
-        length_field_name(),
-        QuillIntType::new(64),
-    )?;
+    let other_len =
+        nib.get_value_from_struct(&other_str, length_field_name(), QuillIntType::new(64))?;
 
     let new_len = nib.int_add(&self_len, &other_len)?;
     let new_char_star = nib.add_malloc(QuillListType::new_var_length(
@@ -383,7 +376,9 @@ fn list_add_fn(
     let old_t_star = then_nib.get_value_from_struct(
         &list,
         primitive_field_name(),
-        QuillPointerType::new(QuillPointerType::new(QuillStructType::new(caller.tmpls[0].mangle()))),
+        QuillPointerType::new(QuillPointerType::new(QuillStructType::new(
+            caller.tmpls[0].mangle(),
+        ))),
     )?;
     let zero = then_nib.const_int(64, 0);
     then_nib.list_copy(&old_t_star, &new_t_star, &capacity, &zero)?;
@@ -402,7 +397,9 @@ fn list_add_fn(
     let t_star = nib.get_value_from_struct(
         &list,
         primitive_field_name(),
-        QuillPointerType::new(QuillPointerType::new(QuillStructType::new(caller.tmpls[0].mangle()))),
+        QuillPointerType::new(QuillPointerType::new(QuillStructType::new(
+            caller.tmpls[0].mangle(),
+        ))),
     )?;
     nib.set_list_value(&t_star, &element, &length)?;
     let one = nib.const_int(64, 1);
@@ -439,7 +436,9 @@ fn list_get_fn(
     let t_star = nib.get_value_from_struct(
         &list,
         primitive_field_name(),
-        QuillPointerType::new(QuillPointerType::new(QuillStructType::new(caller.tmpls[0].mangle()))),
+        QuillPointerType::new(QuillPointerType::new(QuillStructType::new(
+            caller.tmpls[0].mangle(),
+        ))),
     )?;
     let index_value =
         nib.get_value_from_struct(&index, primitive_field_name(), QuillIntType::new(64))?;
@@ -462,7 +461,7 @@ fn list_len_fn(
                 name: list_struct_name(),
                 tmpls: caller.tmpls.clone(),
             }
-                .mangle(),
+            .mangle(),
         )),
     );
 
@@ -483,9 +482,7 @@ fn int_lt_fn(_: &mut Quill, nib: &mut FnNib, _: Option<StructId>, _: Vec<StructI
         String::from("other"),
         QuillPointerType::new(QuillStructType::new(int_name_mangled())),
     );
-    let ret_val = nib.add_malloc(
-        QuillStructType::new(bool_name_mangled())
-    );
+    let ret_val = nib.add_malloc(QuillStructType::new(bool_name_mangled()));
 
     let self_int =
         nib.get_value_from_struct(&self_arg, primitive_field_name(), QuillIntType::new(64))?;
@@ -548,7 +545,10 @@ fn format_i(
         nib.get_value_from_struct(&self_arg, primitive_field_name(), QuillIntType::new(64))?;
 
     let arbitrary_capacity = 50;
-    let char_star = nib.add_malloc(QuillListType::new_const_length(QuillIntType::new(8), arbitrary_capacity));
+    let char_star = nib.add_malloc(QuillListType::new_const_length(
+        QuillIntType::new(8),
+        arbitrary_capacity,
+    ));
     let ret_val = nib.add_malloc(QuillStructType::new(string_name_mangled()));
     nib.add_fn_call(
         format_i_c_name(),
@@ -558,12 +558,10 @@ fn format_i(
     nib.set_value_in_struct(&ret_val, primitive_field_name(), &char_star)?;
 
     // Calculate actual string length
-    let params = vec![
-        (
-            String::from("0"),
-            QuillPointerType::new(QuillIntType::new(8)).into(),
-        ),
-    ];
+    let params = vec![(
+        String::from("0"),
+        QuillPointerType::new(QuillIntType::new(8)).into(),
+    )];
     peter.register_external_fn(
         strlen_c_name(),
         QuillFnType::new(Some(QuillIntType::new(64)), params),
@@ -619,4 +617,6 @@ fn int_name_mangled() -> String {
 fn string_name_mangled() -> String {
     StructId::from_name(string_struct_name()).mangle()
 }
-fn bool_name_mangled() -> String { StructId::from_name(bool_struct_name()).mangle() }
+fn bool_name_mangled() -> String {
+    StructId::from_name(bool_struct_name()).mangle()
+}

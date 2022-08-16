@@ -6,8 +6,14 @@ use crate::parse::ast::{
     FnCall, Ident, IfStmt, NamedArg, PosParam, Primitive, Statement, StructFieldInit, StructId,
     StructInit, WhileStmt,
 };
-use crate::quill::{ArtifactType, ChildNib, FnNib, Nib, PolyQuillType, Quill, QuillBoolType, QuillFnType, QuillPointerType, QuillStructType, QuillValue};
-use crate::util::{int_struct_name, new_list_name, operator_add_name, primitive_field_name, ListFunctional, MapFunctional, SetFunctional, string_struct_name, length_field_name, capacity_field_name};
+use crate::quill::{
+    ArtifactType, ChildNib, FnNib, Nib, PolyQuillType, Quill, QuillBoolType, QuillFnType,
+    QuillPointerType, QuillStructType, QuillValue,
+};
+use crate::util::{
+    capacity_field_name, int_struct_name, length_field_name, new_list_name, operator_add_name,
+    primitive_field_name, string_struct_name, ListFunctional, MapFunctional, SetFunctional,
+};
 use log::{debug, trace};
 use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -226,7 +232,8 @@ impl<NibType: Nib> Codegen<NibType> {
         let value = self.build_expression(ass.expr, None)?;
         let ptr = self.nib.add_alloca(value.quill_value.get_type().clone());
         self.nib.add_store(&ptr, &value.quill_value)?;
-        self.vars.assign(ass.var_name, CrabValue::new(ptr.into(), value.crab_type))?;
+        self.vars
+            .assign(ass.var_name, CrabValue::new(ptr.into(), value.crab_type))?;
         Ok(false)
     }
 
@@ -247,8 +254,12 @@ impl<NibType: Nib> Codegen<NibType> {
         trace!("Codegen::build_reassignment");
         let value = self.build_expression(reass.expr, None)?;
         let ptr = self.vars.get(&reass.var_name)?.clone();
-        self.nib.add_store(&ptr.quill_value.clone().try_into()?, &value.quill_value)?;
-        self.vars.reassign(reass.var_name, CrabValue::new(ptr.quill_value.into(), value.crab_type))?;
+        self.nib
+            .add_store(&ptr.quill_value.clone().try_into()?, &value.quill_value)?;
+        self.vars.reassign(
+            reass.var_name,
+            CrabValue::new(ptr.quill_value.into(), value.crab_type),
+        )?;
         Ok(false)
     }
 
@@ -401,13 +412,18 @@ impl<NibType: Nib> Codegen<NibType> {
                         // If that fails, report an error
                         // If either of those steps succeed, proceed with the loaded value
                         let ptr = self.vars.get(&id)?;
-                        let local_loaded_res = self.nib.add_load(&ptr.quill_value.clone().try_into()?, QuillPointerType::new(QuillStructType::new(StructId::try_from(ptr.crab_type.clone())?.mangle())));
+                        let local_loaded_res = self.nib.add_load(
+                            &ptr.quill_value.clone().try_into()?,
+                            QuillPointerType::new(QuillStructType::new(
+                                StructId::try_from(ptr.crab_type.clone())?.mangle(),
+                            )),
+                        );
                         let loaded = match local_loaded_res {
                             Ok(local_loaded) => Ok(local_loaded),
                             Err(_) => ptr.quill_value.clone().try_into(),
                         }?;
                         Ok(CrabValue::new(loaded.into(), ptr.crab_type.clone()))
-                    },
+                    }
                     Some(prev) => {
                         // Figure out what type of value we should get from the struct
                         let prev_strct = match prev.quill_value.get_type() {
@@ -493,14 +509,23 @@ impl<NibType: Nib> Codegen<NibType> {
     fn build_str_prim(&mut self, string: String) -> Result<CrabValue> {
         let str_len = string.len();
         let string_buf = self.nib.const_string(string);
-        let struct_t = self.types.borrow_mut().get_quill_struct(&CrabType::SIMPLE(string_struct_name()))?;
+        let struct_t = self
+            .types
+            .borrow_mut()
+            .get_quill_struct(&CrabType::SIMPLE(string_struct_name()))?;
         let string_str = self.nib.add_malloc(struct_t.clone());
         let length = self.nib.const_int(64, str_len as u64);
-        self.nib.set_value_in_struct(&string_str, primitive_field_name(), &string_buf)?;
-        self.nib.set_value_in_struct(&string_str, length_field_name(), &length)?;
-        self.nib.set_value_in_struct(&string_str, capacity_field_name(), &length)?;
+        self.nib
+            .set_value_in_struct(&string_str, primitive_field_name(), &string_buf)?;
+        self.nib
+            .set_value_in_struct(&string_str, length_field_name(), &length)?;
+        self.nib
+            .set_value_in_struct(&string_str, capacity_field_name(), &length)?;
 
-        Ok(CrabValue::new(string_str.into(), CrabType::SIMPLE(string_struct_name())))
+        Ok(CrabValue::new(
+            string_str.into(),
+            CrabType::SIMPLE(string_struct_name()),
+        ))
     }
 
     fn build_list_prim(&mut self, exprs: Vec<Expression>) -> Result<CrabValue> {
@@ -617,7 +642,6 @@ impl<NibType: Nib> Codegen<NibType> {
     fn build_fn_call(&mut self, call: FnCall, caller_opt: Option<CrabValue>) -> Result<CrabValue> {
         trace!("Codegen::build_fn_call");
         // Get the original function
-        // TODO: Once we have namespaces and stuff, we should only be manging inside fn_manager
         let caller_ct = caller_opt.clone().map(|caller| caller.crab_type);
         let source_signature = self
             .fns
