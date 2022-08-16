@@ -24,3 +24,6 @@ Run Multiline Crabfiles
     [Template]  The Crabfile "${crabfile}" is built and the results are compared against a file"
     struct_tmpl.crab
     list.crab
+    advanced_string.crab
+    if.crab
+    loop.crab

@@ -6,8 +6,8 @@ Library           String
 
 *** Test Cases ***
 Run loop test
-    The Crabfile "loop.crab" is built
-    ${process} =  The "loop" Crab application is started
+    The Crabfile "inf_loop.crab" is built
+    ${process} =  The "inf_loop" Crab application is started
     Sleep  5s  Give the loop some time to do its thing
     Process Should be Running  ${process}
     ${result} =  Terminate Process  ${process}

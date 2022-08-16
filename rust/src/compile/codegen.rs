@@ -8,11 +8,11 @@ use crate::parse::ast::{
 };
 use crate::quill::{
     ArtifactType, ChildNib, FnNib, Nib, PolyQuillType, Quill, QuillBoolType, QuillFnType,
-    QuillStructType, QuillValue,
+    QuillPointerType, QuillStructType, QuillValue,
 };
 use crate::util::{
-    int_struct_name, new_list_name, operator_add_name, primitive_field_name, ListFunctional,
-    MapFunctional, SetFunctional,
+    capacity_field_name, int_struct_name, length_field_name, new_list_name, operator_add_name,
+    primitive_field_name, string_struct_name, ListFunctional, MapFunctional, SetFunctional,
 };
 use log::{debug, trace};
 use std::cell::RefCell;
@@ -230,7 +230,10 @@ impl<NibType: Nib> Codegen<NibType> {
     fn build_assignment(&mut self, ass: Assignment) -> Result<bool> {
         trace!("Codegen::build_assignment");
         let value = self.build_expression(ass.expr, None)?;
-        self.vars.assign(ass.var_name, value)?;
+        let ptr = self.nib.add_alloca(value.quill_value.get_type().clone());
+        self.nib.add_store(&ptr, &value.quill_value)?;
+        self.vars
+            .assign(ass.var_name, CrabValue::new(ptr.into(), value.crab_type))?;
         Ok(false)
     }
 
@@ -250,7 +253,13 @@ impl<NibType: Nib> Codegen<NibType> {
     fn build_reassignment(&mut self, reass: Assignment) -> Result<bool> {
         trace!("Codegen::build_reassignment");
         let value = self.build_expression(reass.expr, None)?;
-        self.vars.reassign(reass.var_name, value)?;
+        let ptr = self.vars.get(&reass.var_name)?.clone();
+        self.nib
+            .add_store(&ptr.quill_value.clone().try_into()?, &value.quill_value)?;
+        self.vars.reassign(
+            reass.var_name,
+            CrabValue::new(ptr.quill_value.into(), value.crab_type),
+        )?;
         Ok(false)
     }
 
@@ -389,7 +398,32 @@ impl<NibType: Nib> Codegen<NibType> {
             ExpressionType::FN_CALL(fc) => self.build_fn_call(fc, prev),
             ExpressionType::VARIABLE(id) => {
                 match prev {
-                    None => Ok(self.vars.get(&id)?.clone()),
+                    None => {
+                        // This is a pretty chonky couple lines of code, so it deserves a comment
+                        // TODO: None of this would be necessary if we used the following memory strategy:
+                        // TODO:  * Only alloc local var
+                        // TODO:  * Only malloc vars that pass a function boundary (this includes params and return values)
+                        // TODO:  * Everything else gets neither alloced nor malloced, and goes into whatever llvm's memory pipeline is
+                        // But I'm tired and I don't want to put in that big of a change right now
+                        // SO:
+                        // First, get the variable from the variable manager
+                        // Then, try to load the variable as if it were a local variable
+                        // If that fails, try to load the variable as if it were a function parameter
+                        // If that fails, report an error
+                        // If either of those steps succeed, proceed with the loaded value
+                        let ptr = self.vars.get(&id)?;
+                        let local_loaded_res = self.nib.add_load(
+                            &ptr.quill_value.clone().try_into()?,
+                            QuillPointerType::new(QuillStructType::new(
+                                StructId::try_from(ptr.crab_type.clone())?.mangle(),
+                            )),
+                        );
+                        let loaded = match local_loaded_res {
+                            Ok(local_loaded) => Ok(local_loaded),
+                            Err(_) => ptr.quill_value.clone().try_into(),
+                        }?;
+                        Ok(CrabValue::new(loaded.into(), ptr.crab_type.clone()))
+                    }
                     Some(prev) => {
                         // Figure out what type of value we should get from the struct
                         let prev_strct = match prev.quill_value.get_type() {
@@ -459,10 +493,7 @@ impl<NibType: Nib> Codegen<NibType> {
     fn build_primitive(&mut self, prim: Primitive) -> Result<CrabValue> {
         trace!("Codegen::build_primitive");
         match prim {
-            Primitive::STRING(value) => Ok(CrabValue::new(
-                self.nib.const_string(value).into(),
-                CrabType::PRIM_STR,
-            )),
+            Primitive::STRING(value) => self.build_str_prim(value),
             Primitive::BOOL(value) => Ok(CrabValue::new(
                 self.nib.const_bool(value).into(),
                 CrabType::PRIM_BOOL,
@@ -473,6 +504,28 @@ impl<NibType: Nib> Codegen<NibType> {
             )),
             Primitive::LIST(exprs) => self.build_list_prim(exprs),
         }
+    }
+
+    fn build_str_prim(&mut self, string: String) -> Result<CrabValue> {
+        let str_len = string.len();
+        let string_buf = self.nib.const_string(string);
+        let struct_t = self
+            .types
+            .borrow_mut()
+            .get_quill_struct(&CrabType::SIMPLE(string_struct_name()))?;
+        let string_str = self.nib.add_malloc(struct_t.clone());
+        let length = self.nib.const_int(64, str_len as u64);
+        self.nib
+            .set_value_in_struct(&string_str, primitive_field_name(), &string_buf)?;
+        self.nib
+            .set_value_in_struct(&string_str, length_field_name(), &length)?;
+        self.nib
+            .set_value_in_struct(&string_str, capacity_field_name(), &length)?;
+
+        Ok(CrabValue::new(
+            string_str.into(),
+            CrabType::SIMPLE(string_struct_name()),
+        ))
     }
 
     fn build_list_prim(&mut self, exprs: Vec<Expression>) -> Result<CrabValue> {
@@ -577,7 +630,6 @@ impl<NibType: Nib> Codegen<NibType> {
                     name,
                 )),
             })?;
-        //TODO: free
         let struct_t = self.types.borrow_mut().get_quill_struct(&struct_id)?;
         let new_struct_ptr = self.nib.add_malloc(struct_t);
         fields.into_iter().try_for_each(|(name, value)| {
@@ -590,7 +642,6 @@ impl<NibType: Nib> Codegen<NibType> {
     fn build_fn_call(&mut self, call: FnCall, caller_opt: Option<CrabValue>) -> Result<CrabValue> {
         trace!("Codegen::build_fn_call");
         // Get the original function
-        // TODO: Once we have namespaces and stuff, we should only be manging inside fn_manager
         let caller_ct = caller_opt.clone().map(|caller| caller.crab_type);
         let source_signature = self
             .fns

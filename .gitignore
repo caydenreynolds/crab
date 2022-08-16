@@ -14,8 +14,9 @@ crab_env/
 # Remote transfer artifacts
 *.tar.gz
 
-# Stray build bartifacts
+# Stray build artifacts
 *.ll
 *.bc
 *.exe
 *.qir
+*.ast

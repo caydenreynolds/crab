@@ -8,10 +8,26 @@ struct String {
 
 intr String {
     Printable,
+    Addable,
 }
 
 impl String {
     fn toString() -> String {
         return self
+    }
+
+    fn operatorAdd(Printable other) -> String {
+        return self.__inner_add__(other.toString())
+    }
+
+    ///
+    /// Returns a new string that is equal to other appended to self
+    ///
+    fn __inner_add__(String other) -> String {
+        (V) '--' (V)
+    }
+
+    fn len() -> Int {
+        (V) '--' (V)
     }
 }

@@ -3,7 +3,7 @@ use crate::parse::ast::{
 };
 use crate::parse::ParseError::ExpectedInner;
 use crate::parse::{ParseError, Result, Rule};
-use crate::util::{bool_struct_name, int_struct_name, primitive_field_name, string_struct_name};
+use crate::util::{bool_struct_name, int_struct_name, primitive_field_name};
 use crate::util::{
     operator_add_name, operator_div_name, operator_eq_name, operator_gt_name, operator_gte_name,
     operator_lsh_name, operator_lt_name, operator_lte_name, operator_mult_name, operator_rsh_name,
@@ -82,7 +82,9 @@ impl AstNode for Expression {
         let mut inner = inner.skip(expr.get_depth() - 1);
 
         // If there is an operator, add the appropriate function call to the end of the expression chain
-        //TODO: Order of operations
+        // TODO: Order of operations
+        // TODO: Because operators do not take hte proper order when several additions are chained in one expression
+        // TODO: Types may not resolve properly when the operands have different types
         if let Some(operator_pair) = inner.next() {
             let operator = Operator::try_from(operator_pair)?;
             let arg = Expression::try_from(inner.next().ok_or(ExpectedInner)?)?;
@@ -141,16 +143,6 @@ impl TryFrom<Pair<'_, Rule>> for ExpressionType {
                 match &prim {
                     Primitive::UINT(_) => Ok(Self::STRUCT_INIT(StructInit {
                         id: CrabType::SIMPLE(int_struct_name()),
-                        fields: vec![StructFieldInit {
-                            name: primitive_field_name(),
-                            value: Expression {
-                                this: ExpressionType::PRIM(prim),
-                                next: None,
-                            },
-                        }],
-                    })),
-                    Primitive::STRING(_) => Ok(Self::STRUCT_INIT(StructInit {
-                        id: CrabType::SIMPLE(string_struct_name()),
                         fields: vec![StructFieldInit {
                             name: primitive_field_name(),
                             value: Expression {

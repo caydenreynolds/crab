@@ -28,7 +28,10 @@ pub fn magic_main_func_name() -> Ident {
     Ident::from("__main__")
 }
 pub fn printf_c_name() -> Ident {
-    Ident::from("printf")
+    Ident::from("__c_print_str__")
+}
+pub fn strlen_c_name() -> Ident {
+    Ident::from("__c_strlen__")
 }
 pub fn printf_crab_name() -> Ident {
     Ident::from("__printf__")
@@ -41,6 +44,12 @@ pub fn new_list_name() -> Ident {
 }
 pub fn get_fn_name() -> Ident {
     Ident::from("get")
+}
+pub fn length_fn_name() -> Ident {
+    Ident::from("len")
+}
+pub fn inner_add_fn_name() -> Ident {
+    Ident::from("__inner_add__")
 }
 
 pub fn operator_add_name() -> Ident {

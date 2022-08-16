@@ -40,7 +40,11 @@ macro_rules! poly_value_convert {
             fn try_from(value: QuillValue<PolyQuillType>) -> Result<Self, Self::Error> {
                 match value.get_type() {
                     PolyQuillType::$poly_quill_type(pt) => Ok(Self::new(value.id(), pt.clone())),
-                    _ => Err(QuillError::WrongType(format!("{:?}", value), String::from(stringify!($quill_type))))
+                    _ => Err(QuillError::WrongType(
+                        format!("{:?}", value),
+                        String::from(stringify!($quill_type)),
+                        String::from(format!("QuillValue<{}>::try_from(QuillValue<PolyQuillType>)", stringify!($quill_type))),
+                    ))
                 }
             }
         }

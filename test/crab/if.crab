@@ -12,5 +12,11 @@ fn so_ugly() -> Int {
     } else {
         print("passed")
     }
+
+    if 1 < 2 {
+        print("passed")
+    } else {
+        print("failed")
+    }
     return a_variable
 }

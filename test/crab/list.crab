@@ -11,5 +11,11 @@ fn main() -> Int {
     print(int_list.get(5))
     print(string_list.get(6))
 
+    print(int_list.len())
+    print(string_list.len())
+
+    print(int_list)
+    print(string_list)
+
     return 0
 }
